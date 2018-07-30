@@ -136,7 +136,7 @@ def main():
     # add_tbl_0_to_all_sws()
     # list_friendly_switch_names()
     # p.pprint(query_topology_links())
-    p.pprint(sw_to_host_list())
+    # p.pprint(sw_to_host_list())
     
 
 

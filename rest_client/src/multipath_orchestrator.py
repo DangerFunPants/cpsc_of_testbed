@@ -3,7 +3,8 @@ import of_rest_client as of
 import flowmod as fm
 import host_mapper as hm
 import params as cfg
-import paramiko as ssh_lib
+import paramiko as ssh
+import util as util
 
 class MPRouteAdder:
     
@@ -63,23 +64,43 @@ class MPRouteAdder:
 class Host:
     """
     Class: Host
-    Purpose: Allow consumers to execute commands on remote hosts.
+    Purpose: Encapsulate parameters and functionality related to individual 
+    end hosts. Will allow consumers to run bash commands on the host.
     """
 
-    def __init__(self, host_name):
+    def __init__( self
+                , host_name
+                , rem_uname
+                , rem_pw
+                , ssh_port=22 ):
         self.host_name = host_name
-        mapper = hm.HostMapper([cfg.man_net_dns_ip],
+        self.ssh_port = ssh_port
+        self.rem_uname = uname
+        self.rem_pw = pw
+        self.ssh_tunnel = None
+
+        if util.is_ip_addr(host_name):
+            self.host_ip = host_name
+        else:
+            mapper = hm.HostMapper([cfg.man_net_dns_ip], 
                 cfg.of_controller_ip, cfg.of_controller_port)
-        self.host_ip = mapper.resolve_hostname(self.host_name)
+            self.host_ip = mapper.resolve_hostname(self.host_name)
 
-    def mk_ssh_client(self):
-        conn = ssh_lib.SSHClient()
-        conn.connect(self.host_ip, username=cfg.host_uname,
-                password=cfg.host_pw)
-        return conn
+    def connect():
+        self.ssh_tunnel = ssh.SSHClient()
+        self.ssh_tunnel.set_missing_host_key_policy(ssh.AutoAddPolicy())
+        self.ssh_tunnel.connect(self.host_ip, self.ssh_port)
+    
+    def disconnect():
+        self.ssh_tunnel.close()
+        self.ssh_tunnel = None
 
-    def exec_command(self, command_str):
-        conn = self.mk_ssh_client()
-        conn.exec_command(command_str)
-
-
+    def exec_command(command):
+        if self.ssh_tunnel:
+            _,stdout,stderr = self.ssh_tunnel.exec_command(command)
+        else:
+            self.connect()
+            _,stdout,stderr = self.ssh_tunnel.exec_command(command)
+            self.disconnect()
+        return (stdout,stderr)
+    

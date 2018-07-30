@@ -18,7 +18,7 @@ class HostMapper:
         resolver = dns.Resolver()
         answers = resolver.query(hostname, 'A')
         if answers:
-            return answers[0].address
+            return answers[0]
         else: 
             return None 
     
@@ -60,11 +60,8 @@ class HostMapper:
             host_name = self.map_sw_to_host(sw_num)
             # Now lookup the IP of the host
             fqdn = self.qualify_host_domain(host_name)
-            try:
-                host_ip = self.resolve_hostname(fqdn)
-                res[sw_dpid] = host_ip
-            except dns.NXDOMAIN:
-                pass
+            host_ip = self.resolve_hostname(fqdn)
+            res[sw_dpid] = host_ip
         return res
             
         

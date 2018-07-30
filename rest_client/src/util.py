@@ -1,3 +1,8 @@
+import re
+
+def is_ip_addr(data):
+    ip_regex = re.compile('([0-9]{1,3}\.){3}([0-9]{1,3})')
+    return ip_regex.match(data)
 
 def dpid_fmt(dpid):
     return '{:016x}'.format(dpid)

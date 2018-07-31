@@ -14,6 +14,16 @@ def query_flow_stats(dpid):
     print(resp)
     p.pprint(flows)
 
+def print_all_flows():
+    req = of.SwitchList(cfg.of_controller_ip, cfg.of_controller_port)
+    sws = req.get_response().get_sw_list()
+    for sw in sws:
+        print('sw_name: %s' % sw)
+        flow_req = of.SwitchFlows(sw, cfg.of_controller_ip, cfg.of_controller_port)
+        resp = flow_req.get_response()
+        p.pprint(resp.get_flows())
+
+
 def query_switch_list():
     req = of.SwitchList(cfg.of_controller_ip, cfg.of_controller_port)
     resp = req.get_response()
@@ -39,11 +49,13 @@ def add_low_prio_flow_mod(dpid):
     resp = req.get_response()
 
 def add_flow_mod_ip():
-    flow_mod = fm.Flowmod(5, hard_timeout=120)
-    match = fm.Match(fm.MatchTypes.ipv4_src, cfg.of_controller_ip)
+    hm = mapper.HostMapper(cfg.dns_server_ip, cfg.of_controller_ip, cfg.of_controller_port)
+    sw_dpid = hm.map_sw_to_dpid(1)
+    flow_mod = fm.Flowmod(sw_dpid, hard_timeout=120, priority=20, table_id=100)
+    match = fm.Match(fm.MatchTypes.ipv4_src, '10.0.15.2')
     match.add_criteria(fm.MatchTypes.eth_type, 2048)
     flow_mod.add_match(match)
-    flow_mod.add_action(fm.Action(fm.ActionTypes.Output, {'port':1}))
+    flow_mod.add_action(fm.Action(fm.ActionTypes.Output, {'port':13}))
     print(flow_mod)
     p.pprint(flow_mod.get_json())
     req = of.PushFlowmod(flow_mod, cfg.of_controller_ip, cfg.of_controller_port)
@@ -58,7 +70,7 @@ def query_topology_links():
     # print(resp)
 
 def add_mp_routes():
-    route_adder = mp.MPRouteAdder(cfg.of_controller_ip, cfg.of_controller_port, '/home/alexj/programming/research_18/multipath/multipath_seed_files/seed_5678/probabilistic_mean_1_variance_1/', '5678')
+    route_adder = mp.MPRouteAdder(cfg.of_controller_ip, cfg.of_controller_port, cfg.route_path, cfg.seed_no)
     route_adder.install_routes()
 
 def get_sw_desc():
@@ -97,9 +109,9 @@ def mk_readable(adj_mat):
     hm = mapper.HostMapper(cfg.dns_server_ip, cfg.of_controller_ip, cfg.of_controller_port)
     for src, v in adj_mat.items():
         print(src)
-        src_sw_no = hm.map_dpid_to_sw(str(int(src, 16)))
+        src_sw_no = hm.map_dpid_to_sw(src)
         for dst, port in v.items():
-            dst_sw_no = hm.map_dpid_to_sw(str(int(dst, 16)))
+            dst_sw_no = hm.map_dpid_to_sw(dst)
             ret[src_sw_no][dst_sw_no] = port
 
     return ret
@@ -132,9 +144,10 @@ def main():
     # query_switch_list()
     # add_flow_mod()
     # add_flow_mod_ip()
-    # adj_mat = query_topology_links()
-    # pretty = mk_readable(adj_mat)
-    # p.pprint(pretty)
+    adj_mat = query_topology_links()
+    p.pprint(adj_mat)
+    pretty = mk_readable(adj_mat)
+    p.pprint(pretty)
     # add_mp_routes()
     # get_sw_desc()
     # test_host_mapper()
@@ -145,7 +158,12 @@ def main():
     # list_friendly_switch_names()
     # p.pprint(query_topology_links())
     # p.pprint(sw_to_host_list())
-    test_command_execution()
+    # test_command_execution()
+    # print_all_flows()
+    add_flow_mod_ip()
+    hm = mapper.HostMapper(cfg.dns_server_ip, cfg.of_controller_ip, cfg.of_controller_port)
+    query_flow_stats(int(hm.map_sw_to_dpid(1)))
+    
     
 
 

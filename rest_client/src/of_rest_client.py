@@ -1,4 +1,3 @@
-# REST Client Library
 import requests as req
 # Loggers
 from logging import error, warn, info
@@ -200,9 +199,9 @@ class OFResponseTopologyLinks(OFResponse):
     def get_adj_mat(self):
         adj_mat = defaultdict(dict)
         for entry in self.resp:
-            dst_id = entry['dst']['dpid']
-            src_id = entry['src']['dpid']
-            adj_mat[dst_id][src_id] = entry['dst']['port_no']
+            dst_id = int(entry['dst']['dpid'], 16)
+            src_id = int(entry['src']['dpid'], 16)
+            adj_mat[dst_id][src_id] = int(entry['dst']['port_no'], 16)
         return adj_mat
 
     def __str__(self):
@@ -247,15 +246,15 @@ class OFRequest:
 
     def get_response(self):
         of_request = self.get_request_url()
-        of_params = self.get_request_params()
+        of_params = json.dumps(self.get_request_params())
         try:
             http_req_type = OFRequestType.get_http_req_type(self.req_type)
             if http_req_type == HttpReqType.GET:
-                resp = req.get(of_request, data=json.dumps(of_params))
+                resp = req.get(of_request, data=of_params)
             elif http_req_type == HttpReqType.POST:
-                resp = req.post(of_request, data=json.dumps(of_params))
+                resp = req.post(of_request, data=of_params)
             elif http_req_type == HttpReqType.DELETE:
-                resp = req.delete(of_request, data=json.dumps(of_params))
+                resp = req.delete(of_request, data=of_params)
             else:
                 raise ValueError('Undefined HTTP Method')
         except req.exceptions.ConnectionError as ex:
@@ -274,7 +273,7 @@ class OFRequest:
         return of_resp
     
     def get_request_params(self):
-        return None
+        return {}
 
     def get_host_url(self, req_str=''):
         url = 'http://%s:%d%s' % (self.host, self.port_no, req_str)
@@ -351,7 +350,7 @@ class SwitchDesc(OFRequest):
         if isinstance(self.dpid, str):
             formatted = self.dpid
         else:
-            formatted = util.dpid_fmt(self.dpid)
+            formatted = str(self.dpid)
         url = self.get_host_url('/stats/desc/%s' % formatted)
         return url
 

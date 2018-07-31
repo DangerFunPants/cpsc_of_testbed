@@ -1,7 +1,7 @@
 import of_rest_client as of
 import flowmod as fm
 import pprint as p
-import mp_route_adder as mp
+import multipath_orchestrator as mp
 from util import *
 import host_mapper as mapper
 import params as cfg
@@ -119,14 +119,22 @@ def sw_to_host_list():
     hm = mapper.HostMapper([cfg.dns_server_ip], cfg.of_controller_ip, cfg.of_controller_port)
     return hm.get_switch_to_host_map()
 
+def test_command_execution():
+   th = mp.MPTestHost('www.google.ca', 'uname', 'pw')
+   v = th.start_client(131072, 131, 'gamma', 10, '10.0.0.5', 50000, '[1, 2, 3]', 1)
+   v2 = th.start_server(1)
+   print(v)
+   print(v2)
+   
+
 def main():
     # query_flow_stats(5)
     # query_switch_list()
     # add_flow_mod()
     # add_flow_mod_ip()
-    adj_mat = query_topology_links()
-    pretty = mk_readable(adj_mat)
-    p.pprint(pretty)
+    # adj_mat = query_topology_links()
+    # pretty = mk_readable(adj_mat)
+    # p.pprint(pretty)
     # add_mp_routes()
     # get_sw_desc()
     # test_host_mapper()
@@ -137,6 +145,7 @@ def main():
     # list_friendly_switch_names()
     # p.pprint(query_topology_links())
     # p.pprint(sw_to_host_list())
+    test_command_execution()
     
 
 

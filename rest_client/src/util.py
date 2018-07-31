@@ -1,4 +1,5 @@
 import re
+from functools import reduce
 
 def is_ip_addr(data):
     ip_regex = re.compile('([0-9]{1,3}\.){3}([0-9]{1,3})')
@@ -19,3 +20,10 @@ def sw_name_to_no(sw_name):
     """
     sw_no = sw_name.split('_')[1]
     return sw_no
+
+def inject_arg_opts(command_str, arg_list):
+    """
+    Combine a command with a list of strings
+    representing the arguments to the command in POSIX style
+    """
+    return reduce(lambda l, r : l + ' ' + r, arg_list, command_str)

@@ -5,6 +5,7 @@ import host_mapper as hm
 import params as cfg
 import paramiko as ssh
 import util as util
+from functools import reduce
 
 class MPRouteAdder:
     
@@ -53,7 +54,7 @@ class MPRouteAdder:
             match.add_criteria(fm.MatchTypes.ipv4_dst, dst_ip)
 
             # Construct the flowmod.
-            flow_mod = fm.Flowmod(sw_dpid, hard_timeout=120) # Timeout is only for testing.
+            flow_mod = fm.Flowmod(sw_dpid, hard_timeout=120, table_id=100) # Timeout is only for testing.
             flow_mod.add_match(match)
             flow_mod.add_action(fm.Action(fm.ActionTypes.Output, out_port))
 
@@ -75,8 +76,8 @@ class Host:
                 , ssh_port=22 ):
         self.host_name = host_name
         self.ssh_port = ssh_port
-        self.rem_uname = uname
-        self.rem_pw = pw
+        self.rem_uname = rem_uname
+        self.rem_pw = rem_pw
         self.ssh_tunnel = None
 
         if util.is_ip_addr(host_name):
@@ -103,4 +104,45 @@ class Host:
             _,stdout,stderr = self.ssh_tunnel.exec_command(command)
             self.disconnect()
         return (stdout,stderr)
+
+class MPTestHost(Host):
+
+    BIN_DIR = '/home/alexj/traffic_generation/' 
+
+    def __init__( self
+                , host_name
+                , rem_uname
+                , rem_pw
+                , ssh_port = 22 ):
+        Host.__init__(self, host_name, rem_pw, ssh_port)
+    
+    def start_client( self
+                    , mu
+                    , sigma
+                    , traffic_model
+                    , time_slice 
+                    , dest_ip 
+                    , port_no 
+                    , k_mat 
+                    , host_no ):
+
+        start_comm = '%s/traffic_gen.py' % MPTestHost.BIN_DIR
+        args = [ ('-a %s' % dest_ip)
+               , ('-p %s' % port_no)
+               , ('-k %s' % k_mat)
+               , ('-t %s' % mu)
+               , ('-s %s' % sigma)
+               , ('-c %s' % traffic_model)
+               , ('-host %s' % host_no)
+               ]
+        comm_str = util.inject_arg_opts(start_comm, args)
+        return comm_str
+    
+    def start_server(self, host_no):
+        start_comm = '%s/traffic_server.py' % MPTestHost.BIN_DIR
+        args = [ ('-host %s' % host_no) 
+               ]
+        comm_str = util.inject_arg_opts(start_comm, args)
+        return comm_str
+
     

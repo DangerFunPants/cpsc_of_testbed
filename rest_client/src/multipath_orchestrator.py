@@ -79,13 +79,22 @@ class MPRouteAdder:
             match.add_criteria(fm.MatchTypes.ip_dscp, dscp_val)
 
             # Construct the flowmod.
-            flow_mod = fm.Flowmod(sw_dpid, hard_timeout=60, table_id=100, priority=20) # Timeout is only for testing.
+            flow_mod = fm.Flowmod(sw_dpid, hard_timeout=240, table_id=100, priority=20) # Timeout is only for testing.
             flow_mod.add_match(match)
             flow_mod.add_action(fm.Action(fm.ActionTypes.Output, { 'port' : out_port }))
 
             # Update the switch.
             req = of.PushFlowmod(flow_mod, self.host, self.port_no)
             resp = req.get_response()
+
+    def get_src_dst_pairs(self):
+        routes = fp.parse_routes(self.defs_dir, self.seed_no)
+        pairs = set()
+        for route in routes:
+            for path in route:
+                pairs.add((path[0], path[-1]))
+        return pairs
+
 
 class Host:
     """
@@ -109,19 +118,20 @@ class Host:
             self.host_ip = host_name
         else:
             mapper = hm.HostMapper([cfg.man_net_dns_ip], 
-                cfg.of_controller_ip, cfg.of_controller_port)
+                cfg.of_controller_ip, cfg.of_controller_port, domain='management.cpsc.')
             self.host_ip = mapper.resolve_hostname(self.host_name)
 
-    def connect():
+    def connect(self):
         self.ssh_tunnel = ssh.SSHClient()
         self.ssh_tunnel.set_missing_host_key_policy(ssh.AutoAddPolicy())
-        self.ssh_tunnel.connect(self.host_ip, self.ssh_port)
+        # print('Ip: %s, Port: %s, Uname: %s, PW: %s' % (self.host_ip, self.ssh_port, self.rem_uname, self.rem_pw))
+        self.ssh_tunnel.connect(self.host_ip, self.ssh_port, username=self.rem_uname, password=self.rem_pw)
     
-    def disconnect():
+    def disconnect(self):
         self.ssh_tunnel.close()
         self.ssh_tunnel = None
 
-    def exec_command(command):
+    def exec_command(self, command):
         if self.ssh_tunnel:
             _,stdout,stderr = self.ssh_tunnel.exec_command(command)
         else:
@@ -133,13 +143,18 @@ class Host:
 class MPTestHost(Host):
 
     BIN_DIR = '/home/alexj/traffic_generation/' 
+    COUNT_DIR = '/home/alexj/packet_counts/'
 
     def __init__( self
                 , host_name
                 , rem_uname
                 , rem_pw
                 , ssh_port = 22 ):
-        Host.__init__(self, host_name, rem_pw, ssh_port)
+        Host.__init__(self, host_name, rem_uname, rem_pw, ssh_port)
+    
+    def remove_all_files(self, path, ext):
+        comm_str = 'rm -f %s*.%s' % (path, ext)
+        self.exec_command('rm -f %s*.%s' % (path, ext))
     
     def start_client( self
                     , mu
@@ -149,25 +164,63 @@ class MPTestHost(Host):
                     , dest_ip 
                     , port_no 
                     , k_mat 
-                    , host_no ):
+                    , host_no 
+                    , slice ):
 
+        self.remove_all_files(MPTestHost.COUNT_DIR, 'txt')
         start_comm = '%s/traffic_gen.py' % MPTestHost.BIN_DIR
+        k_mat_str = reduce(lambda l, r : str(l) + ' ' + str(r), k_mat)
         args = [ ('-a %s' % dest_ip)
                , ('-p %s' % port_no)
-               , ('-k %s' % k_mat)
+               , ('-k %s' % k_mat_str)
                , ('-t %s' % mu)
                , ('-s %s' % sigma)
                , ('-c %s' % traffic_model)
                , ('-host %s' % host_no)
+               , ('-slice %s' % slice)
                ]
         comm_str = util.inject_arg_opts(start_comm, args)
-        return comm_str
+        comm_str += ' &'
+        print(comm_str)
+        return self.exec_command(comm_str)
+
+    def stop_client(self):
+        command_str = (
+            'ps ax | grep -i traffic_gen.py | grep -v grep | awk \'{print $1}\' | xargs -n1 -I {} kill -s SIGINT {}'
+        )
+        return self.exec_command(command_str)
     
     def start_server(self, host_no):
+        self.remove_all_files(MPTestHost.COUNT_DIR, 'p')
         start_comm = '%s/traffic_server.py' % MPTestHost.BIN_DIR
-        args = [ ('-host %s' % host_no) 
+        args = [ ('-host %s' % str(host_no))
                ]
         comm_str = util.inject_arg_opts(start_comm, args)
-        return comm_str
+        comm_str += ' &'
+        return self.exec_command(comm_str)
+
+    def stop_server(self):
+        command_str = (
+            'ps ax | grep -i traffic_server.py | grep -v grep | awk \'{print $1}\' | xargs -n1 -I {} kill -s SIGINT {}'
+        )
+        return self.exec_command(command_str)
+
+    def retrieve_client_files(self, dst_dir):
+        local_ip = self.get_local_ip()
+        command = 'sshpass -pubuntu scp -o StrictHostKeyChecking=no -r %s*.txt ubuntu@%s:%s' % (self.COUNT_DIR, local_ip, dst_dir)
+        print('TX: %s' % command)
+        self.exec_command(command)
+
+    def retrieve_server_files(self, dst_dir):
+        local_ip = self.get_local_ip()
+        command = 'sshpass -pubuntu scp -o StrictHostKeyChecking=no -r %s*.p ubuntu@%s:%s' % (self.COUNT_DIR, local_ip, dst_dir)
+        print('RX: %s' % command)
+        self.exec_command(command)
+
+    def get_local_ip(self):
+        mapper = hm.HostMapper([cfg.man_net_dns_ip], cfg.of_controller_ip,
+            cfg.of_controller_port, domain='management.cpsc.')
+        local_ip = mapper.resolve_hostname('sdn.cpscopenflow1')
+        return local_ip
 
     

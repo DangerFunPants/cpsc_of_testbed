@@ -22,6 +22,8 @@ class HostMapper:
             answers = resolver.query(query_str, 'A')
         except dns.NXDOMAIN:
             raise IOError('Failed to resolve hostname: %s' % query_str)
+        except Exception:
+            raise IOError('Failed to resolve hostname: %s' % query_str)
 
         if answers:
             return answers[0].address

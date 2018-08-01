@@ -45,26 +45,29 @@ class OFRequestType(Enum):
     TopologyLinks   = 3
     SwitchDesc      = 4
     RemoveAllFlows  = 5
+    RemoveFlow      = 6
 
     @staticmethod
     def get_type_parser(req_type):
-        parsers = { OFRequestType.SwitchList  : OFResponseSwitchList.parse_json 
-                  , OFRequestType.SwitchFlows : OFResponseSwitchFlows.parse_json
-                  , OFRequestType.PushFlowmod : OFStatusResponse.parse_json
-                  , OFRequestType.TopologyLinks : OFResponseTopologyLinks.parse_json
-                  , OFRequestType.SwitchDesc    : OFResponseSwitchDesc.parse_json
-                  , OFRequestType.RemoveAllFlows : OFStatusResponse.parse_json
+        parsers = { OFRequestType.SwitchList        : OFResponseSwitchList.parse_json 
+                  , OFRequestType.SwitchFlows       : OFResponseSwitchFlows.parse_json
+                  , OFRequestType.PushFlowmod       : OFStatusResponse.parse_json
+                  , OFRequestType.TopologyLinks     : OFResponseTopologyLinks.parse_json
+                  , OFRequestType.SwitchDesc        : OFResponseSwitchDesc.parse_json
+                  , OFRequestType.RemoveAllFlows    : OFStatusResponse.parse_json
+                  , OFRequestType.RemoveFlow        : OFStatusResponse.parse_json
                   }
         return parsers[req_type]
 
     @staticmethod
     def get_http_req_type(req_type):
-        http_map = { OFRequestType.SwitchList   : HttpReqType.GET
-                   , OFRequestType.SwitchFlows  : HttpReqType.GET
-                   , OFRequestType.PushFlowmod  : HttpReqType.POST
-                   , OFRequestType.TopologyLinks : HttpReqType.GET
-                   , OFRequestType.SwitchDesc : HttpReqType.GET
-                   , OFRequestType.RemoveAllFlows : HttpReqType.DELETE
+        http_map = { OFRequestType.SwitchList       : HttpReqType.GET
+                   , OFRequestType.SwitchFlows      : HttpReqType.GET
+                   , OFRequestType.PushFlowmod      : HttpReqType.POST
+                   , OFRequestType.TopologyLinks    : HttpReqType.GET
+                   , OFRequestType.SwitchDesc       : HttpReqType.GET
+                   , OFRequestType.RemoveAllFlows   : HttpReqType.DELETE
+                   , OFRequestType.RemoveFlow       : HttpReqType.POST
                    }
         return http_map[req_type]
 
@@ -372,4 +375,25 @@ class RemoveAllFlows(OFRequest):
         url = self.get_host_url('/stats/flowentry/clear/%s' % formatted)
         return url
 
+class RemoveFlow(OFRequest):
+    """
+    Class RemoveAllFlows(OFRequest)
+    Purpose: Removes a specific flow from the specified DPID.
+    """
+
+    def __init__(self, dpid, flow_mod, host, port_no):
+        OFRequest.__init__(self, OFRequestType.RemoveFlow, host, port_no)
+        self.flow_mod = flow_mod
+        self.dpid = dpid
+
+    def get_request_url(self):
+        if isinstance(self.dpid, str):
+            formatted = self.dpid
+        else:
+            formatted = str(self.dpid)
+        url = self.get_host_url('/stats/flowentry/delete')
+        return url
+    
+    def get_request_params(self):
+        return self.flow_mod.get_json()
     

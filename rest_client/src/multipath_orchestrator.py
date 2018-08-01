@@ -6,6 +6,7 @@ import params as cfg
 import paramiko as ssh
 import util as util
 from functools import reduce
+from collections import defaultdict
 
 # Horrible debugging practice
 import pprint as p
@@ -21,13 +22,14 @@ class MPRouteAdder:
         self.port_no = port_no
         self.defs_dir = defs_dir
         self.seed_no = seed_no
+        self.installed_routes = defaultdict(list)
 
     @staticmethod
     def calculate_dscp_value(flow_num):
         """
         Returns the entire 8 bits of the dscp field (ECN included)
         """
-        dscp_val = (flow_num + 1) * 4
+        dscp_val = (flow_num + 1)
         return dscp_val
 
     def install_routes(self):
@@ -77,6 +79,8 @@ class MPRouteAdder:
             match.add_criteria(fm.MatchTypes.ipv4_src, src_ip)
             match.add_criteria(fm.MatchTypes.ipv4_dst, dst_ip)
             match.add_criteria(fm.MatchTypes.ip_dscp, dscp_val)
+            match.add_criteria(fm.MatchTypes.ip_proto, fm.IPProto.UDP.value)
+            # match.add_criteria(fm.MatchTypes.udp_dst, 50000)
 
             # Construct the flowmod.
             flow_mod = fm.Flowmod(sw_dpid, hard_timeout=240, table_id=100, priority=20) # Timeout is only for testing.
@@ -86,6 +90,16 @@ class MPRouteAdder:
             # Update the switch.
             req = of.PushFlowmod(flow_mod, self.host, self.port_no)
             resp = req.get_response()
+            
+            # Save the route so it can be removed later
+            self.installed_routes[sw_dpid].append(flow_mod)
+
+    def remove_routes(self):
+        for sw_dpid, route_list in self.installed_routes.items():
+            for route in route_list:
+                req = of.RemoveFlow(sw_dpid, route, 
+                    cfg.of_controller_ip, cfg.of_controller_port)
+                resp = req.get_response()
 
     def get_src_dst_pairs(self):
         routes = fp.parse_routes(self.defs_dir, self.seed_no)
@@ -124,7 +138,6 @@ class Host:
     def connect(self):
         self.ssh_tunnel = ssh.SSHClient()
         self.ssh_tunnel.set_missing_host_key_policy(ssh.AutoAddPolicy())
-        # print('Ip: %s, Port: %s, Uname: %s, PW: %s' % (self.host_ip, self.ssh_port, self.rem_uname, self.rem_pw))
         self.ssh_tunnel.connect(self.host_ip, self.ssh_port, username=self.rem_uname, password=self.rem_pw)
     
     def disconnect(self):

@@ -2,6 +2,11 @@ from enum import Enum
 from functools import (reduce)
 from util import *
 
+class IPProto(Enum):
+    ICMP    = 2
+    TCP     = 6
+    UDP     = 17
+
 class Flowmod:
     """
     Class: Flowmod

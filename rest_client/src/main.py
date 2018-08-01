@@ -95,12 +95,18 @@ def remove_all_count_files(route_adder):
 
     for host_id in host_ids:
         hosts[host_id].disconnect()
+
+def add_then_remove(route_adder):
+    route_adder.install_routes()
+    input('Routes have been installed, Press return to remove...')
+    route_adder.remove_routes()
         
 def main():
     route_adder = mp.MPRouteAdder(cfg.of_controller_ip, cfg.of_controller_port, cfg.route_path, cfg.seed_no)
-    route_adder.install_routes()
-    time.sleep(5)
-    test_traffic_transmission(route_adder)
+    # route_adder.install_routes()
+    # time.sleep(5)
+    # test_traffic_transmission(route_adder)
+    add_then_remove(route_adder)
 
 if __name__ == '__main__':
     main()

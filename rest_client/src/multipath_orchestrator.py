@@ -83,7 +83,7 @@ class MPRouteAdder:
             # match.add_criteria(fm.MatchTypes.udp_dst, 50000)
 
             # Construct the flowmod.
-            flow_mod = fm.Flowmod(sw_dpid, hard_timeout=240, table_id=100, priority=20) # Timeout is only for testing.
+            flow_mod = fm.Flowmod(sw_dpid, idle_timeout=240, table_id=100, priority=20) # Timeout is only for testing.
             flow_mod.add_match(match)
             flow_mod.add_action(fm.Action(fm.ActionTypes.Output, { 'port' : out_port }))
 

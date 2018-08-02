@@ -61,6 +61,8 @@ def test_traffic_transmission(route_adder):
     for host_id in host_ids:
         hosts[host_id].stop_client()
 
+    time.sleep(15)
+
     for host_id in host_ids:
         hosts[host_id].stop_server()
 
@@ -71,6 +73,8 @@ def test_traffic_transmission(route_adder):
     for host_id in host_ids:
         hosts[host_id].remove_all_files('%stx' % mp.MPTestHost.COUNT_DIR, 'txt')
         hosts[host_id].remove_all_files('%srx' % mp.MPTestHost.COUNT_DIR, 'p')
+
+    # route_adder.remove_routes()
 
 def test_single_flow_tx():
     mapper = hm.HostMapper([cfg.dns_server_ip], cfg.of_controller_ip, cfg.of_controller_port)
@@ -100,13 +104,21 @@ def add_then_remove(route_adder):
     route_adder.install_routes()
     input('Routes have been installed, Press return to remove...')
     route_adder.remove_routes()
+
+def print_route_info(route_adder):
+    od_pairs = route_adder.get_src_dst_pairs()
+    dups = set(od_pairs)
+    print(len(dups))
+    for p in od_pairs:
+        print(p)
         
 def main():
     route_adder = mp.MPRouteAdder(cfg.of_controller_ip, cfg.of_controller_port, cfg.route_path, cfg.seed_no)
-    # route_adder.install_routes()
-    # time.sleep(5)
-    # test_traffic_transmission(route_adder)
-    add_then_remove(route_adder)
+    remove_all_count_files(route_adder)
+    route_adder.install_routes()
+    time.sleep(5)
+    test_traffic_transmission(route_adder)
+    # print_route_info(route_adder)
 
 if __name__ == '__main__':
     main()

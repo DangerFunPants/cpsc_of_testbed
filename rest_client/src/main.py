@@ -1,10 +1,16 @@
 import multipath_orchestrator as mp
 import params as cfg
 import host_mapper as hm
+import of_rest_client as of
 import time as t
 import datetime as dt
 import time as time
 from os import mkdir
+import pprint as pp
+import util as util
+import stats_processor as st_proc
+import of_processor as ofp
+import pickle as pickle
 
 def bidirectional_ping():
     # bi directional ping.
@@ -50,13 +56,19 @@ def test_traffic_transmission(route_adder):
         hosts[host_id].connect()
         hosts[host_id].start_server(host_id)
 
-    for (src_host, dst_host) in od_pairs:
-        dst_hostname = mapper.map_sw_to_host(dst_host)
-        dst_ip = mapper.resolve_hostname(dst_hostname) 
-        hosts[src_host].start_client(62500000, 1, 'trunc_norm', 10.0,
-            dst_ip, 50000, [0.3,0.5,0.2], src_host, 10)
+    # for (src_host, dst_host) in od_pairs:
+    #     dst_hostname = mapper.map_sw_to_host(dst_host)
+    #     dst_ip = mapper.resolve_hostname(dst_hostname) 
+    #     hosts[src_host].start_client(cfg.mu, cfg.sigma, cfg.traffic_model,
+    #         dst_ip, cfg.dst_port, [0.3,0.5,0.2], src_host, cfg.time_slice)
 
-    input('Press return to stop...')
+    sw_list = of.SwitchList(cfg.of_controller_ip, cfg.of_controller_port).get_response().get_sw_list()
+    traffic_mon = mp.MPStatMonitor(cfg.of_controller_ip, cfg.of_controller_port, sw_list)
+    traffic_mon.start_monitor()
+
+    time.sleep(cfg.trial_length)
+
+    traffic_mon.stop_monitor()
 
     for host_id in host_ids:
         hosts[host_id].stop_client()
@@ -74,7 +86,26 @@ def test_traffic_transmission(route_adder):
         hosts[host_id].remove_all_files('%stx' % mp.MPTestHost.COUNT_DIR, 'txt')
         hosts[host_id].remove_all_files('%srx' % mp.MPTestHost.COUNT_DIR, 'p')
 
-    # route_adder.remove_routes()
+    route_adder.remove_routes()
+    rx_res, tx_res = traffic_mon.retrieve_results()
+    # of_proc = ofp.OFProcessor(cfg.of_controller_ip, cfg.of_controller_port)
+    # stat_proc = st_proc.StatsProcessor(mapper, of_proc)
+    # rx_stats = stat_proc.calc_link_util(rx_res, 1066, 10.0, st_proc.Units.MegaBitsPerSecond)
+    # tx_stats = stat_proc.calc_link_util(tx_res, 1066, 10.0, st_proc.Units.MegaBitsPerSecond)
+    # print('RX_STATS.................................')
+    # pp.pprint(rx_stats)
+    # print('TX_STATS.................................')
+    # pp.pprint(tx_stats)
+    rx_file = './rx_stats.p'
+    tx_file = './tx_stats.p'
+    pickle.dump(rx_res, open(rx_file, 'wb'))
+    pickle.dump(tx_res, open(tx_file, 'wb'))
+    # reader = lambda t : t[0]
+    # writer = lambda n, k : (n, k[1])
+    # friendly_rx = util.mk_pretty_sw_dict(rx_res, mapper, reader, writer)
+    # friendly_tx = util.mk_pretty_sw_dict(tx_res, mapper, reader, writer)
+    # pp.pprint(friendly_rx)
+    # pp.pprint(friendly_tx) 
 
 def test_single_flow_tx():
     mapper = hm.HostMapper([cfg.dns_server_ip], cfg.of_controller_ip, cfg.of_controller_port)

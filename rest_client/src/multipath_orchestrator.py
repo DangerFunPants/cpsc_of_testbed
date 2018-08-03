@@ -7,6 +7,7 @@ import paramiko as ssh
 import util as util
 from functools import reduce
 from collections import defaultdict
+import threading as thread
 
 # Horrible debugging practice
 import pprint as p
@@ -57,7 +58,6 @@ class MPRouteAdder:
         dst_sw = route[-1]
 
         # Need the IP Address for the hosts.
-
         mapper = hm.HostMapper([cfg.dns_server_ip], cfg.of_controller_ip, cfg.of_controller_port) # Could possible query the OS for IP's of dns servers? 
         src_ip = mapper.resolve_hostname(mapper.map_sw_to_host(src_sw))
         dst_ip = mapper.resolve_hostname(mapper.map_sw_to_host(dst_sw))
@@ -173,7 +173,6 @@ class MPTestHost(Host):
                     , mu
                     , sigma
                     , traffic_model
-                    , time_slice 
                     , dest_ip 
                     , port_no 
                     , k_mat 
@@ -236,4 +235,47 @@ class MPTestHost(Host):
         local_ip = mapper.resolve_hostname('sdn.cpscopenflow1')
         return local_ip
 
-    
+class MPStatMonitor:
+
+    def __init__(self, controller_ip, controller_port, mon_dpids, mon_period=10.0):
+        self._controller_ip = controller_ip
+        self._controller_port = controller_port
+        self._rx_stats_list = defaultdict(list)
+        self._tx_stats_list = defaultdict(list)
+        self._mon_period = mon_period
+        self._stop_event = thread.Event()
+        self._mon_dpids = mon_dpids
+        self._update_stat_lists()
+
+    def _request_port_stats(self, dpid):
+        req = of.GetPortStats(dpid, self._controller_ip, self._controller_port)
+        resp = req.get_response()
+        tx_pkts = resp.get_tx_packets()
+        rx_pkts = resp.get_rx_packets()
+        return (rx_pkts, tx_pkts)
+
+    def _update_stat_lists(self):
+        for dpid in self._mon_dpids:
+            rx_pkts, tx_pkts = self._request_port_stats(dpid)
+            for port_no, count in tx_pkts.items():
+                self._tx_stats_list[(dpid, port_no)].append(count)
+            for port_no, count in rx_pkts.items():
+                self._rx_stats_list[(dpid, port_no)].append(count)
+
+    def start_monitor(self):
+        thread.Timer(self._mon_period, MPStatMonitor._retrieve_stats, [self]).start()
+
+    def stop_monitor(self):
+        self._stop_event.set()
+        while self._stop_event.isSet():
+            pass
+
+    def _retrieve_stats(self):
+        self._update_stat_lists()
+        if not self._stop_event.isSet():
+            self.start_monitor()
+        else:
+            self._stop_event.clear()
+
+    def retrieve_results(self):
+        return (self._rx_stats_list, self._tx_stats_list)

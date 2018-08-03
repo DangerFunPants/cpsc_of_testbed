@@ -46,6 +46,7 @@ class OFRequestType(Enum):
     SwitchDesc      = 4
     RemoveAllFlows  = 5
     RemoveFlow      = 6
+    GetPortStats    = 7
 
     @staticmethod
     def get_type_parser(req_type):
@@ -56,6 +57,7 @@ class OFRequestType(Enum):
                   , OFRequestType.SwitchDesc        : OFResponseSwitchDesc.parse_json
                   , OFRequestType.RemoveAllFlows    : OFStatusResponse.parse_json
                   , OFRequestType.RemoveFlow        : OFStatusResponse.parse_json
+                  , OFRequestType.GetPortStats      : OFPortStatsResponse.parse_json
                   }
         return parsers[req_type]
 
@@ -68,6 +70,7 @@ class OFRequestType(Enum):
                    , OFRequestType.SwitchDesc       : HttpReqType.GET
                    , OFRequestType.RemoveAllFlows   : HttpReqType.DELETE
                    , OFRequestType.RemoveFlow       : HttpReqType.POST
+                   , OFRequestType.GetPortStats     : HttpReqType.GET
                    }
         return http_map[req_type]
 
@@ -213,7 +216,7 @@ class OFResponseTopologyLinks(OFResponse):
 
 class OFResponseSwitchDesc(OFResponse):
     def __init__(self):
-        self.rest = None
+        self.resp = None
 
     def parse(self, json_repr):
         self.response_code = json_repr.status_code
@@ -234,6 +237,37 @@ class OFResponseSwitchDesc(OFResponse):
     def get_sw_name(self):
         sw_name = self.resp[self.get_sw_dpid()]['dp_desc']
         return sw_name
+
+class OFPortStatsResponse(OFResponse):
+    def __init__(self):
+        self.resp = None
+
+    def parse(self, json_repr):
+        self.response_code = json_repr.status_code
+        self.resp = json_repr.json()
+
+    @staticmethod
+    def parse_json(json_repr):
+        obj = OFPortStatsResponse()
+        obj.parse(json_repr)
+        return obj
+
+    def _build_port_dict(self, field_accessor):
+        ret = {}
+        for _, lst in self.resp.items():
+            for port_desc in lst:
+                port_no = int(port_desc['port_no'])
+                field_val = field_accessor(port_desc)
+                ret[port_no] = field_val
+        return ret
+
+    def get_tx_packets(self):
+        tx_pkts = self._build_port_dict(lambda d : d['tx_packets'])
+        return tx_pkts
+
+    def get_rx_packets(self):
+        rx_pkts = self._build_port_dict(lambda d : d['rx_packets'])
+        return rx_pkts
 
 class OFRequest:
     """
@@ -377,7 +411,7 @@ class RemoveAllFlows(OFRequest):
 
 class RemoveFlow(OFRequest):
     """
-    Class RemoveAllFlows(OFRequest)
+    Class: RemoveAllFlows(OFRequest)
     Purpose: Removes a specific flow from the specified DPID.
     """
 
@@ -396,4 +430,21 @@ class RemoveFlow(OFRequest):
     
     def get_request_params(self):
         return self.flow_mod.get_json()
+
+class GetPortStats(OFRequest):
+    """
+    Class: GetPortStats(OFRequest)
+    Purpose: Retrieve per-port statistics from a particular datapath.
+    """
     
+    def __init__(self, dpid, host, port_no):
+        OFRequest.__init__(self, OFRequestType.GetPortStats, host, port_no)
+        self.dpid = dpid
+
+    def get_request_url(self):
+        if isinstance(self.dpid, str):
+            formatted = self.dpid
+        else:
+            formatted = str(self.dpid)
+        url = self.get_host_url('/stats/port/%s' % formatted)
+        return url

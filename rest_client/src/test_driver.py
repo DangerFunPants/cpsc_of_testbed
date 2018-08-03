@@ -6,6 +6,10 @@ from util import *
 import host_mapper as mapper
 import params as cfg
 from collections import defaultdict
+import time as t
+import of_processor as ofp
+import pickle as pickle
+import stats_processor as stp
 
 def query_flow_stats(dpid):
     req = of.SwitchFlows(dpid, cfg.of_controller_ip, cfg.of_controller_port)
@@ -103,7 +107,6 @@ def remove_all_flows():
         req = of.RemoveAllFlows(sw, cfg.of_controller_ip, cfg.of_controller_port)
         req.get_response()
     
-
 def mk_readable(adj_mat):
     ret = defaultdict(dict)
     hm = mapper.HostMapper(cfg.dns_server_ip, cfg.of_controller_ip, cfg.of_controller_port)
@@ -138,16 +141,51 @@ def test_command_execution():
    print(v)
    print(v2)
    
+def switch_ssh_test():
+    switch = mp.OFSwitchHost('switch-1')
+    fd1, fd2 = switch.list_switches()
+    for line in fd1:
+        print(line)
+    for line in fd2:
+        print(line)
+
+def stat_mon_test():
+    switches = of.SwitchList(cfg.of_controller_ip, cfg.of_controller_port).get_response().get_sw_list()
+    monitor = mp.MPStatMonitor(cfg.of_controller_ip, cfg.of_controller_port, switches, mon_period=5.0)
+    monitor.start_monitor()
+    t.sleep(30)
+    monitor.stop_monitor()
+    p.pprint(monitor.retrieve_results())
+
+def new_of_api_test():
+    of_proc = ofp.OFProcessor(cfg.of_controller_ip, cfg.of_controller_port)
+    for dpid in of_proc.get_switch_list():
+        desc = of_proc.get_switch_desc(dpid)
+        print('%s -> %s' % (dpid, desc.get_sw_name()))
+
+    hm = mapper.HostMapper([cfg.dns_server_ip], cfg.of_controller_ip, cfg.of_controller_port)
+    p.pprint(mk_pretty_sw_dict(of_proc.get_topo_links().get_adj_mat(), hm, lambda k : k, lambda n, k : n))
+
+def test_stats_processor():
+    hm = mapper.HostMapper([cfg.dns_server_ip], cfg.of_controller_ip, cfg.of_controller_port)
+    tx_file = './tx_stats.p'
+    stats = pickle.load(open(tx_file, 'rb'))
+    pretty_stats = mk_pretty_sw_dict(stats, hm, lambda k : k[0], lambda n, k : (n, k[1]))
+    p.pprint(pretty_stats)
+    of_proc = ofp.OFProcessor(cfg.of_controller_ip, cfg.of_controller_port)
+    st_proc = stp.StatsProcessor(hm, of_proc)
+    st_dict = st_proc.calc_link_util(stats, 1066, 10.0, units=stp.Units.PacketsPerSecond)
+    p.pprint(st_dict)
 
 def main():
     # query_flow_stats(5)
     # query_switch_list()
     # add_flow_mod()
     # add_flow_mod_ip()
-    adj_mat = query_topology_links()
-    p.pprint(adj_mat)
-    pretty = mk_readable(adj_mat)
-    p.pprint(pretty)
+    # adj_mat = query_topology_links()
+    # p.pprint(adj_mat)
+    # pretty = mk_readable(adj_mat)
+    # p.pprint(pretty)
     # add_mp_routes()
     # get_sw_desc()
     # test_host_mapper()
@@ -160,9 +198,14 @@ def main():
     # p.pprint(sw_to_host_list())
     # test_command_execution()
     # print_all_flows()
-    add_flow_mod_ip()
-    hm = mapper.HostMapper(cfg.dns_server_ip, cfg.of_controller_ip, cfg.of_controller_port)
-    query_flow_stats(int(hm.map_sw_to_dpid(1)))
+    # add_flow_mod_ip()
+    # hm = mapper.HostMapper(cfg.dns_server_ip, cfg.of_controller_ip, cfg.of_controller_port)
+    # query_flow_stats(int(hm.map_sw_to_dpid(1)))
+    # switch_ssh_test()
+    # stat_mon_test()
+    new_of_api_test()
+    # test_stats_processor()
+    
     
     
 

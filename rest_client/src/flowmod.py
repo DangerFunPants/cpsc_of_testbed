@@ -1,6 +1,7 @@
 from enum import Enum
 from functools import (reduce)
-from util import *
+from util import set_field
+from typing import List, Dict, Any
 
 class IPProto(Enum):
     ICMP    = 2
@@ -14,16 +15,16 @@ class Flowmod:
     messages. 
     """
 
-    def __init__( self
-                , dpid
-                , cookie = None
-                , cookie_mask = None
-                , table_id = None
-                , idle_timeout = None
-                , hard_timeout = None
-                , priority = None
-                , flags = None
-                ):
+    def __init__( self                  : Flowmod
+                , dpid                  : int
+                , cookie                : int = None
+                , cookie_mask           : int = None
+                , table_id              : int = None       
+                , idle_timeout          : int = None
+                , hard_timeout          : int = None
+                , priority              : int = None
+                , flags                 : int = None
+                ) -> None:
         self.dpid = dpid
         self.cookie = cookie
         self.cookie_mask = cookie_mask
@@ -36,31 +37,31 @@ class Flowmod:
         self.match = {}
         self.actions = []
 
-    def add_match(self, match):
+    def add_match(self: Flowmod, match: Match) -> None:
         for k, v in match.get_match_params().items():
             self.match[k] = v
     
-    def add_action(self, action):
-        d = action.get_dict()
-        self.actions = self.actions + [d]
+    def add_action(self: Flowmod, action: Action) -> None:
+        action_rep = action.get_dict()
+        self.actions = self.actions + [action_rep]
 
-    def get_json(self):
-        d = {}
-        d['dpid'] = self.dpid
-        d = set_field(d, 'dpid', self.dpid)
-        d = set_field(d, 'cookie', self.cookie)
-        d = set_field(d, 'cookie_mask', self.cookie_mask)
-        d = set_field(d, 'table_id', self.table_id)
-        d = set_field(d, 'idle_timeout', self.idle_timeout)
-        d = set_field(d, 'hard_timeout', self.hard_timeout)
-        d = set_field(d, 'priority', self.priority)
-        d = set_field(d, 'flags', self.flags)
+    def get_json(self: Flowmod) -> Dict[str, Any]:
+        json_dict = {}
+        json_dict['dpid'] = self.dpid
+        json_dict = set_field(json_dict, 'dpid', self.dpid)
+        json_dict = set_field(json_dict, 'cookie', self.cookie)
+        json_dict = set_field(json_dict, 'cookie_mask', self.cookie_mask)
+        json_dict = set_field(json_dict, 'table_id', self.table_id)
+        json_dict = set_field(json_dict, 'idle_timeout', self.idle_timeout)
+        json_dict = set_field(json_dict, 'hard_timeout', self.hard_timeout)
+        json_dict = set_field(json_dict, 'priority', self.priority)
+        json_dict = set_field(json_dict, 'flags', self.flags)
 
-        d['match'] = self.match
-        d['actions'] = self.actions
-        return d
+        json_dict['match'] = self.match
+        json_dict['actions'] = self.actions
+        return json_dict
 
-    def __str__(self):
+    def __str__(self: Flowmod) -> str:
         str_rep = ('Switch: %s, Flow Table: %s\n' 
             % (str(self.dpid), str(self.table_id)))
         str_rep += 'Match Criteria: \n'
@@ -106,7 +107,7 @@ class MatchTypes(Enum):
     arp_tha     = 21    # String of the form '01:23:45:67:89:ab'
 
     @staticmethod
-    def to_string(match_type):
+    def to_string(match_type: MatchTypes) -> str:
         d = {}
         d[MatchTypes.in_port]     = 'in_port'
         d[MatchTypes.eth_dst]     = 'eth_dst'
@@ -133,7 +134,7 @@ class MatchTypes(Enum):
 
         return d[match_type]
 
-    def __str__(self):
+    def __str__(self: MatchTypes) -> str:
         return MatchTypes.to_string(self)
 
 class ActionTypes(Enum):
@@ -142,14 +143,14 @@ class ActionTypes(Enum):
     GotoTable   = 2
 
     @staticmethod
-    def to_string(action_type):
-        d = {}
-        d[ActionTypes.Output]       = 'OUTPUT'
-        d[ActionTypes.SetField]     = 'SET_FIELD'
-        d[ActionTypes.GotoTable]    = 'GOTO_TABLE'
-        return d[action_type]
+    def to_string(action_type: ActionTypes) -> str:
+        lookup = {}
+        lookup[ActionTypes.Output]       = 'OUTPUT'
+        lookup[ActionTypes.SetField]     = 'SET_FIELD'
+        lookup[ActionTypes.GotoTable]    = 'GOTO_TABLE'
+        return lookup[action_type]
 
-    def __str__(self):
+    def __str__(self: ActionTypes) -> str:
         return ActionTypes.to_string(self)
 
 class Match:
@@ -159,39 +160,42 @@ class Match:
     key-value pairs.
     """
     
-    def __init__(self, match_type, match_value):
+    def __init__(self: Match, match_type: MatchTypes, match_value: Match) -> None:
         self.match_dict = {}
-        match_str = str(match_type)
-        self.match_dict[match_str] = match_value
+        self.match_str = str(match_type)
+        self.match_dict[self.match_str] = match_value
 
-    def get_match_params(self):
+    def get_match_params(self: Match) -> Dict[str, Match]:
         return self.match_dict
 
-    def __str__(self):
+    def __str__(self: Match) -> str:
         str_rep = ('Match Type: %s, Match Value: %s' 
-                    % (str(self.match_type), str(self.match_value)))
+                    % (self.match_str, str(self.match_dict)))
         return str_rep
 
-    def add_criteria(self, match_type, match_value):
+    def add_criteria( self          : Match
+                    , match_type    : MatchTypes
+                    , match_value   : Match ) -> None:
         match_str = str(match_type)
         self.match_dict[match_str] = match_value
-
 
 class Action:
     
-    def __init__(self, action_type, action_values):
+    def __init__( self          : Action
+                , action_type   : ActionTypes
+                , action_values : Any ) -> None:
         self.action_type = action_type
         self.action_values = action_values
 
-    def get_dict(self):
+    def get_dict(self: Action) -> Dict[str, str]:
         type_str = str(self.action_type)
-        d = {}
-        d['type'] = type_str
-        for k,v in self.action_values.items():
-            d[k] = v
-        return d
+        ser = {}
+        ser['type'] = type_str
+        for act_key, act_val in self.action_values.items():
+            ser[act_key] = act_val
+        return ser
 
-    def __str__(self):
+    def __str__(self: Action) -> str:
         str_rep = 'Action Type: %s\n' % str(self.action_type)
         for k, v in self.action_values.items():
             str_rep += '\t%s: %s\n' % (k, v)

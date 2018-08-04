@@ -17,11 +17,13 @@ class MPRouteAdder:
     def __init__( self
                 , host
                 , port_no
+                , of_proc
                 , route_provider ):
         self.host = host
         self.port_no = port_no
         self._route_provider = route_provider
         self.installed_routes = defaultdict(list)
+        self.of_proc = of_proc
 
     @staticmethod
     def calculate_dscp_value(flow_num):
@@ -34,7 +36,7 @@ class MPRouteAdder:
     def install_routes(self):
         routes = self._route_provider.get_routes()
         # Get a copy of the adjacency matrix
-        adj_mat = of.TopologyLinks(self.host, self.port_no).get_response().get_adj_mat()
+        adj_mat = of_proc.get_topo_links().get_adj_mat()
         route_count = 0
         
         for flow_num, vs in enumerate(routes):
@@ -76,16 +78,15 @@ class MPRouteAdder:
             match.add_criteria(fm.MatchTypes.ipv4_dst, dst_ip)
             match.add_criteria(fm.MatchTypes.ip_dscp, dscp_val)
             match.add_criteria(fm.MatchTypes.ip_proto, fm.IPProto.UDP.value)
-            # match.add_criteria(fm.MatchTypes.udp_dst, 50000)
+            # TODO: Add filter criteria based on L4 Address (Port number)
 
             # Construct the flowmod.
-            flow_mod = fm.Flowmod(sw_dpid, idle_timeout=240, table_id=100, priority=20) # Timeout is only for testing.
+            flow_mod = fm.Flowmod(src_dpid, idle_timeout=240, table_id=100, priority=20) # Timeout is only for testing.
             flow_mod.add_match(match)
             flow_mod.add_action(fm.Action(fm.ActionTypes.Output, { 'port' : out_port }))
 
             # Update the switch.
-            req = of.PushFlowmod(flow_mod, self.host, self.port_no)
-            resp = req.get_response()
+            self.of_proc.push_flow_mod(src_dpid, flow_mod)
             
             # Save the route so it can be removed later
             self.installed_routes[sw_dpid].append(flow_mod)
@@ -93,9 +94,7 @@ class MPRouteAdder:
     def remove_routes(self):
         for sw_dpid, route_list in self.installed_routes.items():
             for route in route_list:
-                req = of.RemoveFlow(sw_dpid, route, 
-                    cfg.of_controller_ip, cfg.of_controller_port)
-                resp = req.get_response()
+                self.of_proc.remove_flow(sw_dpid, route)
 
     def get_src_dst_pairs(self):
         routes = self._route_provider.get_routes()

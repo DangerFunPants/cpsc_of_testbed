@@ -1,20 +1,27 @@
-import of_rest_client as of
+import of_processor as ofp
 import dns.resolver as dns
 import util as util
 
+from typing import List, Union, Dict
+
 class HostMapper:
 
-    def __init__(self, nameservers, host, port_no, domain='of.cpsc.'):
+    def __init__( self          : HostMapper
+                , nameservers   : List[str]
+                , host          : str
+                , port_no       : int
+                , domain        : str ='of.cpsc.' ) -> None:
         self.nameservers = nameservers
         self.host = host
         self.port_no = port_no
         self.domain = domain
+        self.of_proc = ofp.OFProcessor(cfg.of_controller_ip, cfg.of_controller_port)
 
-    def map_sw_to_host(self, sw_no):
+    def map_sw_to_host(self: HostMapper, sw_no: str) -> str:
         host_str = 'host%d' % int(sw_no)
         return host_str
 
-    def resolve_hostname(self, hostname):
+    def resolve_hostname(self: HostMapper, hostname: str) -> Union[str, None]:
         resolver = dns.Resolver()
         resolver.nameservers = self.nameservers
         query_str = self.qualify_host_domain(hostname)
@@ -30,32 +37,28 @@ class HostMapper:
         else: 
             return None 
     
-    def map_dpid_to_sw(self, dpid):
-        req = of.SwitchDesc(dpid, self.host, self.port_no)
-        resp = req.get_response()
+    def map_dpid_to_sw(self: HostMapper, dpid: str) -> str:
+        resp = self.of_proc.get_switch_desc(dpid)
         return resp.get_sw_name()
 
-    def map_sw_to_dpid(self, sw_no):
+    def map_sw_to_dpid(self: HostMapper, sw_no: Union[str, int]) -> Union[str, None]:
         sw_no = str(sw_no)
-        switch_list = of.SwitchList(self.host, 
-            self.port_no).get_response().get_sw_list()
+        switch_list = of_proc.get_switch_list()
         for sw in switch_list:
-            req = of.SwitchDesc(str(sw), self.host, self.port_no)
-            resp = req.get_response()
+            resp = of_proc.get_switch_desc(sw)
             curr_no = util.sw_name_to_no(resp.get_sw_name())
             if curr_no == sw_no:
                 return resp.get_sw_dpid()
         return None
 
-    def qualify_host_domain(self, hostname):
+    def qualify_host_domain(self: HostMapper, hostname: str) -> str:
         if hostname[-1] == '.':
             return hostname
         else:
             return ('%s.%s' % (hostname, self.domain))
 
-    def get_switch_to_host_map(self):
-        req = of.SwitchList(self.host, self.port_no)
-        sw_list = req.get_response().get_sw_list()
+    def get_switch_to_host_map(self: HostMapper) -> Dict[str, str]:
+        sw_list = of_proc.get_switch_list()
         print(sw_list)
         res = {}
         for sw_dpid in sw_list:

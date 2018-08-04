@@ -71,7 +71,6 @@ def query_topology_links():
     resp = req.get_response()
     adj_mat = resp.get_adj_mat()
     return adj_mat
-    # print(resp)
 
 def add_mp_routes():
     route_adder = mp.MPRouteAdder(cfg.of_controller_ip, cfg.of_controller_port, cfg.route_path, cfg.seed_no)
@@ -174,18 +173,31 @@ def test_stats_processor():
     p.pprint(pretty_stats)
     of_proc = ofp.OFProcessor(cfg.of_controller_ip, cfg.of_controller_port)
     st_proc = stp.StatsProcessor(hm, of_proc)
-    st_dict = st_proc.calc_link_util(stats, 1066, 10.0, units=stp.Units.PacketsPerSecond)
+    st_dict = st_proc.calc_link_util(stats, 1066, 10.0, units=stp.Units.MegaBitsPerSecond)
     p.pprint(st_dict)
+
+def remove_all_tbl_100_flows():
+    hm = mapper.HostMapper([cfg.dns_server_ip], cfg.of_controller_ip, cfg.of_controller_port)
+    of_proc = ofp.OFProcessor(cfg.of_controller_ip, cfg.of_controller_port)
+    sw_list = of_proc.get_switch_list()
+    for sw in sw_list:
+        of_proc.remove_table_flows(sw, 100)
+
+def analyze_kriskoll_topology():
+    hm = mapper.HostMapper([cfg.dns_server_ip], cfg.of_controller_ip, cfg.of_controller_port)
+    ports = eval(open('./kriskoll_res.txt', 'r').read())
+    pretty = mk_pretty_sw_dict(ports, hm, lambda k : k, lambda n, k : n)
+    p.pprint(pretty)
 
 def main():
     # query_flow_stats(5)
     # query_switch_list()
     # add_flow_mod()
     # add_flow_mod_ip()
-    # adj_mat = query_topology_links()
-    # p.pprint(adj_mat)
-    # pretty = mk_readable(adj_mat)
-    # p.pprint(pretty)
+    adj_mat = query_topology_links()
+    p.pprint(adj_mat)
+    pretty = mk_readable(adj_mat)
+    p.pprint(pretty)
     # add_mp_routes()
     # get_sw_desc()
     # test_host_mapper()
@@ -203,8 +215,13 @@ def main():
     # query_flow_stats(int(hm.map_sw_to_dpid(1)))
     # switch_ssh_test()
     # stat_mon_test()
-    new_of_api_test()
-    # test_stats_processor()
+    # new_of_api_test()
+    test_stats_processor()
+    # add_low_prio_to_all_sws()
+    # remove_all_tbl_100_flows()
+    # print_all_flows()
+    # analyze_kriskoll_topology()
+
     
     
     

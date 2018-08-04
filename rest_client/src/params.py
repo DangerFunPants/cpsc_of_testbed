@@ -17,7 +17,7 @@ of_controller_port = 8080
 
 # Per trial parameters
 route_files = '/home/ubuntu/cpsc_of_testbed/route_files/'
-seed_no = 'simple'
+seed_no = '5678'
 trial_name = 'seed_' + seed_no + '/'
 route_path = route_files + trial_name
 

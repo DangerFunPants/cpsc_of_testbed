@@ -9,7 +9,6 @@ class Units(Enum):
     BytesPerSecond = 3
     MegaBytesPerSecond = 4
 
-
 class StatsProcessor:
     def __init__(self, mapper, of_proc):
         self._mapper = mapper

@@ -1,4 +1,5 @@
 import of_rest_client as of
+import flowmod as fm
 
 
 class OFProcessor:
@@ -22,7 +23,7 @@ class OFProcessor:
 
     def push_flow_mod(self, dpid, flow_mod):
         req = self._curry_of_msg_cons(of.PushFlowmod)
-        resp = req([dpid, flow_mod]).get_response()
+        resp = req([flow_mod]).get_response()
         return resp
     
     def get_topo_links(self):
@@ -43,10 +44,20 @@ class OFProcessor:
     def remove_flow(self, dpid, flow_mod):
         req = self._curry_of_msg_cons(of.RemoveFlow)
         resp = req([dpid, flow_mod]).get_response()
-        return rest
+        return resp
 
     def get_port_stats(self, dpid):
         req = self._curry_of_msg_cons(of.GetPortStats)
         resp = req([dpid]).get_response()
         return resp
+
+    def remove_table_flows(self, dpid, table_id):
+        flow_mod = fm.Flowmod(dpid, table_id=table_id)
+        return self.remove_flow(dpid, flow_mod)
+
+    def add_default_route(self, dpid, table_id):
+        flow_mod = fm.Flowmod(dpid, priority=1, table_id=100)
+        flow_mod.add_action(fm.Action(fm.ActionTypes.Output, {'port':4294967293}))
+        self.push_flow_mod(dpid, flow_mod)
+
 

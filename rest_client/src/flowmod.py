@@ -24,8 +24,6 @@ class Flowmod:
                 , priority = None
                 , flags = None
                 ):
-        # if not isinstance(dpid, str):
-        #     dpid = dpid_fmt(dpid) 
         self.dpid = dpid
         self.cookie = cookie
         self.cookie_mask = cookie_mask

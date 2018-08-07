@@ -14,3 +14,24 @@ man_net_dns_ip = '192.168.0.2'
 of_controller_ip = '10.0.1.1'
 # Openflow Controller REST API Port Number
 of_controller_port = 8080
+
+# Per trial parameters
+route_files = '/home/ubuntu/cpsc_of_testbed/route_files/'
+seed_no = '5678'
+trial_name = 'seed_' + seed_no + '/'
+route_path = route_files + trial_name
+
+# Median Tx Rate for hosts (Bps)
+mu = 131072
+# Sigma (variance) for hosts. (Bps)
+sigma = 131072
+# Traffic Model
+traffic_model = 'gamma'
+# Frequency of Tx Rate alteration (seconds)
+time_slice = 10
+# Total number of seconds to run the trial for
+trial_length = 240
+# Destination UDP port for test traffic
+dst_port = 50000
+
+

@@ -1,4 +1,3 @@
-# REST Client Library
 import requests as req
 # Loggers
 from logging import error, warn, info
@@ -46,26 +45,32 @@ class OFRequestType(Enum):
     TopologyLinks   = 3
     SwitchDesc      = 4
     RemoveAllFlows  = 5
+    RemoveFlow      = 6
+    GetPortStats    = 7
 
     @staticmethod
     def get_type_parser(req_type):
-        parsers = { OFRequestType.SwitchList  : OFResponseSwitchList.parse_json 
-                  , OFRequestType.SwitchFlows : OFResponseSwitchFlows.parse_json
-                  , OFRequestType.PushFlowmod : OFStatusResponse.parse_json
-                  , OFRequestType.TopologyLinks : OFResponseTopologyLinks.parse_json
-                  , OFRequestType.SwitchDesc    : OFResponseSwitchDesc.parse_json
-                  , OFRequestType.RemoveAllFlows : OFStatusResponse.parse_json
+        parsers = { OFRequestType.SwitchList        : OFResponseSwitchList.parse_json 
+                  , OFRequestType.SwitchFlows       : OFResponseSwitchFlows.parse_json
+                  , OFRequestType.PushFlowmod       : OFStatusResponse.parse_json
+                  , OFRequestType.TopologyLinks     : OFResponseTopologyLinks.parse_json
+                  , OFRequestType.SwitchDesc        : OFResponseSwitchDesc.parse_json
+                  , OFRequestType.RemoveAllFlows    : OFStatusResponse.parse_json
+                  , OFRequestType.RemoveFlow        : OFStatusResponse.parse_json
+                  , OFRequestType.GetPortStats      : OFPortStatsResponse.parse_json
                   }
         return parsers[req_type]
 
     @staticmethod
     def get_http_req_type(req_type):
-        http_map = { OFRequestType.SwitchList   : HttpReqType.GET
-                   , OFRequestType.SwitchFlows  : HttpReqType.GET
-                   , OFRequestType.PushFlowmod  : HttpReqType.POST
-                   , OFRequestType.TopologyLinks : HttpReqType.GET
-                   , OFRequestType.SwitchDesc : HttpReqType.GET
-                   , OFRequestType.RemoveAllFlows : HttpReqType.DELETE
+        http_map = { OFRequestType.SwitchList       : HttpReqType.GET
+                   , OFRequestType.SwitchFlows      : HttpReqType.GET
+                   , OFRequestType.PushFlowmod      : HttpReqType.POST
+                   , OFRequestType.TopologyLinks    : HttpReqType.GET
+                   , OFRequestType.SwitchDesc       : HttpReqType.GET
+                   , OFRequestType.RemoveAllFlows   : HttpReqType.DELETE
+                   , OFRequestType.RemoveFlow       : HttpReqType.POST
+                   , OFRequestType.GetPortStats     : HttpReqType.GET
                    }
         return http_map[req_type]
 
@@ -200,9 +205,9 @@ class OFResponseTopologyLinks(OFResponse):
     def get_adj_mat(self):
         adj_mat = defaultdict(dict)
         for entry in self.resp:
-            dst_id = entry['dst']['dpid']
-            src_id = entry['src']['dpid']
-            adj_mat[dst_id][src_id] = entry['dst']['port_no']
+            dst_id = int(entry['dst']['dpid'], 16)
+            src_id = int(entry['src']['dpid'], 16)
+            adj_mat[dst_id][src_id] = int(entry['dst']['port_no'], 16)
         return adj_mat
 
     def __str__(self):
@@ -211,7 +216,7 @@ class OFResponseTopologyLinks(OFResponse):
 
 class OFResponseSwitchDesc(OFResponse):
     def __init__(self):
-        self.rest = None
+        self.resp = None
 
     def parse(self, json_repr):
         self.response_code = json_repr.status_code
@@ -233,6 +238,37 @@ class OFResponseSwitchDesc(OFResponse):
         sw_name = self.resp[self.get_sw_dpid()]['dp_desc']
         return sw_name
 
+class OFPortStatsResponse(OFResponse):
+    def __init__(self):
+        self.resp = None
+
+    def parse(self, json_repr):
+        self.response_code = json_repr.status_code
+        self.resp = json_repr.json()
+
+    @staticmethod
+    def parse_json(json_repr):
+        obj = OFPortStatsResponse()
+        obj.parse(json_repr)
+        return obj
+
+    def _build_port_dict(self, field_accessor):
+        ret = {}
+        for _, lst in self.resp.items():
+            for port_desc in lst:
+                port_no = int(port_desc['port_no'])
+                field_val = field_accessor(port_desc)
+                ret[port_no] = field_val
+        return ret
+
+    def get_tx_packets(self):
+        tx_pkts = self._build_port_dict(lambda d : d['tx_packets'])
+        return tx_pkts
+
+    def get_rx_packets(self):
+        rx_pkts = self._build_port_dict(lambda d : d['rx_packets'])
+        return rx_pkts
+
 class OFRequest:
     """
     Class OFRequest:
@@ -247,15 +283,15 @@ class OFRequest:
 
     def get_response(self):
         of_request = self.get_request_url()
-        of_params = self.get_request_params()
+        of_params = json.dumps(self.get_request_params())
         try:
             http_req_type = OFRequestType.get_http_req_type(self.req_type)
             if http_req_type == HttpReqType.GET:
-                resp = req.get(of_request, data=json.dumps(of_params))
+                resp = req.get(of_request, data=of_params)
             elif http_req_type == HttpReqType.POST:
-                resp = req.post(of_request, data=json.dumps(of_params))
+                resp = req.post(of_request, data=of_params)
             elif http_req_type == HttpReqType.DELETE:
-                resp = req.delete(of_request, data=json.dumps(of_params))
+                resp = req.delete(of_request, data=of_params)
             else:
                 raise ValueError('Undefined HTTP Method')
         except req.exceptions.ConnectionError as ex:
@@ -274,7 +310,7 @@ class OFRequest:
         return of_resp
     
     def get_request_params(self):
-        return None
+        return {}
 
     def get_host_url(self, req_str=''):
         url = 'http://%s:%d%s' % (self.host, self.port_no, req_str)
@@ -351,7 +387,7 @@ class SwitchDesc(OFRequest):
         if isinstance(self.dpid, str):
             formatted = self.dpid
         else:
-            formatted = util.dpid_fmt(self.dpid)
+            formatted = str(self.dpid)
         url = self.get_host_url('/stats/desc/%s' % formatted)
         return url
 
@@ -373,4 +409,42 @@ class RemoveAllFlows(OFRequest):
         url = self.get_host_url('/stats/flowentry/clear/%s' % formatted)
         return url
 
+class RemoveFlow(OFRequest):
+    """
+    Class: RemoveAllFlows(OFRequest)
+    Purpose: Removes a specific flow from the specified DPID.
+    """
+
+    def __init__(self, dpid, flow_mod, host, port_no):
+        OFRequest.__init__(self, OFRequestType.RemoveFlow, host, port_no)
+        self.flow_mod = flow_mod
+        self.dpid = dpid
+
+    def get_request_url(self):
+        if isinstance(self.dpid, str):
+            formatted = self.dpid
+        else:
+            formatted = str(self.dpid)
+        url = self.get_host_url('/stats/flowentry/delete')
+        return url
     
+    def get_request_params(self):
+        return self.flow_mod.get_json()
+
+class GetPortStats(OFRequest):
+    """
+    Class: GetPortStats(OFRequest)
+    Purpose: Retrieve per-port statistics from a particular datapath.
+    """
+    
+    def __init__(self, dpid, host, port_no):
+        OFRequest.__init__(self, OFRequestType.GetPortStats, host, port_no)
+        self.dpid = dpid
+
+    def get_request_url(self):
+        if isinstance(self.dpid, str):
+            formatted = self.dpid
+        else:
+            formatted = str(self.dpid)
+        url = self.get_host_url('/stats/port/%s' % formatted)
+        return url

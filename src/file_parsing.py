@@ -27,9 +27,9 @@ def read_partitions_file(path):
 def parse_flow_defs(path, seed_no):
     # flow_dir = path + './seed_%s/' % seed_no
     flow_dir = path
-    dests = read_node_file(flow_dir + ('./Destinations_seed_%s.txt') % seed_no)
-    origins = read_node_file(flow_dir + ('./Origins_seed_%s.txt') % seed_no)
-    parts = read_partitions_file(flow_dir + ('./X_matrix_seed_%s.txt') % seed_no)
+    dests = read_node_file(flow_dir + ('Destinations_seed_%s.txt') % seed_no)
+    origins = read_node_file(flow_dir + ('Origins_seed_%s.txt') % seed_no)
+    parts = read_partitions_file(flow_dir + ('X_matrix_seed_%s.txt') % seed_no)
     od_pairs = zip([O_n + 1 for O_n in origins], [D_n + 1 for D_n in dests])
     seen = []
     for elem in od_pairs:
@@ -48,7 +48,7 @@ def read_route_file(path):
     return lst
 
 def parse_routes(path, seed_no):
-    routes_path = path + './Paths_seed_%s.txt' % seed_no 
+    routes_path = path + 'Paths_seed_%s.txt' % seed_no 
     routes = read_route_file(routes_path)
     routes = [ [ list(map(lambda n : n + 1, path)) for path in flow ] for flow in routes ]
     return routes

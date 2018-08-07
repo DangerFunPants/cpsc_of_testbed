@@ -16,9 +16,17 @@ class HostMapper:
 
     def resolve_hostname(self, hostname):
         resolver = dns.Resolver()
-        answers = resolver.query(hostname, 'A')
+        resolver.nameservers = self.nameservers
+        query_str = self.qualify_host_domain(hostname)
+        try:
+            answers = resolver.query(query_str, 'A')
+        except dns.NXDOMAIN:
+            raise IOError('Failed to resolve hostname: %s' % query_str)
+        except Exception:
+            raise IOError('Failed to resolve hostname: %s' % query_str)
+
         if answers:
-            return answers[0]
+            return answers[0].address
         else: 
             return None 
     
@@ -31,7 +39,6 @@ class HostMapper:
         sw_no = str(sw_no)
         switch_list = of.SwitchList(self.host, 
             self.port_no).get_response().get_sw_list()
-        print(switch_list)
         for sw in switch_list:
             req = of.SwitchDesc(str(sw), self.host, self.port_no)
             resp = req.get_response()

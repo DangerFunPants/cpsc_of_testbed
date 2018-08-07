@@ -34,7 +34,6 @@ def test_traffic_transmission(route_adder):
         of_proc.add_default_route(sw, 100)
 
     route_adder.install_routes()
-
     path_name = generate_fname()
     rx_path = '/home/ubuntu/packet_counts/rx/%s' % path_name
     tx_path = '/home/ubuntu/packet_counts/tx/%s' % path_name
@@ -52,11 +51,13 @@ def test_traffic_transmission(route_adder):
         hosts[host_id].connect()
         hosts[host_id].start_server(host_id)
 
+    path_ratios = route_adder.get_path_ratios()
     for (src_host, dst_host) in od_pairs:
         dst_hostname = mapper.map_sw_to_host(dst_host)
         dst_ip = mapper.resolve_hostname(dst_hostname) 
+        path_split = path_ratios[(src_host, dst_host)] 
         hosts[src_host].start_client(cfg.mu, cfg.sigma, cfg.traffic_model,
-            dst_ip, cfg.dst_port, [0.3,0.5,0.2], src_host, cfg.time_slice)
+            dst_ip, cfg.dst_port, path_split, src_host, cfg.time_slice)
 
     sw_list = of.SwitchList(cfg.of_controller_ip, cfg.of_controller_port).get_response().get_sw_list()
     traffic_mon = mp.MPStatMonitor(cfg.of_controller_ip, cfg.of_controller_port, sw_list)

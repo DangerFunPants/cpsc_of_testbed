@@ -15,7 +15,7 @@ import pprint as p
 class MPRouteAdder:
     
     def __init__( self
-                , defs_dir
+                , defs_dir : str
                 , seed_no 
                 , of_proc ):
         self.defs_dir = defs_dir
@@ -24,7 +24,7 @@ class MPRouteAdder:
         self.of_proc = of_proc
 
     @staticmethod
-    def calculate_dscp_value(flow_num):
+    def calculate_dscp_value(flow_num : int) -> int:
         """
         Returns the entire 8 bits of the dscp field (ECN included)
         """
@@ -100,6 +100,9 @@ class MPRouteAdder:
                 pairs.add((path[0], path[-1]))
         return pairs
 
+    def get_path_ratios(self):
+        path_ratios = fp.parse_flow_defs(self.defs_dir, self.seed_no)
+        return path_ratios
 
 class Host:
     """

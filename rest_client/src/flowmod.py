@@ -1,7 +1,7 @@
 from enum import Enum
 from functools import (reduce)
 from util import set_field
-from typing import List, Dict, Any
+from typing import List, Dict, Any, NoReturn
 
 class IPProto(Enum):
     ICMP    = 2
@@ -37,11 +37,11 @@ class Flowmod:
         self.match = {}
         self.actions = []
 
-    def add_match(self: Flowmod, match: Match) -> None:
+    def add_match(self: Flowmod, match: Match) -> NoReturn:
         for k, v in match.get_match_params().items():
             self.match[k] = v
     
-    def add_action(self: Flowmod, action: Action) -> None:
+    def add_action(self: Flowmod, action: Action) -> NoReturn:
         action_rep = action.get_dict()
         self.actions = self.actions + [action_rep]
 
@@ -71,7 +71,7 @@ class Flowmod:
         for i, act in enumerate(self.actions):
             str_rep += '\taction %d\n' % i
             s = map(lambda p : '\t\t'+p+'\n', str(act).split('\n'))
-            s = reduce(lambda s1, s2: s1+s2, s)
+            s = reduce(lambda s1, s2: s1 + s2, s)
             str_rep += s
             
         return str_rep

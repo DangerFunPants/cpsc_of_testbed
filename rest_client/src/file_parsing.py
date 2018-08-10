@@ -30,7 +30,7 @@ def parse_flow_defs(path, seed_no):
     dests = read_node_file(flow_dir + ('Destinations_seed_%s.txt') % seed_no)
     origins = read_node_file(flow_dir + ('Origins_seed_%s.txt') % seed_no)
     parts = read_partitions_file(flow_dir + ('X_matrix_seed_%s.txt') % seed_no)
-    od_pairs = zip([O_n + 1 for O_n in origins], [D_n + 1 for D_n in dests])
+    od_pairs = list(zip([O_n + 1 for O_n in origins], [D_n + 1 for D_n in dests]))
     seen = []
     for elem in od_pairs:
         if elem in seen:

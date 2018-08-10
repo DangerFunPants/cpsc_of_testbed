@@ -39,7 +39,11 @@ class MPRouteAdder:
         adj_mat = of.TopologyLinks(self.host, self.port_no).get_response().get_adj_mat()
         p.pprint(adj_mat)
         route_count = 0
+        
         for flow_num, vs in enumerate(routes):
+            shortest = vs[0]
+            # install the default (DSCP 0) route for the shortest path
+            # self.install_route(shortest, adj_mat, 0)
             for path_num, route in enumerate(vs):
                 dscp_val = MPRouteAdder.calculate_dscp_value(path_num)
                 self.install_route(route, adj_mat, dscp_val)
@@ -73,7 +77,6 @@ class MPRouteAdder:
 
             # Determine the actual DPID of the switch
             sw_dpid = mapper.map_sw_to_dpid(src)
-
             # Construct the correct match criteria. 
             match = fm.Match(fm.MatchTypes.eth_type, 2048) # Math on EthType of IP
             match.add_criteria(fm.MatchTypes.ipv4_src, src_ip)
@@ -108,6 +111,10 @@ class MPRouteAdder:
             for path in route:
                 pairs.add((path[0], path[-1]))
         return pairs
+    
+    def get_path_ratios(self):
+        path_ratios = fp.parse_flow_defs(self.defs_dir, self.seed_no)
+        return path_ratios
 
 
 class Host:
@@ -152,6 +159,11 @@ class Host:
             _,stdout,stderr = self.ssh_tunnel.exec_command(command)
             self.disconnect()
         return (stdout,stderr)
+
+    def ping(self, remote_host, count=4): 
+        ping_command = 'ping -c %d %s' % (count, remote_host)
+        stdout, stderr = self.exec_command(ping_command)
+        return (stdout, stderr)
 
 class MPTestHost(Host):
 

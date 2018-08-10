@@ -1,6 +1,9 @@
 import statistics as stat
 from collections import defaultdict
 from enum import Enum
+import glob as glob
+import os.path as os_path
+import pickle as pick
 
 class Units(Enum):
     PacketsPerSecond = 0
@@ -65,6 +68,65 @@ class StatsProcessor:
             conv_fn = lambda pkts : (((pkts * 1066) / float(10**6)) / float(time_frame))
         return self._convert_stats(pps_stats, conv_fn)
 
+    def _get_src_dst_pair(self, file_name):
+        base = os_path.basename(file_name)
+        toks, _ = os_path.splitext(base)
+        toks = toks.split('-')
+        src_host, dst_host = int(toks[0].split('_')[1]), int(toks[1])
+        return (src_host, dst_host)
+
+    def _mk_tx_dict(self, tx_files):
+        tx_dict = defaultdict(dict)
+        for f in tx_files:
+            with open(f, 'r') as fd:
+                pkts = int(fd.readlines()[0])
+                src_host, dst_host = self._get_src_dst_pair(f)
+                dst_ip = '10.0.0.%d' % dst_host
+                dst_hname = self._mapper.reverse_lookup(dst_ip)
+                src_hname = self._mapper.qualify_host_domain(self._mapper.map_sw_to_host(src_host))
+                tx_dict[src_hname][dst_hname] = pkts
+        return tx_dict
+
+    def _mk_rx_dict(self, rx_files):
+        rx_dict = defaultdict(dict)
+        for f in rx_files:
+            with open(f, 'rb') as fd:
+                infos = pick.load(fd)
+                for (src_ip, _), pkt_count in infos.items():
+                    base, _ = os_path.splitext(os_path.basename(f))
+                    rx_er = base.split('_')[1]
+                    rx_host = self._mapper.qualify_host_domain(self._mapper.map_sw_to_host(rx_er))
+                    hostname = self._mapper.reverse_lookup(src_ip)
+                    rx_dict[rx_host][hostname] = pkt_count
+        return rx_dict
+    
+    def calc_pkt_loss(self, tx_pkts, rx_pkts):
+        pkt_loss = (tx_pkts - rx_pkts) / float(tx_pkts)
+        return pkt_loss
+    
+    def _mk_loss_dict(self, tx_dict, rx_dict):
+        loss_dict = defaultdict(dict)
+        for src_host, flows in tx_dict.items():
+            for dst_host, tx_pkts in flows.items():
+                rx_pkts = rx_dict[dst_host][src_host]
+                loss_dict[src_host][dst_host] = self.calc_pkt_loss(tx_pkts, rx_pkts)
+        return loss_dict
+    
+    def calc_loss_rates(self, trial_name):
+        """
+        This method makes some irritating assumptions about file paths
+        to the pkl and txt files containing the packet drop rate
+        statistics
+        """
+        base_path = '/home/ubuntu/packet_counts/'
+        tx_path = '%s%s%s/*.txt' % (base_path, 'tx/', trial_name)
+        rx_path = '%s%s%s/*.p' % (base_path, 'rx/', trial_name)
+        tx_files = glob.glob(tx_path)
+        rx_files = glob.glob(rx_path)
+        tx_dict = self._mk_tx_dict(tx_files)
+        rx_dict = self._mk_rx_dict(rx_files)
+        loss_dict = self._mk_loss_dict(tx_dict, rx_dict)
+        return loss_dict
 
 
 

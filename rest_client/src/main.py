@@ -22,15 +22,38 @@ def generate_fname():
     date_str = ('%d_%d_%d_%d' % (m, d, y, time.time())) 
     return date_str
 
+def ping_all():
+    of_proc = ofp.OFProcessor(cfg.of_controller_ip, cfg.of_controller_port)
+    mapper = hm.HostMapper([cfg.dns_server_ip], cfg.of_controller_ip, cfg.of_controller_port)
+    sw_list = of_proc.get_switch_list()
+    hosts = {}
+    for sw in sw_list:
+        sw_num = int(mapper.map_dpid_to_sw_num(sw))
+        hostname = mapper.map_sw_to_host(sw_num)
+        hosts[sw_num] = mk_host_defaults(hostname)
+        hosts[sw_num].connect()
+   
+    sw_ids = list(map(lambda dpid : mapper.map_dpid_to_sw_num(dpid), sw_list))
+    pairs = [ (src, dst) for src in sw_ids for dst in sw_ids if src != dst ]
+
+    for (src, dst) in pairs:
+        hostname = mapper.map_sw_to_host(dst)
+        rem_ip = mapper.resolve_hostname(hostname)
+        fd1, fd2 = hosts[src].ping(rem_ip)
+        for ln in fd1:
+            print(ln)
+
 def test_traffic_transmission(route_adder):
 
+    remove_all_count_files(route_adder)
     mapper = hm.HostMapper([cfg.dns_server_ip], cfg.of_controller_ip, cfg.of_controller_port)
     of_proc = ofp.OFProcessor(cfg.of_controller_ip, cfg.of_controller_port)
-
     # Start each trial in a known state
     sw_list = of_proc.get_switch_list()
     for sw in sw_list:
         of_proc.remove_table_flows(sw, 100)
+    
+    for sw in sw_list:
         of_proc.add_default_route(sw, 100)
 
     route_adder.install_routes()
@@ -52,11 +75,16 @@ def test_traffic_transmission(route_adder):
         hosts[host_id].connect()
         hosts[host_id].start_server(host_id)
 
+    time.sleep(30)
+
+    path_ratios = route_adder.get_path_ratios()
+    pp.pprint(path_ratios)
     for (src_host, dst_host) in od_pairs:
         dst_hostname = mapper.map_sw_to_host(dst_host)
         dst_ip = mapper.resolve_hostname(dst_hostname) 
+        path_split = path_ratios[(src_host, dst_host)]
         hosts[src_host].start_client(cfg.mu, cfg.sigma, cfg.traffic_model,
-            dst_ip, cfg.dst_port, [0.3,0.5,0.2], src_host, cfg.time_slice)
+            dst_ip, cfg.dst_port, path_split, src_host, cfg.time_slice)
 
     sw_list = of.SwitchList(cfg.of_controller_ip, cfg.of_controller_port).get_response().get_sw_list()
     traffic_mon = mp.MPStatMonitor(cfg.of_controller_ip, cfg.of_controller_port, sw_list)
@@ -88,6 +116,11 @@ def test_traffic_transmission(route_adder):
     tx_file = './tx_stats.p'
     pickle.dump(rx_res, open(rx_file, 'wb'))
     pickle.dump(tx_res, open(tx_file, 'wb'))
+    record_trial_name(path_name)
+
+def record_trial_name(trial_name):
+    with open('./name_hints.txt', 'w') as fd:
+        fd.writelines(trial_name)
 
 def test_single_flow_tx():
     mapper = hm.HostMapper([cfg.dns_server_ip], cfg.of_controller_ip, cfg.of_controller_port)
@@ -132,4 +165,5 @@ def main():
     test_traffic_transmission(route_adder)
 
 if __name__ == '__main__':
-    main()
+    # main()
+    ping_all()

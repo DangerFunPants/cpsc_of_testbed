@@ -1,5 +1,6 @@
 import of_rest_client as of
 import dns.resolver as dns
+import dns.reversename as rev_name
 import util as util
 
 class HostMapper:
@@ -17,6 +18,7 @@ class HostMapper:
     def resolve_hostname(self, hostname):
         resolver = dns.Resolver()
         resolver.nameservers = self.nameservers
+        
         query_str = self.qualify_host_domain(hostname)
         try:
             answers = resolver.query(query_str, 'A')
@@ -30,10 +32,30 @@ class HostMapper:
         else: 
             return None 
     
+    def reverse_lookup(self, ip_addr):
+        dns_resolver = dns.Resolver()
+        dns_resolver.nameservers = self.nameservers
+        name = rev_name.dns.reversename.from_address(ip_addr)
+        try:
+            answers = dns_resolver.query(name, 'PTR')
+        except dns.NXDOMAIN:
+            raise IOError('Failed to resolve IP: %s' % name)
+        except Exception:
+            raise IOError('Failed to resolve IP: %s' % name)
+        if answers:
+            return str(answers[0])
+        else:
+            return None
+
     def map_dpid_to_sw(self, dpid):
         req = of.SwitchDesc(dpid, self.host, self.port_no)
         resp = req.get_response()
         return resp.get_sw_name()
+
+    def map_dpid_to_sw_num(self, dpid):
+        sw_name = self.map_dpid_to_sw(dpid)
+        num = sw_name.split('_')[1]
+        return int(num)
 
     def map_sw_to_dpid(self, sw_no):
         sw_no = str(sw_no)

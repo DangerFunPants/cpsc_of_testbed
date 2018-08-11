@@ -42,17 +42,17 @@ class TrafficModels(Enum):
         return e_val
 
 class FlowParameters:
-    def __init__(
-        self,
-        dest_port = 0,
-        dest_addr = '0.0.0.0',
-        prob_mat = [],
-        tx_rate = 131072,
-        variance = 131072,
-        traffic_model = TrafficModels.UNIFORM,
-        packet_len = 1024,
-        src_host = 0,
-        time_slice=1):
+    def __init__( self
+                , dest_port = 0
+                , dest_addr = '0.0.0.0'
+                , prob_mat = []
+                , tx_rate = 131072
+                , variance = 131072
+                , traffic_model = TrafficModels.UNIFORM
+                , packet_len = 1024
+                , src_host = 0
+                , time_slice = 1 
+                , flow_count = 1 ):
         self.dest_port = dest_port
         self.dest_addr = dest_addr
         self.prob_mat = prob_mat
@@ -62,19 +62,20 @@ class FlowParameters:
         self.packet_len = packet_len
         self.src_host = src_host
         self.time_slice = time_slice
+        self.flow_count = flow_count
 
     def __str__(self):
-        str_rep = [
-            'Dest. Port: %d' % self.dest_port,
-            'Dest. Addr: %s' % self.dest_addr,
-            'Prob. Mat: %s' % self.prob_mat,
-            'Tx Rate: %d' % self.tx_rate,
-            'Variance: %d' % self.variance,
-            'Traffic Model: %s' % self.traffic_model,
-            'Packet Length: %d' % self.packet_len,
-            'Source Host: %d' % self.src_host,
-            'Time Slice: %d' % self.time_slice
-        ]
+        str_rep = [ 'Dest. Port: %d' % self.dest_port
+                  , 'Dest. Addr: %s' % self.dest_addr
+                  , 'Prob. Mat: %s' % self.prob_mat
+                  , 'Tx Rate: %d' % self.tx_rate
+                  , 'Variance: %d' % self.variance
+                  , 'Traffic Model: %s' % self.traffic_model
+                  , 'Packet Length: %d' % self.packet_len
+                  , 'Source Host: %d' % self.src_host
+                  , 'Time Slice: %d' % self.time_slice
+                  , 'Flow Count: %d' % self.flow_count
+                  ]
         s = reduce(lambda s1, s2 : s1 + '\n' + s2, str_rep)
         return s
 
@@ -176,6 +177,7 @@ def build_arg_parser():
     p.add_argument('-c', dest='constant', metavar='<traffic_model>', nargs=1, help='[ uniform | trunc_norm | random_sampling ]')
     p.add_argument('-host', dest='src_host', metavar='<src_host>', nargs=1, help='src_host', required=True)
     p.add_argument('-slice', dest='time_slice', metavar='<slice_len>', nargs=1, help='distribution sampling rate')
+    p.add_argument('-n', dest='flow_count', metavar='<flow_count>', nargs=1, help='Number of flows')
     return p
 
 def build_flow_params(args):
@@ -193,17 +195,18 @@ def build_flow_params(args):
     if args.time_slice is not None:
         time_slice = int(args.time_slice[0])
     src_host = int(args.src_host[0])
+    flow_count=int(args.flow_count[0])
         
-    flow_params = FlowParameters(
-        dest_port=dest_port,
-        dest_addr=dest_addr,
-        prob_mat=prob_mat,
-        tx_rate=tx_rate,
-        variance=variance,
-        traffic_model=traffic_model,
-        src_host=src_host,
-        time_slice=time_slice
-    )
+    flow_params = FlowParameters( dest_port=dest_port
+                                , dest_addr=dest_addr
+                                , prob_mat=prob_mat
+                                , tx_rate=tx_rate
+                                , variance=variance
+                                , traffic_model=traffic_model
+                                , src_host=src_host
+                                , time_slice=time_slice
+                                , flow_count=flow_count
+                                )
     return flow_params
 
 def get_args():
@@ -267,6 +270,3 @@ if __name__ == '__main__':
     set_log_level(lg.INFO)
     register_handlers()
     main()
-
-    
-        

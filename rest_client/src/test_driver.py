@@ -35,7 +35,6 @@ def print_all_flows():
         resp = flow_req.get_response()
         p.pprint(resp.get_flows())
 
-
 def query_switch_list():
     req = of.SwitchList(cfg.of_controller_ip, cfg.of_controller_port)
     resp = req.get_response()
@@ -118,7 +117,6 @@ def mk_readable(adj_mat):
     ret = defaultdict(dict)
     hm = mapper.HostMapper(cfg.dns_server_ip, cfg.of_controller_ip, cfg.of_controller_port)
     for src, v in adj_mat.items():
-        print(src)
         src_sw_no = hm.map_dpid_to_sw(src)
         for dst, port in v.items():
             dst_sw_no = hm.map_dpid_to_sw(dst)
@@ -182,14 +180,26 @@ def test_stats_processor():
     trial_name = read_trial_name('./name_hints.txt')
     hm = mapper.HostMapper([cfg.dns_server_ip], cfg.of_controller_ip, cfg.of_controller_port)
     tx_file = './tx_stats.p'
+    rx_file = './rx_stats.p'
     stats = pickle.load(open(tx_file, 'rb'))
-    pretty_stats = mk_pretty_sw_dict(stats, hm, lambda k : k[0], lambda n, k : (n, k[1]))
-    p.pprint(pretty_stats)
+    rx_stats = pickle.load(open(rx_file, 'rb'))
     of_proc = ofp.OFProcessor(cfg.of_controller_ip, cfg.of_controller_port)
     st_proc = stp.StatsProcessor(hm, of_proc)
-    st_dict = st_proc.calc_link_util(stats, 1066, 10.0, units=stp.Units.MegaBitsPerSecond)
+    st_dict = st_proc.calc_link_util(stats, cfg.pkt_size, cfg.sample_freq, units=stp.Units.MegaBitsPerSecond)
+    ingress_flows_dict = st_proc.calc_ingress_util(rx_stats, cfg.pkt_size, cfg.sample_freq, units=stp.Units.MegaBitsPerSecond)
+    print('*******************************************************************')
+    print('CORE LINK UTILIZATION')
     p.pprint(st_dict)
+    print('*******************************************************************')
+    print('HOST UPLINK UTILIZATION')
+    p.pprint(ingress_flows_dict)
+    print('*******************************************************************')
+    print('LOSS RATES')
     p.pprint(st_proc.calc_loss_rates(trial_name))
+    print('*******************************************************************')
+    print('GOODPUT FOR FLOWS')
+    p.pprint(st_proc.calc_flow_rate(trial_name, cfg.pkt_size, cfg.sample_freq, cfg.trial_length))
+    print('*******************************************************************')
 
 def test_pkt_loss_analysis():
     trial_name = '8_7_2018_1533690234'
@@ -231,8 +241,9 @@ def main():
     # query_switch_list()
     # add_flow_mod()
     # add_flow_mod_ip()
+    print('*******************************************************************')
+    print('TOPOLOGY ADJ. MATRIX')
     adj_mat = query_topology_links()
-    p.pprint(adj_mat)
     pretty = mk_readable(adj_mat)
     p.pprint(pretty)
     # add_mp_routes()
@@ -269,7 +280,6 @@ def main():
 
     of_proc = ofp.OFProcessor(cfg.of_controller_ip, cfg.of_controller_port)
     hm = mapper.HostMapper([cfg.dns_server_ip], cfg.of_controller_ip, cfg.of_controller_port)
-
 
     if argv[1] == 'remove':
         remove_all_tbl_100_flows()

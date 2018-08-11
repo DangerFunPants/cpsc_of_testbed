@@ -10,6 +10,8 @@ from enum import Enum
 from functools import *
 from math import sqrt
 import logging as lg
+import sys as sys
+import pprint as pp
 
 import numpy as np
 import scipy.stats as stats
@@ -52,7 +54,7 @@ class FlowParameters:
                 , packet_len = 1024
                 , src_host = 0
                 , time_slice = 1 
-                , flow_count = 1 ):
+                ):
         self.dest_port = dest_port
         self.dest_addr = dest_addr
         self.prob_mat = prob_mat
@@ -62,7 +64,6 @@ class FlowParameters:
         self.packet_len = packet_len
         self.src_host = src_host
         self.time_slice = time_slice
-        self.flow_count = flow_count
 
     def __str__(self):
         str_rep = [ 'Dest. Port: %d' % self.dest_port
@@ -74,7 +75,6 @@ class FlowParameters:
                   , 'Packet Length: %d' % self.packet_len
                   , 'Source Host: %d' % self.src_host
                   , 'Time Slice: %d' % self.time_slice
-                  , 'Flow Count: %d' % self.flow_count
                   ]
         s = reduce(lambda s1, s2 : s1 + '\n' + s2, str_rep)
         return s
@@ -195,7 +195,6 @@ def build_flow_params(args):
     if args.time_slice is not None:
         time_slice = int(args.time_slice[0])
     src_host = int(args.src_host[0])
-    flow_count=int(args.flow_count[0])
         
     flow_params = FlowParameters( dest_port=dest_port
                                 , dest_addr=dest_addr
@@ -205,15 +204,16 @@ def build_flow_params(args):
                                 , traffic_model=traffic_model
                                 , src_host=src_host
                                 , time_slice=time_slice
-                                , flow_count=flow_count
                                 )
     return flow_params
 
 def get_args():
-    arg_parser = build_arg_parser()
-    args = arg_parser.parse_args()
-    flow_params = build_flow_params(args)
-    return flow_params
+    arg_str = sys.argv[1]
+    arg_dicts = eval(arg_str)
+    for d in arg_dicts:
+        d['traffic_model'] = TrafficModels.from_str(d['traffic_model'])
+    fp_list = { i: FlowParameters(**d) for i, d in enumerate(arg_dicts) }
+    return fp_list
 
 def inc_pkt_count():
     global pkt_count
@@ -222,28 +222,41 @@ def inc_pkt_count():
 def compute_inter_pkt_delay(pkt_len, tx_rate):
     return (float(pkt_len) / float(tx_rate))
 
-def transmit(sock, ipd, duration, flow_params):
+def wait(t):
+    start = time.perf_counter()
+    while (time.perf_counter() - start) < t:
+        pass
+
+def transmit(sock_list, ipd_list, duration, flow_params):
+    ipds = { i : (sock_list[i], ipd_list[i]) for i in range(len(ipd_list)) }
     start_time = time.time()
+    wait_time = min(ipds.values(), key=lambda t : t[1])
     while (time.time() - start_time) < duration:
         loop_start = time.perf_counter()
-        dscp_val = select_dscp(flow_params.prob_mat)
-        set_dscp(sock, dscp_val)
-        sock.sendto(DATA_STR, (flow_params.dest_addr, flow_params.dest_port))
-        inc_pkt_count()
-        sleep_len = max([ipd - (time.perf_counter() - loop_start), 0.0])
-        start = time.perf_counter()
-        while (time.perf_counter() - start) < sleep_len:
-            pass
+        expired = [ i for i, (_, t) in ipds.items() if t <= 0.0 ]
+        for i in expired:
+            flow = ipds[i]
+            dscp_val = select_dscp(flow_params[i].prob_mat)
+            set_dscp(flow[0], dscp_val)
+            flow[0].sendto(DATA_STR, (flow_params[i].dest_addr, flow_params[i].dest_port))
+            inc_pkt_count()
+            ipds[i] = (ipds[i][0], ipd_list[i])
+        t_offset = max(0.0, time.perf_counter() - loop_start)
+        wait_time = min(ipds.values(), key=lambda t : t[1])[1] - t_offset
+        wait(wait_time)
+        actual_wait = time.perf_counter() - loop_start
+        ipds = { i: (s, t - actual_wait) for i, (s, t) in ipds.items() }
 
 def generate_traffic(flow_params):
-    s = socket.socket(type=socket.SOCK_DGRAM)
-    tx_rate = flow_params.tx_rate
-    distr = create_distribution(flow_params.tx_rate, flow_params.variance, flow_params.traffic_model)
+    socks = { i: socket.socket(type=socket.SOCK_DGRAM) for i in flow_params.keys() }
+    rvs = { i: create_distribution(fp.tx_rate, fp.variance, fp.traffic_model) for i, fp in flow_params.items() }
     while True:
-        tx_rate = select_tx_rate(flow_params, tx_rate, distr)
-        print('Selected Tx rate: %d' % tx_rate)
-        ipd = compute_inter_pkt_delay(flow_params.packet_len, tx_rate)
-        transmit(s, ipd, flow_params.time_slice, flow_params)
+        ipd_list = []
+        for i, fp in flow_params.items():
+            r = select_tx_rate(fp, fp.tx_rate, rvs[i])
+            print('TX: %s' % str(r))
+            ipd_list.append(compute_inter_pkt_delay(fp.packet_len, r))
+        transmit(socks, ipd_list, flow_params[0].time_slice, flow_params)
 
 def handle_sig_int(signum, frame):
     dest_addr, src_host = (flow_params.dest_addr, flow_params.src_host)
@@ -263,7 +276,8 @@ def main():
     global flow_params
     global src_port
     flow_params = get_args()
-    print('ARGS:\n%s' % flow_params)
+    
+    print('ARGS:\n%s' % pp.pformat(str(flow_params)))
     generate_traffic(flow_params)
 
 if __name__ == '__main__':

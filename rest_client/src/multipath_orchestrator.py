@@ -176,10 +176,14 @@ class MPTestHost(Host):
                 , rem_pw
                 , ssh_port = 22 ):
         Host.__init__(self, host_name, rem_uname, rem_pw, ssh_port)
-    
+        self._clients = []
+
+    def _add_client(self, client_params):
+        self._clients.append(client_params)
+
     def remove_all_files(self, path, ext):
         comm_str = 'rm -f %s*.%s' % (path, ext)
-        self.exec_command('rm -f %s*.%s' % (path, ext))
+        self.exec_command(comm_str)
     
     def start_client( self
                     , mu
@@ -202,6 +206,7 @@ class MPTestHost(Host):
                , ('-c %s' % traffic_model)
                , ('-host %s' % host_no)
                , ('-slice %s' % slice)
+               , ('-n %s' % 1)
                ]
         comm_str = util.inject_arg_opts(start_comm, args)
         comm_str += ' &'
@@ -246,6 +251,36 @@ class MPTestHost(Host):
             cfg.of_controller_port, domain='management.cpsc.')
         local_ip = mapper.resolve_hostname('sdn.cpscopenflow1')
         return local_ip
+
+    def configure_client( self
+                        , mu 
+                        , sigma
+                        , traffic_model
+                        , dest_ip
+                        , port_no
+                        , k_mat
+                        , host_no
+                        , slice
+                        , pkt_len=1066 ):
+        client_args = { 'dest_port' : port_no
+                      , 'dest_addr': dest_ip
+                      , 'prob_mat': k_mat
+                      , 'tx_rate': mu
+                      , 'variance': sigma
+                      , 'traffic_model': traffic_model
+                      , 'packet_len': pkt_len
+                      , 'src_host': host_no
+                      , 'time_slice': slice
+                      }
+        self._add_client(client_args)
+
+    def start_clients(self):
+        command_args = '\"%s\"' % str(self._clients)
+        start_comm = '%s/traffic_gen.py' % MPTestHost.BIN_DIR
+        comm_str = util.inject_arg_opts(start_comm, [command_args])
+        comm_str += ' &'
+        print(comm_str)
+        return self.exec_command(comm_str)
 
 class MPStatMonitor:
 

@@ -75,7 +75,7 @@ def test_traffic_transmission(route_adder):
         hosts[host_id].connect()
         hosts[host_id].start_server(host_id)
 
-    time.sleep(30)
+    time.sleep(5)
 
     path_ratios = route_adder.get_path_ratios()
     pp.pprint(path_ratios)
@@ -83,8 +83,11 @@ def test_traffic_transmission(route_adder):
         dst_hostname = mapper.map_sw_to_host(dst_host)
         dst_ip = mapper.resolve_hostname(dst_hostname) 
         path_split = path_ratios[(src_host, dst_host)]
-        hosts[src_host].start_client(cfg.mu, cfg.sigma, cfg.traffic_model,
+        hosts[src_host].configure_client(cfg.mu, cfg.sigma, cfg.traffic_model,
             dst_ip, cfg.dst_port, path_split, src_host, cfg.time_slice)
+
+    for s in set([ s for s, _ in od_pairs]):
+        hosts[s].start_clients()
 
     sw_list = of.SwitchList(cfg.of_controller_ip, cfg.of_controller_port).get_response().get_sw_list()
     traffic_mon = mp.MPStatMonitor(cfg.of_controller_ip, cfg.of_controller_port, sw_list)

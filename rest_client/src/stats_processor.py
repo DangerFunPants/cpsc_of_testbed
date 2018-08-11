@@ -4,6 +4,7 @@ from enum import Enum
 import glob as glob
 import os.path as os_path
 import pickle as pick
+import pprint as pp
 
 class Units(Enum):
     PacketsPerSecond = 0
@@ -31,7 +32,17 @@ class StatsProcessor:
         names = map(self._mapper.map_dpid_to_sw, link)
         return names
 
-    def _calc_link_util_pps(self, stats_dict, pkt_size, time_frame):
+    def _is_core_port(self, dpid, port_no):
+        try:
+            self._get_link(dpid, port_no)
+        except ValueError:
+            return False
+        return True
+
+    def _is_host_port(self, dpid, port_no):
+        return not self._is_core_port(dpid, port_no)
+
+    def _calc_link_util_pps(self, stats_dict):
         # stats_dict :: (sw_dpid, egress_port) -> [pkt_counts]
         timeframes = self._compute_timeframes(stats_dict)
         link_utils = defaultdict(dict)
@@ -44,6 +55,15 @@ class StatsProcessor:
             link_utils[src_nm][dst_nm] = avg_util
         return link_utils
 
+    def _calc_uplink_port_util_pps(self, stats_dict):
+        timeframes = self._compute_timeframes(stats_dict)
+        link_utils = defaultdict(dict)
+        for (sw_dpid, egress_port), count_list in timeframes.items():
+            if self._is_host_port(sw_dpid, egress_port):
+                sw_name = self._mapper.map_dpid_to_sw(sw_dpid)
+                link_utils[sw_name][egress_port] = stat.mean(count_list)
+        return link_utils
+
     def _compute_timeframes(self, results_store):
         return { k : list(map(lambda t : t[1] - t[0], zip(v, v[1:]))) for k, v in results_store.items() }
 
@@ -53,9 +73,8 @@ class StatsProcessor:
             for dst_sw, count in v.items():
                 ret[src_sw][dst_sw] = conv_fn(count)
         return ret
-    
-    def calc_link_util(self, stats_dict, pkt_size, time_frame, units=Units.PacketsPerSecond):
-        pps_stats = self._calc_link_util_pps(stats_dict, pkt_size, time_frame)
+
+    def _calc_link_util(self, pps_stats, pkt_size, time_frame, units=Units.PacketsPerSecond):
         if units == Units.PacketsPerSecond:
             conv_fn = lambda pkts : (pkts / float(time_frame))
         elif units == Units.BitsPerSecond:
@@ -67,6 +86,16 @@ class StatsProcessor:
         elif units == Units.MegaBytesPerSecond:
             conv_fn = lambda pkts : (((pkts * 1066) / float(10**6)) / float(time_frame))
         return self._convert_stats(pps_stats, conv_fn)
+
+    def calc_link_util(self, stats_dict, pkt_size, time_frame, units=Units.PacketsPerSecond):
+        pps_stats = self._calc_link_util_pps(stats_dict)
+        stats = self._calc_link_util(pps_stats, pkt_size, time_frame, units)
+        return stats
+
+    def calc_ingress_util(self, stats_dict, pkt_size, time_frame, units=Units.PacketsPerSecond):
+        pps_stats = self._calc_uplink_port_util_pps(stats_dict)
+        stats = self._calc_link_util(pps_stats, pkt_size, time_frame, units)
+        return stats
 
     def _get_src_dst_pair(self, file_name):
         base = os_path.basename(file_name)
@@ -108,6 +137,7 @@ class StatsProcessor:
         loss_dict = defaultdict(dict)
         for src_host, flows in tx_dict.items():
             for dst_host, tx_pkts in flows.items():
+                print('SRC: %s, DST: %s' % (src_host, dst_host))
                 rx_pkts = rx_dict[dst_host][src_host]
                 loss_dict[src_host][dst_host] = self.calc_pkt_loss(tx_pkts, rx_pkts)
         return loss_dict
@@ -125,8 +155,28 @@ class StatsProcessor:
         rx_files = glob.glob(rx_path)
         tx_dict = self._mk_tx_dict(tx_files)
         rx_dict = self._mk_rx_dict(rx_files)
+        pp.pprint(rx_dict)
+        pp.pprint(tx_dict)
         loss_dict = self._mk_loss_dict(tx_dict, rx_dict)
         return loss_dict
+
+    def calc_flow_rate( self
+                      , trial_name
+                      , pkt_size
+                      , time_frame
+                      , trial_len ):
+        base_path = '/home/ubuntu/packet_counts/'
+        tx_path = '%s%s%s/*.txt' % (base_path, 'tx/', trial_name)
+        rx_path = '%s%s%s/*.p' % (base_path, 'rx/', trial_name)
+        tx_files = glob.glob(tx_path)
+        rx_files = glob.glob(rx_path)
+        tx_dict = self._mk_tx_dict(tx_files)
+        rx_dict = self._mk_rx_dict(rx_files)
+        d = defaultdict(dict)
+        for rx_host, v in rx_dict.items():
+            for tx_host, rx_count in v.items():
+                d[tx_host][rx_host] = ((rx_count / float(trial_len)) * pkt_size * 8) / 10**6
+        return d
 
 
 

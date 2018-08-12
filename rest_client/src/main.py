@@ -104,6 +104,8 @@ def test_traffic_transmission(route_adder):
 
     for host_id in host_ids:
         hosts[host_id].stop_server()
+        
+    time.sleep(15)
 
     for host_id in host_ids:
         hosts[host_id].retrieve_client_files(tx_path)

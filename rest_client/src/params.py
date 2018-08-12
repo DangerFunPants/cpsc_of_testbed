@@ -17,12 +17,12 @@ of_controller_port = 8080
 
 # Per trial parameters
 route_files = '/home/ubuntu/cpsc_of_tb/route_files/'
-seed_no = 'simple'
+seed_no = '5678'
 trial_name = 'seed_' + seed_no + '/'
 route_path = route_files + trial_name
 
 # Median Tx Rate for hosts (Bps)
-mu = (2 * 13107200)
+mu = 13107200
 # Sigma (variance) for hosts. (Bps)
 sigma = 1
 # Traffic Model

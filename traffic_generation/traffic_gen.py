@@ -7,10 +7,11 @@ import argparse
 import os
 import signal
 from enum import Enum
-from functools import *
+from functools import reduce
 from math import sqrt
 import logging as lg
 import sys as sys
+from collections import defaultdict
 import pprint as pp
 
 import numpy as np
@@ -89,7 +90,7 @@ DATA_STR = b'x' * DEF_PCKT_LEN
 #           F_s = 1 / SLICE_DURATION.
 SLICE_DURATION = 1
 
-pkt_count = 0
+pkt_count = defaultdict(int)
 flow_params = None
 
 # Considers the list of flows to be zero indexed and takes into account
@@ -215,9 +216,9 @@ def get_args():
     fp_list = { i: FlowParameters(**d) for i, d in enumerate(arg_dicts) }
     return fp_list
 
-def inc_pkt_count():
+def inc_pkt_count(flow_num):
     global pkt_count
-    pkt_count = pkt_count + 1
+    pkt_count[flow_num] = pkt_count[flow_num] + 1
 
 def compute_inter_pkt_delay(pkt_len, tx_rate):
     return (float(pkt_len) / float(tx_rate))
@@ -239,7 +240,7 @@ def transmit(sock_list, ipd_list, duration, flow_params):
             dscp_val = select_dscp(flow_params[i].prob_mat)
             set_dscp(flow[0], dscp_val)
             flow[0].sendto(DATA_STR, (flow_params[i].dest_addr, flow_params[i].dest_port))
-            inc_pkt_count()
+            inc_pkt_count(i)
             ipds[i] = (ipds[i][0], ipd_list[i])
         t_offset = max(0.0, time.perf_counter() - loop_start)
         wait_time = min(ipds.values(), key=lambda t : t[1])[1] - t_offset
@@ -259,10 +260,11 @@ def generate_traffic(flow_params):
         transmit(socks, ipd_list, flow_params[0].time_slice, flow_params)
 
 def handle_sig_int(signum, frame):
-    dest_addr, src_host = (flow_params.dest_addr, flow_params.src_host)
-    
-    with open('/home/alexj/packet_counts/sender_%s-%s.txt' % (src_host, dest_addr.split('.')[-1]), 'w') as fd:
-        fd.write('%d\n' % pkt_count)
+    for flow_num, fp in flow_params.items():
+        file_path = ('/home/alexj/packet_counts/sender_%s-%s.txt' 
+            % (fp.src_host, fp.dest_addr.split('.')[-1]))
+        with open(file_path, 'w') as fd:
+            fd.write('%d\n' % pkt_count[flow_num])
     exit()
 
 def register_handlers():

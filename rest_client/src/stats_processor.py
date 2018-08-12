@@ -138,7 +138,12 @@ class StatsProcessor:
         for src_host, flows in tx_dict.items():
             for dst_host, tx_pkts in flows.items():
                 print('SRC: %s, DST: %s' % (src_host, dst_host))
-                rx_pkts = rx_dict[dst_host][src_host]
+                try:
+                    rx_pkts = rx_dict[dst_host][src_host]
+                except KeyError:
+                    print('ERROR: RxDict lookup failed. ignoring flow %s -> %s' % 
+                        (src_host, dst_host))
+                    continue
                 loss_dict[src_host][dst_host] = self.calc_pkt_loss(tx_pkts, rx_pkts)
         return loss_dict
     
@@ -155,7 +160,9 @@ class StatsProcessor:
         rx_files = glob.glob(rx_path)
         tx_dict = self._mk_tx_dict(tx_files)
         rx_dict = self._mk_rx_dict(rx_files)
+        print('Rx Dict: ')
         pp.pprint(rx_dict)
+        print('Tx Dict: ')
         pp.pprint(tx_dict)
         loss_dict = self._mk_loss_dict(tx_dict, rx_dict)
         return loss_dict
@@ -170,7 +177,6 @@ class StatsProcessor:
         rx_path = '%s%s%s/*.p' % (base_path, 'rx/', trial_name)
         tx_files = glob.glob(tx_path)
         rx_files = glob.glob(rx_path)
-        tx_dict = self._mk_tx_dict(tx_files)
         rx_dict = self._mk_rx_dict(rx_files)
         d = defaultdict(dict)
         for rx_host, v in rx_dict.items():

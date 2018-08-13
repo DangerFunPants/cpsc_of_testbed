@@ -255,7 +255,8 @@ def generate_traffic(flow_params):
         ipd_list = []
         for i, fp in flow_params.items():
             r = select_tx_rate(fp, fp.tx_rate, rvs[i])
-            print('TX: %s' % str(r))
+            mpbs = (r * 8) / float(10**6)
+            print('TX: %s' % str(mbps))
             ipd_list.append(compute_inter_pkt_delay(fp.packet_len, r))
         transmit(socks, ipd_list, flow_params[0].time_slice, flow_params)
 

@@ -79,6 +79,9 @@ class FlowParameters:
                   ]
         s = reduce(lambda s1, s2 : s1 + '\n' + s2, str_rep)
         return s
+    
+    def __repr__(self):
+        return str(self)
 
 # Default UDP payload length in bytes. 
 DEF_PCKT_LEN = 1024
@@ -255,7 +258,8 @@ def generate_traffic(flow_params):
         ipd_list = []
         for i, fp in flow_params.items():
             r = select_tx_rate(fp, fp.tx_rate, rvs[i])
-            print('TX: %s' % str(r))
+            mbps = (r * 8) / float(10**6)
+            print('TX: %s' % str(mbps))
             ipd_list.append(compute_inter_pkt_delay(fp.packet_len, r))
         transmit(socks, ipd_list, flow_params[0].time_slice, flow_params)
 

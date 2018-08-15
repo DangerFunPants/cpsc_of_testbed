@@ -67,13 +67,10 @@ class MPRouteAdder:
         dst_ip = mapper.resolve_hostname(mapper.map_sw_to_host(dst_sw))
 
         for (src, dst) in pairs:
-            print((src, dst))
             # Determine output port
             src_dpid = int(mapper.map_sw_to_dpid(src))
             dst_dpid = int(mapper.map_sw_to_dpid(dst))
-            print((src_dpid, dst_dpid))
             out_port = adj_mat[src_dpid][dst_dpid]
-            print(out_port)
 
             # Determine the actual DPID of the switch
             sw_dpid = mapper.map_sw_to_dpid(src)

@@ -54,6 +54,18 @@ class StatsProcessor:
             avg_util = stat.mean(count_list)
             link_utils[src_nm][dst_nm] = avg_util
         return link_utils
+    
+    def _calc_link_util_pps_t(self, stats_dict):
+        timeframes = self._compute_timeframes(stats_dict)
+        link_utils = defaultdict(lambda : defaultdict(list))
+        for (sw_dpid, egress_port), count_list in timeframes.items():
+            try:
+                src_nm, dst_nm = self._get_friendly_link(sw_dpid, egress_port)
+            except ValueError:
+                continue
+            link_utils[src_nm][dst_nm] = count_list
+        return link_utils
+
 
     def _calc_uplink_port_util_pps(self, stats_dict):
         timeframes = self._compute_timeframes(stats_dict)
@@ -74,7 +86,14 @@ class StatsProcessor:
                 ret[src_sw][dst_sw] = conv_fn(count)
         return ret
 
-    def _calc_link_util(self, pps_stats, pkt_size, time_frame, units=Units.PacketsPerSecond):
+    def _convert_stats_list(self, stats_dict, conv_fn):
+        ret = defaultdict(dict)
+        for src_sw, v in stats_dict.items():
+            for dst_sw, count_list in v.items():
+                ret[src_sw][dst_sw] = list(map(conv_fn, count_list))
+        return ret
+
+    def _build_conv_fn(self, pkt_size, time_frame, units=Units.PacketsPerSecond):
         if units == Units.PacketsPerSecond:
             conv_fn = lambda pkts : (pkts / float(time_frame))
         elif units == Units.BitsPerSecond:
@@ -85,11 +104,24 @@ class StatsProcessor:
             conv_fn = lambda pkts : ((pkts * 1066) / float(time_frame))
         elif units == Units.MegaBytesPerSecond:
             conv_fn = lambda pkts : (((pkts * 1066) / float(10**6)) / float(time_frame))
+        return conv_fn
+
+    def _calc_link_util(self, pps_stats, pkt_size, time_frame, units=Units.PacketsPerSecond):
+        conv_fn = self._build_conv_fn(pkt_size, time_frame, units)
         return self._convert_stats(pps_stats, conv_fn)
+    
+    def _calc_link_util_list(self, pps_stats, pkt_size, time_frame, units=Units.PacketsPerSecond):
+        conf_fn = self._build_conv_fn(pkt_size, time_frame, units)
+        return self._convert_stats_list(pps_stats, conf_fn)
 
     def calc_link_util(self, stats_dict, pkt_size, time_frame, units=Units.PacketsPerSecond):
         pps_stats = self._calc_link_util_pps(stats_dict)
         stats = self._calc_link_util(pps_stats, pkt_size, time_frame, units)
+        return stats
+    
+    def calc_link_util_t(self, stats_dict, pkt_size, time_frame, units=Units.PacketsPerSecond):
+        pps_stats = self._calc_link_util_pps_t(stats_dict)
+        stats = self._calc_link_util_list(pps_stats, pkt_size, time_frame, units)
         return stats
 
     def calc_ingress_util(self, stats_dict, pkt_size, time_frame, units=Units.PacketsPerSecond):
@@ -178,11 +210,13 @@ class StatsProcessor:
         tx_files = glob.glob(tx_path)
         rx_files = glob.glob(rx_path)
         rx_dict = self._mk_rx_dict(rx_files)
-        d = defaultdict(dict)
+        tx_dict = self._mk_tx_dict(tx_files)
+        rx_stats = defaultdict(dict)
         for rx_host, v in rx_dict.items():
             for tx_host, rx_count in v.items():
-                d[tx_host][rx_host] = ((rx_count / float(trial_len)) * pkt_size * 8) / 10**6
-        return d
+                rx_stats[tx_host][rx_host] = ((rx_count / float(trial_len)) * pkt_size * 8) / 10**6
+       
+        return rx_stats
 
 
 

@@ -187,19 +187,39 @@ def test_stats_processor():
     st_proc = stp.StatsProcessor(hm, of_proc)
     st_dict = st_proc.calc_link_util(stats, cfg.pkt_size, cfg.sample_freq, units=stp.Units.MegaBitsPerSecond)
     ingress_flows_dict = st_proc.calc_ingress_util(rx_stats, cfg.pkt_size, cfg.sample_freq, units=stp.Units.MegaBitsPerSecond)
+    egress_flows_dict = st_proc.calc_ingress_util(stats, cfg.pkt_size, cfg.sample_freq, units=stp.Units.MegaBitsPerSecond)
     print('*******************************************************************')
     print('CORE LINK UTILIZATION')
     p.pprint(st_dict)
+
     print('*******************************************************************')
     print('HOST UPLINK UTILIZATION')
     p.pprint(ingress_flows_dict)
+    
+    print('*******************************************************************')
+    print('HOST EGRESS UTILIZATION')
+    p.pprint(egress_flows_dict)
+
     print('*******************************************************************')
     print('LOSS RATES')
     p.pprint(st_proc.calc_loss_rates(trial_name))
+
     print('*******************************************************************')
     print('GOODPUT FOR FLOWS')
     p.pprint(st_proc.calc_flow_rate(trial_name, cfg.pkt_size, cfg.sample_freq, cfg.trial_length))
     print('*******************************************************************')
+
+def calc_stats_list():
+    trial_name = read_trial_name('./name_hints.txt')
+    hm = mapper.HostMapper([cfg.dns_server_ip], cfg.of_controller_ip, cfg.of_controller_port)
+    tx_file = './tx_stats.p'
+    rx_file = './rx_stats.p'
+    stats = pickle.load(open(tx_file, 'rb'))
+    rx_stats = pickle.load(open(rx_file, 'rb'))
+    of_proc = ofp.OFProcessor(cfg.of_controller_ip, cfg.of_controller_port)
+    st_proc = stp.StatsProcessor(hm, of_proc)
+    st_dict = st_proc.calc_link_util_t(stats, cfg.pkt_size, cfg.sample_freq, units=stp.Units.MegaBitsPerSecond)
+    p.pprint(st_dict)
 
 def test_pkt_loss_analysis():
     trial_name = '8_7_2018_1533690234'
@@ -308,6 +328,8 @@ def main():
         add_flow_mod_ip()
     elif argv[1] == 'dpid':
         list_friendly_switch_names()
+    elif argv[1] == 'stats_list':
+        calc_stats_list()
 
     
     

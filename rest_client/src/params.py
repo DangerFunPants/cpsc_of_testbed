@@ -24,7 +24,7 @@ route_path = route_files + trial_name
 # Median Tx Rate for hosts (Bps)
 mu = 13107200
 # Sigma (variance) for hosts. (Bps)
-sigma = 1
+sigma = (13107200**2)
 # Traffic Model
 traffic_model = 'gamma'
 # Frequency of Tx Rate alteration (seconds)

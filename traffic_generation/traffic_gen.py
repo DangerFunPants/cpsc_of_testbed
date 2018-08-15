@@ -78,6 +78,9 @@ class FlowParameters:
                   ]
         s = reduce(lambda s1, s2 : s1 + '\n' + s2, str_rep)
         return s
+    
+    def __repr__(self):
+        return str(self)
 
 # Default UDP payload length in bytes. 
 DEF_PCKT_LEN = 1024
@@ -238,7 +241,8 @@ def transmit(sock_list, ipd_list, duration, flow_params):
             flow = ipds[i]
             dscp_val = select_dscp(flow_params[i].prob_mat)
             set_dscp(flow[0], dscp_val)
-            flow[0].sendto(DATA_STR, (flow_params[i].dest_addr, flow_params[i].dest_port))
+            for _ in range(10):
+                flow[0].sendto(DATA_STR, (flow_params[i].dest_addr, flow_params[i].dest_port))
             inc_pkt_count(i)
             ipds[i] = (ipds[i][0], ipd_list[i])
         t_offset = max(0.0, time.time_ns() - loop_start)

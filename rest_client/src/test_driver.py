@@ -209,6 +209,7 @@ def test_stats_processor():
     p.pprint(st_proc.calc_flow_rate(trial_name, cfg.pkt_size, cfg.sample_freq, cfg.trial_length))
     print('*******************************************************************')
 
+<<<<<<< HEAD
 def calc_stats_list():
     trial_name = read_trial_name('./name_hints.txt')
     hm = mapper.HostMapper([cfg.dns_server_ip], cfg.of_controller_ip, cfg.of_controller_port)
@@ -220,6 +221,18 @@ def calc_stats_list():
     st_proc = stp.StatsProcessor(hm, of_proc)
     st_dict = st_proc.calc_link_util_t(stats, cfg.pkt_size, cfg.sample_freq, units=stp.Units.MegaBitsPerSecond)
     p.pprint(st_dict)
+=======
+def print_local_loss():
+    st_proc = stp.StatsProcessor(None, None, '/home/alexj/packet_counts/')
+    trial_name = ''
+    print('LOSS RATES')
+    p.pprint(st_proc.calc_loss_rates(trial_name))
+    print('*******************************************************************')
+    print('GOODPUT FOR FLOWS')
+    p.pprint(st_proc.calc_flow_rate(trial_name, cfg.pkt_size, cfg.sample_freq, cfg.trial_length))
+    print('*******************************************************************')
+
+>>>>>>> 9761dc5f9e976835a0c71f00bf2bf8430a0850e4
 
 def test_pkt_loss_analysis():
     trial_name = '8_7_2018_1533690234'
@@ -257,47 +270,12 @@ def port_stats(sw_id):
     p.pprint(of_proc.get_port_stats(dpid).get_rx_packets())
 
 def main():
-    # query_flow_stats(5)
-    # query_switch_list()
-    # add_flow_mod()
-    # add_flow_mod_ip()
-    print('*******************************************************************')
-    print('TOPOLOGY ADJ. MATRIX')
-    adj_mat = query_topology_links()
-    pretty = mk_readable(adj_mat)
-    p.pprint(pretty)
-    # add_mp_routes()
-    # get_sw_desc()
-    # test_host_mapper()
-    # add_low_prio_flow_mod()
-    # add_low_prio_to_all_sws()
-    # remove_all_flows()
-    # add_tbl_0_to_all_sws()
-    # list_friendly_switch_names()
-    # p.pprint(query_topology_links())
-    # p.pprint(sw_to_host_list())
-    # test_command_execution()
-    # print_all_flows()
-    # add_flow_mod_ip()
-    # remove_all_tbl_100_flows()
-    # add_low_prio_to_all_sws()
-    # hm = mapper.HostMapper(cfg.dns_server_ip, cfg.of_controller_ip, cfg.of_controller_port)
-    # for sw in [8, 9, 5]:
-    #     print('Switch with id: %s' % sw)
-    #     print('***************************************************************')
-    #     query_flow_stats(int(hm.map_sw_to_dpid(sw)))
-    # switch_ssh_test()
-    # stat_mon_test()
-    # new_of_api_test()
-    # test_stats_processor()
-    # remove_all_tbl_100_flows()
-    # add_low_prio_to_all_sws()
-    # print_all_flows()
-    # analyze_kriskoll_topology()
-    # test_file_parsing()
-    # test_pkt_loss_analysis()
-    # pprint_mst_topo()
-
+    # print('*******************************************************************')
+    # print('TOPOLOGY ADJ. MATRIX')
+    # adj_mat = query_topology_links()
+    # pretty = mk_readable(adj_mat)
+    # p.pprint(pretty)
+   
     of_proc = ofp.OFProcessor(cfg.of_controller_ip, cfg.of_controller_port)
     hm = mapper.HostMapper([cfg.dns_server_ip], cfg.of_controller_ip, cfg.of_controller_port)
 
@@ -328,6 +306,7 @@ def main():
         add_flow_mod_ip()
     elif argv[1] == 'dpid':
         list_friendly_switch_names()
+<<<<<<< HEAD
     elif argv[1] == 'stats_list':
         calc_stats_list()
 
@@ -335,6 +314,10 @@ def main():
     
     
 
+=======
+    elif argv[1] == 'local_loss':
+        print_local_loss()
+>>>>>>> 9761dc5f9e976835a0c71f00bf2bf8430a0850e4
 
 if __name__ == '__main__':
     main()

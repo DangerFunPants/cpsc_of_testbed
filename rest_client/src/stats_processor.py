@@ -14,9 +14,14 @@ class Units(Enum):
     MegaBytesPerSecond = 4
 
 class StatsProcessor:
-    def __init__(self, mapper, of_proc):
+    def __init__( self
+                , mapper
+                , of_proc
+                , base_path='/home/ubuntu/packet_counts/'
+                ):
         self._mapper = mapper
         self._of_proc = of_proc
+        self.base_path = base_path
 
     def _get_link(self, src_dpid, port_no):
         topo = self._of_proc.get_topo_links().get_adj_mat()
@@ -185,7 +190,7 @@ class StatsProcessor:
         to the pkl and txt files containing the packet drop rate
         statistics
         """
-        base_path = '/home/ubuntu/packet_counts/'
+        base_path = self.base_path
         tx_path = '%s%s%s/*.txt' % (base_path, 'tx/', trial_name)
         rx_path = '%s%s%s/*.p' % (base_path, 'rx/', trial_name)
         tx_files = glob.glob(tx_path)
@@ -204,7 +209,7 @@ class StatsProcessor:
                       , pkt_size
                       , time_frame
                       , trial_len ):
-        base_path = '/home/ubuntu/packet_counts/'
+        base_path = self.base_path
         tx_path = '%s%s%s/*.txt' % (base_path, 'tx/', trial_name)
         rx_path = '%s%s%s/*.p' % (base_path, 'rx/', trial_name)
         tx_files = glob.glob(tx_path)

@@ -15,15 +15,13 @@ import pprint as p
 class MPRouteAdder:
     
     def __init__( self
-                , host
-                , port_no
                 , of_proc
+                , mapper
                 , route_provider ):
-        self.host = host
-        self.port_no = port_no
         self._route_provider = route_provider
         self.installed_routes = defaultdict(list)
         self.of_proc = of_proc
+        self._mapper = mapper
 
     @staticmethod
     def calculate_dscp_value(flow_num):
@@ -36,11 +34,10 @@ class MPRouteAdder:
     def install_routes(self):
         routes = self._route_provider.get_routes()
         # Get a copy of the adjacency matrix
-        adj_mat = of_proc.get_topo_links().get_adj_mat()
+        adj_mat = self.of_proc.get_topo_links().get_adj_mat()
         route_count = 0
         
         for flow_num, vs in enumerate(routes):
-            shortest = vs[0]
             # install the default (DSCP 0) route for the shortest path
             # self.install_route(shortest, adj_mat, 0)
             for path_num, route in enumerate(vs):
@@ -58,20 +55,19 @@ class MPRouteAdder:
         pairs = [(src, dst) for (src,dst) in zip(route, route[1:])]
         src_sw = route[0]
         dst_sw = route[-1]
-
+        print((src_sw, dst_sw))
         # Need the IP Address for the hosts.
-        mapper = hm.HostMapper([cfg.dns_server_ip], cfg.of_controller_ip, cfg.of_controller_port) # Could possible query the OS for IP's of dns servers? 
-        src_ip = mapper.resolve_hostname(mapper.map_sw_to_host(src_sw))
-        dst_ip = mapper.resolve_hostname(mapper.map_sw_to_host(dst_sw))
+        src_ip = self._mapper.resolve_hostname(self._mapper.map_sw_to_host(src_sw))
+        dst_ip = self._mapper.resolve_hostname(self._mapper.map_sw_to_host(dst_sw))
 
         for (src, dst) in pairs:
             # Determine output port
-            src_dpid = int(mapper.map_sw_to_dpid(src))
-            dst_dpid = int(mapper.map_sw_to_dpid(dst))
+            src_dpid = int(self._mapper.map_sw_to_dpid(src))
+            dst_dpid = int(self._mapper.map_sw_to_dpid(dst))
             out_port = adj_mat[src_dpid][dst_dpid]
 
             # Determine the actual DPID of the switch
-            sw_dpid = mapper.map_sw_to_dpid(src)
+            sw_dpid = self._mapper.map_sw_to_dpid(src)
             # Construct the correct match criteria. 
             match = fm.Match(fm.MatchTypes.eth_type, 2048) # Math on EthType of IP
             match.add_criteria(fm.MatchTypes.ipv4_src, src_ip)

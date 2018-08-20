@@ -30,6 +30,7 @@ class MPTestFileParser(FileParser):
     def get_routes(self):
         routes_path = self._route_dir + './Paths_seed_%s.txt' % self._seed_no 
         routes = self._read_route_file(routes_path)
+        routes = [ [ list(map(lambda n : n + 1, path)) for path in flow ] for flow in routes ]
         return routes
 
     def _read_node_file(self, path): 

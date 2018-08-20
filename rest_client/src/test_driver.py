@@ -370,7 +370,7 @@ def main():
         route_provider = fp.MPTestFileParser(route_path, cfg.seed_no)
         p.pprint(route_provider.get_routes())
         p.pprint(route_provider.get_flow_defs())
-        route_adder = mp.MPRouteAdder(cfg.of_controller_ip, cfg.of_controller_port, route_provider)
+        route_adder = mp.MPRouteAdder(of_proc, hm, route_provider)
         trial.test_traffic_transmission(route_adder)
     elif argv[1] == 'ports':
         port_stats(argv[2])        

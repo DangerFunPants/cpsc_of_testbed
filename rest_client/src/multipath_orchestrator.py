@@ -281,7 +281,11 @@ class MPTestHost(Host):
 
 class MPStatMonitor:
 
-    def __init__(self, controller_ip, controller_port, mon_dpids, mon_period=10.0):
+    def __init__( self
+                , controller_ip
+                , controller_port
+                , mon_dpids
+                , mon_period=10.0 ):
         self._controller_ip = controller_ip
         self._controller_port = controller_port
         self._rx_stats_list = defaultdict(list)

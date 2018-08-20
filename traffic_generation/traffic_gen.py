@@ -220,14 +220,14 @@ def get_args():
 
 def inc_pkt_count(flow_num):
     global pkt_count
-    pkt_count[flow_num] = pkt_count[flow_num] + 1
+    pkt_count[flow_num] = pkt_count[flow_num] + 10
 
 def compute_inter_pkt_delay(pkt_len, tx_rate):
-    return (float(pkt_len) / float(tx_rate))
+    return (float(pkt_len) / float(tx_rate)) * 10.0
 
 def wait(t):
-    start = time.time_ns()
-    while (time.time_ns() - start) < t:
+    start = time.perf_counter()
+    while (time.perf_counter() - start) < t:
         pass
 
 def transmit(sock_list, ipd_list, duration, flow_params):
@@ -235,7 +235,7 @@ def transmit(sock_list, ipd_list, duration, flow_params):
     start_time = time.time()
     wait_time = min(ipds.values(), key=lambda t : t[1])
     while (time.time() - start_time) < duration:
-        loop_start = time.time_ns()
+        loop_start = time.perf_counter()
         expired = [ i for i, (_, t) in ipds.items() if t <= 0.0 ]
         for i in expired:
             flow = ipds[i]
@@ -245,10 +245,10 @@ def transmit(sock_list, ipd_list, duration, flow_params):
                 flow[0].sendto(DATA_STR, (flow_params[i].dest_addr, flow_params[i].dest_port))
             inc_pkt_count(i)
             ipds[i] = (ipds[i][0], ipd_list[i])
-        t_offset = max(0.0, time.time_ns() - loop_start)
+        t_offset = max(0.0, time.perf_counter() - loop_start)
         wait_time = min(ipds.values(), key=lambda t : t[1])[1] - t_offset
         wait(wait_time)
-        actual_wait = time.time_ns() - loop_start
+        actual_wait = time.perf_counter() - loop_start
         ipds = { i: (s, t - actual_wait) for i, (s, t) in ipds.items() }
 
 def generate_traffic(flow_params):

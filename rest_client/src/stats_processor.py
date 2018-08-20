@@ -6,6 +6,9 @@ import os.path as os_path
 import pickle as pick
 import pprint as pp
 
+import matplotlib.pyplot as plt
+import numpy as np
+
 class Units(Enum):
     PacketsPerSecond = 0
     MegaBitsPerSecond = 1
@@ -50,6 +53,8 @@ class StatsProcessor:
     def _calc_link_util_pps(self, stats_dict):
         # stats_dict :: (sw_dpid, egress_port) -> [pkt_counts]
         timeframes = self._compute_timeframes(stats_dict)
+        print('TIMEFRAMES')
+        pp.pprint(timeframes)
         link_utils = defaultdict(dict)
         for (sw_dpid, egress_port), count_list in timeframes.items():
             try:
@@ -71,14 +76,15 @@ class StatsProcessor:
             link_utils[src_nm][dst_nm] = count_list
         return link_utils
 
-
-    def _calc_uplink_port_util_pps(self, stats_dict):
+    def _calc_uplink_port_util_pps( self
+                                  , stats_dict
+                                  , tranfs_fn = lambda lst : stat.mean(lst)):
         timeframes = self._compute_timeframes(stats_dict)
         link_utils = defaultdict(dict)
         for (sw_dpid, egress_port), count_list in timeframes.items():
             if self._is_host_port(sw_dpid, egress_port):
                 sw_name = self._mapper.map_dpid_to_sw(sw_dpid)
-                link_utils[sw_name][egress_port] = stat.mean(count_list)
+                link_utils[sw_name][egress_port] = tranfs_fn(count_list)
         return link_utils
 
     def _compute_timeframes(self, results_store):
@@ -111,27 +117,56 @@ class StatsProcessor:
             conv_fn = lambda pkts : (((pkts * 1066) / float(10**6)) / float(time_frame))
         return conv_fn
 
-    def _calc_link_util(self, pps_stats, pkt_size, time_frame, units=Units.PacketsPerSecond):
+    def _calc_link_util( self
+                       , pps_stats
+                       , pkt_size
+                       , time_frame
+                       , units=Units.PacketsPerSecond ):
         conv_fn = self._build_conv_fn(pkt_size, time_frame, units)
         return self._convert_stats(pps_stats, conv_fn)
     
-    def _calc_link_util_list(self, pps_stats, pkt_size, time_frame, units=Units.PacketsPerSecond):
+    def _calc_link_util_list( self
+                            , pps_stats
+                            , pkt_size
+                            , time_frame
+                            , units=Units.PacketsPerSecond ):
         conf_fn = self._build_conv_fn(pkt_size, time_frame, units)
         return self._convert_stats_list(pps_stats, conf_fn)
 
-    def calc_link_util(self, stats_dict, pkt_size, time_frame, units=Units.PacketsPerSecond):
+    def calc_link_util( self
+                      , stats_dict
+                      , pkt_size
+                      , time_frame
+                      , units=Units.PacketsPerSecond ):
         pps_stats = self._calc_link_util_pps(stats_dict)
         stats = self._calc_link_util(pps_stats, pkt_size, time_frame, units)
         return stats
     
-    def calc_link_util_t(self, stats_dict, pkt_size, time_frame, units=Units.PacketsPerSecond):
+    def calc_link_util_per_t( self
+                            , stats_dict
+                            , pkt_size
+                            , time_frame
+                            , units=Units.PacketsPerSecond ):
         pps_stats = self._calc_link_util_pps_t(stats_dict)
         stats = self._calc_link_util_list(pps_stats, pkt_size, time_frame, units)
         return stats
 
-    def calc_ingress_util(self, stats_dict, pkt_size, time_frame, units=Units.PacketsPerSecond):
+    def calc_ingress_util( self
+                         , stats_dict
+                         , pkt_size
+                         , time_frame
+                         , units=Units.PacketsPerSecond ):
         pps_stats = self._calc_uplink_port_util_pps(stats_dict)
         stats = self._calc_link_util(pps_stats, pkt_size, time_frame, units)
+        return stats
+
+    def calc_ingress_util_per_t( self
+                               , stats_dict
+                               , pkt_size
+                               , time_frame
+                               , units=Units.PacketsPerSecond ):
+        pps_stats = self._calc_uplink_port_util_pps(stats_dict, lambda lst : lst)
+        stats = self._calc_link_util_list(pps_stats, pkt_size, time_frame, units)
         return stats
 
     def _get_src_dst_pair(self, file_name):
@@ -223,6 +258,52 @@ class StatsProcessor:
        
         return rx_stats
 
+class Grapher:
 
+    def __init__(self):
+        pass
 
+    def graph_timeframes( self
+                        , axes
+                        , stats_list
+                        , names = ['timeframe']
+                        , show_plot = False 
+                        , positions = [1] ):
+        network_util = [ 
+            [ util for v in stats.values() for util in v.values() ]
+            for stats in stats_list ]
+        plt.boxplot(network_util, labels=names)
+        plt.ylabel('Link Utilization (Mbps)')
     
+    def graph_util_over_time( self
+                            , stats_list
+                            , name = 'util_per_t'
+                            , show_plot = False ):
+        for src_sw, v in stats_list.items():
+            for dst_sw, count_list in v.items():
+                plt.plot(count_list)
+        plt.title(name)
+        plt.xlabel('Time')
+        plt.ylabel('Link Utilization (Mbps)')
+        if show_plot:
+            plt.show()
+        plt.savefig('./%s.png' % name)
+        plt.cla()
+
+    def graph_loss_cdf( self
+                  , axes
+                  , stats_list
+                  , name ):
+        pp.pprint(stats_list)
+        loss_list = [ ll for d in stats_list.values() for ll in d.values() ]
+        print(loss_list)
+        sum_val = sum(loss_list)
+        normalized = []
+        for loss_rate in loss_list:
+            normalized.append(0 if sum_val == 0 else loss_rate / sum_val)
+        CDF = np.cumsum(sorted(normalized))
+        plt.title('Loss CDF')
+        plt.ylabel('P{x < X}')
+        plt.xlabel('Loss Rate')
+        axes.plot(sorted(loss_list), CDF, label=name)
+

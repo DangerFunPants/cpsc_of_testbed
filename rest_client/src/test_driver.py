@@ -1,3 +1,5 @@
+#!/usr/bin/env python3
+
 import of_rest_client as of
 import flowmod as fm
 import pprint as p
@@ -14,6 +16,7 @@ import file_parsing as fp
 import params as cfg
 from sys import argv
 import main as trial
+import matplotlib.pyplot as plt
 
 def query_flow_stats(dpid):
     req = of.SwitchFlows(dpid, cfg.of_controller_ip, cfg.of_controller_port)
@@ -185,6 +188,7 @@ def test_stats_processor():
     rx_stats = pickle.load(open(rx_file, 'rb'))
     of_proc = ofp.OFProcessor(cfg.of_controller_ip, cfg.of_controller_port)
     st_proc = stp.StatsProcessor(hm, of_proc)
+    p.pprint(stats)
     st_dict = st_proc.calc_link_util(stats, cfg.pkt_size, cfg.sample_freq, units=stp.Units.MegaBitsPerSecond)
     ingress_flows_dict = st_proc.calc_ingress_util(rx_stats, cfg.pkt_size, cfg.sample_freq, units=stp.Units.MegaBitsPerSecond)
     egress_flows_dict = st_proc.calc_ingress_util(stats, cfg.pkt_size, cfg.sample_freq, units=stp.Units.MegaBitsPerSecond)
@@ -209,7 +213,6 @@ def test_stats_processor():
     p.pprint(st_proc.calc_flow_rate(trial_name, cfg.pkt_size, cfg.sample_freq, cfg.trial_length))
     print('*******************************************************************')
 
-<<<<<<< HEAD
 def calc_stats_list():
     trial_name = read_trial_name('./name_hints.txt')
     hm = mapper.HostMapper([cfg.dns_server_ip], cfg.of_controller_ip, cfg.of_controller_port)
@@ -219,9 +222,9 @@ def calc_stats_list():
     rx_stats = pickle.load(open(rx_file, 'rb'))
     of_proc = ofp.OFProcessor(cfg.of_controller_ip, cfg.of_controller_port)
     st_proc = stp.StatsProcessor(hm, of_proc)
-    st_dict = st_proc.calc_link_util_t(stats, cfg.pkt_size, cfg.sample_freq, units=stp.Units.MegaBitsPerSecond)
+    st_dict = st_proc.calc_link_util_per_t(stats, cfg.pkt_size, cfg.sample_freq, units=stp.Units.MegaBitsPerSecond)
     p.pprint(st_dict)
-=======
+
 def print_local_loss():
     st_proc = stp.StatsProcessor(None, None, '/home/alexj/packet_counts/')
     trial_name = ''
@@ -232,7 +235,6 @@ def print_local_loss():
     p.pprint(st_proc.calc_flow_rate(trial_name, cfg.pkt_size, cfg.sample_freq, cfg.trial_length))
     print('*******************************************************************')
 
->>>>>>> 9761dc5f9e976835a0c71f00bf2bf8430a0850e4
 
 def test_pkt_loss_analysis():
     trial_name = '8_7_2018_1533690234'
@@ -269,12 +271,77 @@ def port_stats(sw_id):
     dpid = hm.map_sw_to_dpid(int(sw_id))
     p.pprint(of_proc.get_port_stats(dpid).get_rx_packets())
 
+def plot_test():
+    of_proc = ofp.OFProcessor(cfg.of_controller_ip, cfg.of_controller_port)
+    hm = mapper.HostMapper([cfg.dns_server_ip], cfg.of_controller_ip, cfg.of_controller_port)
+    st_proc = stp.StatsProcessor(hm, of_proc)
+    grapher = stp.Grapher()
+
+    trial_name = read_trial_name('./name_hints.txt')
+    tx_file = './tx_stats.p'
+    rx_file = './rx_stats.p'
+    tx_stats = pickle.load(open(tx_file, 'rb'))
+    rx_stats = pickle.load(open(rx_file, 'rb'))
+
+    stats_list = st_proc.calc_link_util_per_t(tx_stats, cfg.pkt_size, cfg.time_slice, stp.Units.MegaBitsPerSecond)
+    stats_avg = st_proc.calc_link_util(tx_stats, cfg.pkt_size, cfg.time_slice, stp.Units.MegaBitsPerSecond)
+    stats_loss = st_proc.calc_loss_rates(read_trial_name('./name_hints.txt'))
+    stats_uplink = st_proc.calc_ingress_util_per_t(rx_stats, cfg.pkt_size, cfg.time_slice, stp.Units.MegaBitsPerSecond)
+    stats_tput = st_proc.calc_flow_rate(trial_name, cfg.pkt_size, cfg.sample_freq, cfg.trial_length)
+
+    grapher.graph_util_over_time(stats_list, 'util_per_ts', show_plot=True)
+
+    fig, ax = plt.subplots(1, 1)
+    grapher.graph_loss_cdf(ax, stats_loss, 'loss_plot')
+    fig.savefig('loss_plot.png')
+
+
+    grapher.graph_util_over_time(stats_uplink, 'uplink_ports')
+
+
+def gen_boxplot(input_files):
+    of_proc = ofp.OFProcessor(cfg.of_controller_ip, cfg.of_controller_port)
+    hm = mapper.HostMapper([cfg.dns_server_ip], cfg.of_controller_ip, cfg.of_controller_port)
+    st_proc = stp.StatsProcessor(hm, of_proc)
+    grapher = stp.Grapher()
+
+    fig, ax = plt.subplots(1, 1)
+    stats_avg = []
+    for i, f in enumerate(input_files):
+        print(f)
+        stat_path = f + '/tx_stats.p'
+        tx_stats = pickle.load(open(stat_path, 'rb')) 
+        stats_avg.append(st_proc.calc_link_util(tx_stats, cfg.pkt_size, cfg.time_slice, stp.Units.MegaBitsPerSecond))
+    grapher.graph_timeframes(ax, stats_avg, input_files)
+    plt.show()
+
+    fig, ax = plt.subplots(1, 1)
+    stats_avg = []
+    for i, f in enumerate(input_files):
+        print(f)
+        stat_path = f + '/tx_stats.p'
+        tx_stats = pickle.load(open(stat_path, 'rb')) 
+        trial_name = read_trial_name(f + '/name_hints.txt')
+        stats_avg.append(st_proc.calc_flow_rate(trial_name, cfg.pkt_size, cfg.sample_freq, cfg.trial_length))
+    grapher.graph_timeframes(ax, stats_avg, input_files)
+    plt.show()
+
+def gen_lossplot(input_files):
+    of_proc = ofp.OFProcessor(cfg.of_controller_ip, cfg.of_controller_port)
+    hm = mapper.HostMapper([cfg.dns_server_ip], cfg.of_controller_ip, cfg.of_controller_port)
+    st_proc = stp.StatsProcessor(hm, of_proc)
+    grapher = stp.Grapher()
+
+    fig, ax = plt.subplots(1, 1)
+    stats_avg = []
+    for i, f in enumerate(input_files):
+        trial_name = f + '/name_hints.txt'
+        loss_stats = st_proc.calc_loss_rates(read_trial_name(trial_name))
+        grapher.graph_loss_cdf(ax, loss_stats, f)
+    legend = ax.legend(loc='bottom right', shadow=True, fontsize='medium')
+    plt.show()
+
 def main():
-    # print('*******************************************************************')
-    # print('TOPOLOGY ADJ. MATRIX')
-    # adj_mat = query_topology_links()
-    # pretty = mk_readable(adj_mat)
-    # p.pprint(pretty)
    
     of_proc = ofp.OFProcessor(cfg.of_controller_ip, cfg.of_controller_port)
     hm = mapper.HostMapper([cfg.dns_server_ip], cfg.of_controller_ip, cfg.of_controller_port)
@@ -292,7 +359,10 @@ def main():
     elif argv[1] == 'mst':
         pprint_mst_topo()
     elif argv[1] == 'start':
-        route_adder = mp.MPRouteAdder(cfg.of_controller_ip, cfg.of_controller_port, cfg.route_path, cfg.seed_no)
+        route_input = argv[2]
+        route_path = cfg.route_files + route_input
+        route_adder = mp.MPRouteAdder(cfg.of_controller_ip, cfg.of_controller_port, route_path, cfg.seed_no)
+        # route_adder = mp.MPRouteAdder(cfg.of_controller_ip, cfg.of_controller_port, cfg.route_path, cfg.seed_no)
         trial.test_traffic_transmission(route_adder)
     elif argv[1] == 'ports':
         port_stats(argv[2])        
@@ -306,18 +376,16 @@ def main():
         add_flow_mod_ip()
     elif argv[1] == 'dpid':
         list_friendly_switch_names()
-<<<<<<< HEAD
     elif argv[1] == 'stats_list':
         calc_stats_list()
-
-    
-    
-    
-
-=======
     elif argv[1] == 'local_loss':
         print_local_loss()
->>>>>>> 9761dc5f9e976835a0c71f00bf2bf8430a0850e4
+    elif argv[1] == 'plot_test':
+        plot_test()
+    elif argv[1] == 'gen_boxplot':
+        gen_boxplot(argv[2:])
+    elif argv[1] == 'gen_lossplot':
+        gen_lossplot(argv[2:])
 
 if __name__ == '__main__':
     main()

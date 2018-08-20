@@ -17,6 +17,7 @@ import params as cfg
 from sys import argv
 import main as trial
 import matplotlib.pyplot as plt
+import time as t
 
 def query_flow_stats(dpid):
     req = of.SwitchFlows(dpid, cfg.of_controller_ip, cfg.of_controller_port)
@@ -58,7 +59,6 @@ def add_flow_mod():
 def add_low_prio_flow_mod(dpid):
     flow_mod = fm.Flowmod(dpid, priority=1, table_id=100)
     flow_mod.add_action(fm.Action(fm.ActionTypes.Output, {'port':4294967293}))
-    p.pprint(flow_mod.get_json())
     req = of.PushFlowmod(flow_mod, cfg.of_controller_ip, cfg.of_controller_port)
     resp = req.get_response()
 
@@ -341,6 +341,12 @@ def gen_lossplot(input_files):
     legend = ax.legend(loc='bottom right', shadow=True, fontsize='medium')
     plt.show()
 
+def test_install(route_adder):
+    t_i = t.perf_counter()
+    route_adder.install_routes()
+    t_f = t.perf_counter()
+    print('Installing routes took: %f seconds' % (t_f - t_i))
+
 def main():
    
     of_proc = ofp.OFProcessor(cfg.of_controller_ip, cfg.of_controller_port)
@@ -386,6 +392,14 @@ def main():
         gen_boxplot(argv[2:])
     elif argv[1] == 'gen_lossplot':
         gen_lossplot(argv[2:])
+    elif argv[1] == 'test_install':
+        route_input = argv[2]
+        route_path = cfg.route_files + route_input
+        route_adder = mp.MPRouteAdder(cfg.of_controller_ip, cfg.of_controller_port, route_path, cfg.seed_no)
+        test_install(route_adder)
+        remove_all_tbl_100_flows()
+        add_low_prio_to_all_sws()
+
 
 if __name__ == '__main__':
     main()

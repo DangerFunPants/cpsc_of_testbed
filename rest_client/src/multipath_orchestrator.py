@@ -37,7 +37,6 @@ class MPRouteAdder:
         routes = fp.parse_routes(self.defs_dir, self.seed_no)
         # Get a copy of the adjacency matrix
         adj_mat = of.TopologyLinks(self.host, self.port_no).get_response().get_adj_mat()
-        p.pprint(adj_mat)
         route_count = 0
         
         for flow_num, vs in enumerate(routes):
@@ -57,7 +56,6 @@ class MPRouteAdder:
     # setup.
     def install_route(self, route, adj_mat, dscp_val):
         pairs = [(src, dst) for (src,dst) in zip(route, route[1:])]
-        print(route)
         src_sw = route[0]
         dst_sw = route[-1]
 

@@ -33,7 +33,7 @@ traffic_model = 'gamma'
 # Frequency of Tx Rate alteration (seconds)
 time_slice = 10
 # Total number of seconds to run the trial for
-trial_length = 900
+trial_length = 60
 # Destination UDP port for test traffic
 dst_port = 50000
 # Data packet size (Headers included)

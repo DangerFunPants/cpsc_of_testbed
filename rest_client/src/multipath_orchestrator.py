@@ -17,12 +17,10 @@ class MPRouteAdder:
     def __init__( self
                 , host
                 , port_no
-                , defs_dir
-                , seed_no ):
+                , route_provider ):
         self.host = host
         self.port_no = port_no
-        self.defs_dir = defs_dir
-        self.seed_no = seed_no
+        self._route_provider = route_provider
         self.installed_routes = defaultdict(list)
 
     @staticmethod
@@ -34,7 +32,7 @@ class MPRouteAdder:
         return dscp_val
 
     def install_routes(self):
-        routes = fp.parse_routes(self.defs_dir, self.seed_no)
+        routes = self._route_provider.get_routes()
         # Get a copy of the adjacency matrix
         adj_mat = of.TopologyLinks(self.host, self.port_no).get_response().get_adj_mat()
         route_count = 0
@@ -100,7 +98,7 @@ class MPRouteAdder:
                 resp = req.get_response()
 
     def get_src_dst_pairs(self):
-        routes = fp.parse_routes(self.defs_dir, self.seed_no)
+        routes = self._route_provider.get_routes()
         pairs = set()
         for route in routes:
             for path in route:
@@ -108,7 +106,7 @@ class MPRouteAdder:
         return pairs
     
     def get_path_ratios(self):
-        path_ratios = fp.parse_flow_defs(self.defs_dir, self.seed_no)
+        path_ratios = self._route_provider.get_flow_defs()
         return path_ratios
 
 

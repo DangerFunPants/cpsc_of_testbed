@@ -36,7 +36,11 @@ class MPRouteAdder:
         # Get a copy of the adjacency matrix
         adj_mat = of_proc.get_topo_links().get_adj_mat()
         route_count = 0
+        
         for flow_num, vs in enumerate(routes):
+            shortest = vs[0]
+            # install the default (DSCP 0) route for the shortest path
+            # self.install_route(shortest, adj_mat, 0)
             for path_num, route in enumerate(vs):
                 dscp_val = MPRouteAdder.calculate_dscp_value(path_num)
                 self.install_route(route, adj_mat, dscp_val)
@@ -60,14 +64,13 @@ class MPRouteAdder:
         dst_ip = mapper.resolve_hostname(mapper.map_sw_to_host(dst_sw))
 
         for (src, dst) in pairs:
-            print((src, dst))
             # Determine output port
             src_dpid = int(mapper.map_sw_to_dpid(src))
             dst_dpid = int(mapper.map_sw_to_dpid(dst))
-            print((src_dpid, dst_dpid))
             out_port = adj_mat[src_dpid][dst_dpid]
-            print(out_port)
 
+            # Determine the actual DPID of the switch
+            sw_dpid = mapper.map_sw_to_dpid(src)
             # Construct the correct match criteria. 
             match = fm.Match(fm.MatchTypes.eth_type, 2048) # Math on EthType of IP
             match.add_criteria(fm.MatchTypes.ipv4_src, src_ip)
@@ -99,6 +102,10 @@ class MPRouteAdder:
             for path in route:
                 pairs.add((path[0], path[-1]))
         return pairs
+    
+    def get_path_ratios(self):
+        path_ratios = fp.parse_flow_defs(self.defs_dir, self.seed_no)
+        return path_ratios
 
     def get_path_ratios(self):
         path_ratios = fp.parse_flow_defs(self.defs_dir, self.seed_no)
@@ -147,6 +154,11 @@ class Host:
             self.disconnect()
         return (stdout,stderr)
 
+    def ping(self, remote_host, count=4): 
+        ping_command = 'ping -c %d %s' % (count, remote_host)
+        stdout, stderr = self.exec_command(ping_command)
+        return (stdout, stderr)
+
 class MPTestHost(Host):
 
     BIN_DIR = '/home/alexj/traffic_generation/' 
@@ -158,10 +170,14 @@ class MPTestHost(Host):
                 , rem_pw
                 , ssh_port = 22 ):
         Host.__init__(self, host_name, rem_uname, rem_pw, ssh_port)
-    
+        self._clients = []
+
+    def _add_client(self, client_params):
+        self._clients.append(client_params)
+
     def remove_all_files(self, path, ext):
         comm_str = 'rm -f %s*.%s' % (path, ext)
-        self.exec_command('rm -f %s*.%s' % (path, ext))
+        self.exec_command(comm_str)
     
     def start_client( self
                     , mu
@@ -184,6 +200,7 @@ class MPTestHost(Host):
                , ('-c %s' % traffic_model)
                , ('-host %s' % host_no)
                , ('-slice %s' % slice)
+               , ('-n %s' % 1)
                ]
         comm_str = util.inject_arg_opts(start_comm, args)
         comm_str += ' &'
@@ -229,9 +246,43 @@ class MPTestHost(Host):
         local_ip = mapper.resolve_hostname('sdn.cpscopenflow1')
         return local_ip
 
+    def configure_client( self
+                        , mu 
+                        , sigma
+                        , traffic_model
+                        , dest_ip
+                        , port_no
+                        , k_mat
+                        , host_no
+                        , slice
+                        , pkt_len=1066 ):
+        client_args = { 'dest_port' : port_no
+                      , 'dest_addr': dest_ip
+                      , 'prob_mat': k_mat
+                      , 'tx_rate': mu
+                      , 'variance': sigma
+                      , 'traffic_model': traffic_model
+                      , 'packet_len': pkt_len
+                      , 'src_host': host_no
+                      , 'time_slice': slice
+                      }
+        self._add_client(client_args)
+
+    def start_clients(self):
+        command_args = '\"%s\"' % str(self._clients)
+        start_comm = '%s/traffic_gen.py' % MPTestHost.BIN_DIR
+        comm_str = util.inject_arg_opts(start_comm, [command_args])
+        comm_str += ' &'
+        print(comm_str)
+        return self.exec_command(comm_str)
+
 class MPStatMonitor:
 
-    def __init__(self, controller_ip, controller_port, mon_dpids, mon_period=10.0):
+    def __init__( self
+                , controller_ip
+                , controller_port
+                , mon_dpids
+                , mon_period=10.0 ):
         self._controller_ip = controller_ip
         self._controller_port = controller_port
         self._rx_stats_list = defaultdict(list)

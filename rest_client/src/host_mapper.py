@@ -1,5 +1,6 @@
 import of_processor as ofp
 import dns.resolver as dns
+import dns.reversename as rev_name
 import util as util
 
 from typing import List, Union, Dict
@@ -24,6 +25,7 @@ class HostMapper:
     def resolve_hostname(self: HostMapper, hostname: str) -> Union[str, None]:
         resolver = dns.Resolver()
         resolver.nameservers = self.nameservers
+        
         query_str = self.qualify_host_domain(hostname)
         try:
             answers = resolver.query(query_str, 'A')
@@ -36,12 +38,33 @@ class HostMapper:
             return answers[0].address
         else: 
             return None 
-    
-    def map_dpid_to_sw(self: HostMapper, dpid: str) -> str:
-        resp = self.of_proc.get_switch_desc(dpid)
+
+    def reverse_lookup(self, ip_addr):
+        dns_resolver = dns.Resolver()
+        dns_resolver.nameservers = self.nameservers
+        name = rev_name.dns.reversename.from_address(ip_addr)
+        try:
+            answers = dns_resolver.query(name, 'PTR')
+        except dns.NXDOMAIN:
+            raise IOError('Failed to resolve IP: %s' % name)
+        except Exception:
+            raise IOError('Failed to resolve IP: %s' % name)
+        if answers:
+            return str(answers[0])
+        else:
+            return None
+
+    def map_dpid_to_sw(self, dpid):
+        req = of.SwitchDesc(dpid, self.host, self.port_no)
+        resp = req.get_response()
         return resp.get_sw_name()
 
-    def map_sw_to_dpid(self: HostMapper, sw_no: Union[str, int]) -> Union[str, None]:
+    def map_dpid_to_sw_num(self, dpid):
+        sw_name = self.map_dpid_to_sw(dpid)
+        num = sw_name.split('_')[1]
+        return int(num)
+
+    def map_sw_to_dpid(self, sw_no):
         sw_no = str(sw_no)
         switch_list = of_proc.get_switch_list()
         for sw in switch_list:

@@ -282,7 +282,7 @@ def handle_sig_int(signum, frame):
         flow_info[flow_num]['dst_ip'] = fp.dest_addr
         src_host_id = fp.src_host # TODO: Store canonical src_host id
 
-    file_path = 'sender_%d.p' % src_host_id
+    file_path = '/home/alexj/packet_counts/sender_%d.p' % src_host_id
     with open(file_path, 'wb') as fd:
         pickle.dump(flow_info, fd)
     exit()

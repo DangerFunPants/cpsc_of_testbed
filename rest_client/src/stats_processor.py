@@ -257,16 +257,16 @@ class StatsProcessor:
         statistics
         """
         base_path = self.base_path
-        tx_path = '%s%s%s/*.txt' % (base_path, 'tx/', trial_name)
+        tx_path = '%s%s%s/*.p' % (base_path, 'tx/', trial_name)
         rx_path = '%s%s%s/*.p' % (base_path, 'rx/', trial_name)
         tx_files = glob.glob(tx_path)
         rx_files = glob.glob(rx_path)
         tx_dict = self._mk_tx_dict(tx_files)
         rx_dict = self._mk_rx_dict(rx_files)
-        print('Rx Dict: ')
-        pp.pprint(rx_dict)
-        print('Tx Dict: ')
-        pp.pprint(tx_dict)
+        # print('Rx Dict: ')
+        # pp.pprint(rx_dict)
+        # print('Tx Dict: ')
+        # pp.pprint(tx_dict)
         loss_dict = self._mk_loss_dict(tx_dict, rx_dict)
         return loss_dict
 

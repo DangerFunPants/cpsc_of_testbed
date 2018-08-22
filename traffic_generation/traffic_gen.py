@@ -268,11 +268,6 @@ def generate_traffic(flow_params):
         transmit(socks, ipd_list, flow_params[0].time_slice, flow_params)
 
 def handle_sig_int(signum, frame):
-    # for flow_num, fp in flow_params.items():
-    #     file_path = ('/home/alexj/packet_counts/sender_%s-%s.txt' 
-    #         % (fp.src_host, fp.dest_addr.split('.')[-1]))
-    #    with open(file_path, 'w') as fd:
-    #        fd.write('%d\n' % pkt_count[flow_num])
     flow_info = defaultdict(dict)
     src_host_id = None
     for flow_num, fp in flow_params.items():

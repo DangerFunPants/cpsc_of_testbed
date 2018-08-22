@@ -61,7 +61,11 @@ class MPRouteAdder:
             # Determine output port
             src_dpid = int(self._mapper.map_sw_to_dpid(src))
             dst_dpid = int(self._mapper.map_sw_to_dpid(dst))
-            out_port = adj_mat[src_dpid][dst_dpid]
+            try:
+                out_port = adj_mat[src_dpid][dst_dpid]
+            except KeyError:
+                print('Found no link: %s -> %s' % (src, dst))
+                continue
 
             # Determine the actual DPID of the switch
             sw_dpid = self._mapper.map_sw_to_dpid(src)

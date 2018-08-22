@@ -79,12 +79,18 @@ def test_traffic_transmission(route_adder):
 
     path_ratios = route_adder.get_path_ratios()
     pp.pprint(path_ratios)
-    for (src_host, dst_host) in od_pairs:
+    # for (src_host, dst_host) in od_pairs:
+    #     dst_hostname = mapper.map_sw_to_host(dst_host)
+    #     dst_ip = mapper.resolve_hostname(dst_hostname) 
+    #     path_split = path_ratios[(src_host, dst_host)]
+    #     hosts[src_host].configure_client(cfg.mu, cfg.sigma, cfg.traffic_model,
+    #         dst_ip, cfg.dst_port, path_split, src_host, cfg.time_slice)
+    for (src_host, dst_host, path_split) in path_ratios:
         dst_hostname = mapper.map_sw_to_host(dst_host)
-        dst_ip = mapper.resolve_hostname(dst_hostname) 
-        path_split = path_ratios[(src_host, dst_host)]
+        dst_ip = mapper.resolve_hostname(dst_hostname)
         hosts[src_host].configure_client(cfg.mu, cfg.sigma, cfg.traffic_model,
             dst_ip, cfg.dst_port, path_split, src_host, cfg.time_slice)
+
 
     for s in set([ s for s, _ in od_pairs]):
         hosts[s].start_clients()
@@ -110,6 +116,8 @@ def test_traffic_transmission(route_adder):
     for host_id in host_ids:
         hosts[host_id].retrieve_client_files(tx_path)
         hosts[host_id].retrieve_server_files(rx_path)
+    
+    time.sleep(15)
 
     for host_id in host_ids:
         hosts[host_id].remove_all_files('%stx' % mp.MPTestHost.COUNT_DIR, 'txt')
@@ -122,7 +130,6 @@ def test_traffic_transmission(route_adder):
     pickle.dump(rx_res, open(rx_file, 'wb'))
     pickle.dump(tx_res, open(tx_file, 'wb'))
     record_trial_name(path_name)
-
 
 def record_trial_name(trial_name):
     with open('./name_hints.txt', 'w') as fd:

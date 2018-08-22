@@ -368,8 +368,12 @@ def main():
         route_input = argv[2]
         route_path = cfg.route_files + route_input
         route_provider = fp.MPTestFileParser(route_path, cfg.seed_no)
-        p.pprint(route_provider.get_routes())
-        p.pprint(route_provider.get_flow_defs())
+        route_adder = mp.MPRouteAdder(of_proc, hm, route_provider)
+        trial.test_traffic_transmission(route_adder)
+    elif argv[1] == 'start_ne':
+        route_input = argv[2]
+        route_path = cfg.route_files + route_input
+        route_provider = fp.NETestFileParser(route_path, cfg.seed_no)
         route_adder = mp.MPRouteAdder(of_proc, hm, route_provider)
         trial.test_traffic_transmission(route_adder)
     elif argv[1] == 'ports':

@@ -178,14 +178,6 @@ class StatsProcessor:
 
     def _mk_tx_dict(self, tx_files):
         tx_dict = defaultdict(lambda : defaultdict(dict))
-        # for f in tx_files:
-        #     with open(f, 'r') as fd:
-        #         pkts = int(fd.readlines()[0])
-        #         src_host, dst_host = self._get_src_dst_pair(f)
-        #         dst_ip = '10.0.0.%d' % dst_host
-        #         dst_hname = self._mapper.reverse_lookup(dst_ip)
-        #         src_hname = self._mapper.qualify_host_domain(self._mapper.map_sw_to_host(src_host))
-        #         tx_dict[src_hname][dst_hname] = pkts
         for f in tx_files:
             with open(f, 'rb') as fd:
                 flow_dict = pick.load(fd)
@@ -199,17 +191,6 @@ class StatsProcessor:
         return tx_dict
 
     def _mk_rx_dict(self, rx_files):
-        # rx_dict = defaultdict(dict)
-        # for f in rx_files:
-        #     with open(f, 'rb') as fd:
-        #         infos = pick.load(fd)
-        #         for (src_ip, _), pkt_count in infos.items():
-        #             base, _ = os_path.splitext(os_path.basename(f))
-        #             rx_er = base.split('_')[1]
-        #             rx_host = self._mapper.qualify_host_domain(self._mapper.map_sw_to_host(rx_er))
-        #             hostname = self._mapper.reverse_lookup(src_ip)
-        #             rx_dict[rx_host][hostname] = pkt_count
-
         rx_dict = defaultdict(lambda : defaultdict(dict))
         for f in rx_files:
             with open(f, 'rb') as fd:
@@ -228,16 +209,6 @@ class StatsProcessor:
     
     def _mk_loss_dict(self, tx_dict, rx_dict):
         loss_dict = defaultdict(lambda : defaultdict(dict))
-        # for src_host, flows in tx_dict.items():
-        #     for dst_host, tx_pkts in flows.items():
-        #         print('SRC: %s, DST: %s' % (src_host, dst_host))
-        #         try:
-        #             rx_pkts = rx_dict[dst_host][src_host]
-        #         except KeyError:
-        #             print('ERROR: RxDict lookup failed. ignoring flow %s -> %s' % 
-        #                 (src_host, dst_host))
-        #             continue
-        #         loss_dict[src_host][dst_host] = self.calc_pkt_loss(tx_pkts, rx_pkts)
         for src_host, vs in tx_dict.items():
             for dst_host, flows in vs.items():
                 for src_port, tx_pkts in flows.items():
@@ -263,10 +234,6 @@ class StatsProcessor:
         rx_files = glob.glob(rx_path)
         tx_dict = self._mk_tx_dict(tx_files)
         rx_dict = self._mk_rx_dict(rx_files)
-        # print('Rx Dict: ')
-        # pp.pprint(rx_dict)
-        # print('Tx Dict: ')
-        # pp.pprint(tx_dict)
         loss_dict = self._mk_loss_dict(tx_dict, rx_dict)
         return loss_dict
 
@@ -283,9 +250,6 @@ class StatsProcessor:
         rx_dict = self._mk_rx_dict(rx_files)
         tx_dict = self._mk_tx_dict(tx_files)
         rx_stats = defaultdict(lambda : defaultdict(dict))
-        # for rx_host, v in rx_dict.items():
-        #     for tx_host, rx_count in v.items():
-        #         rx_stats[tx_host][rx_host] = ((rx_count / float(trial_len)) * pkt_size * 8) / 10**6
         for rx_host, v in rx_dict.items():
             for tx_host, flows in v.items():
                 for src_port, rx_count in flows.items():

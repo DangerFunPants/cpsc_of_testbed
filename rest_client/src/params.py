@@ -16,7 +16,7 @@ of_controller_ip = '10.0.1.1'
 of_controller_port = 8080
 
 # Per trial parameters
-route_files = '/home/ubuntu/cpsc_of_tb/route_files/'
+route_files = '/home/ubuntu/Downloads/route_files/'
 seed_no = '5678'
 trial_type = 'prob_mean_1_sigma_1.0/'
 # trial_type = ''
@@ -24,16 +24,16 @@ trial_name = 'seed_' + seed_no + '/' + trial_type
 route_path = route_files + trial_name
 
 # Median Tx Rate for hosts (Bps)
-mu = (100000000 / 8.0)
+mu = (100000000 / 8.0) * 1000
 # Sigma (variance) for hosts. (Bps)
-sigma = (100000000 / 8.0) ** 2
-# sigma = 1
+# sigma = (100000000 / 8.0) ** 2
+sigma = 1
 # Traffic Model
 traffic_model = 'gamma'
 # Frequency of Tx Rate alteration (seconds)
 time_slice = 10
 # Total number of seconds to run the trial for
-trial_length = 60
+trial_length = 60 * 5
 # Destination UDP port for test traffic
 dst_port = 50000
 # Data packet size (Headers included)

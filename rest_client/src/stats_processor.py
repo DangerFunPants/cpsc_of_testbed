@@ -177,28 +177,49 @@ class StatsProcessor:
         return (src_host, dst_host)
 
     def _mk_tx_dict(self, tx_files):
-        tx_dict = defaultdict(dict)
+        tx_dict = defaultdict(lambda : defaultdict(dict))
+        # for f in tx_files:
+        #     with open(f, 'r') as fd:
+        #         pkts = int(fd.readlines()[0])
+        #         src_host, dst_host = self._get_src_dst_pair(f)
+        #         dst_ip = '10.0.0.%d' % dst_host
+        #         dst_hname = self._mapper.reverse_lookup(dst_ip)
+        #         src_hname = self._mapper.qualify_host_domain(self._mapper.map_sw_to_host(src_host))
+        #         tx_dict[src_hname][dst_hname] = pkts
         for f in tx_files:
-            with open(f, 'r') as fd:
-                pkts = int(fd.readlines()[0])
-                src_host, dst_host = self._get_src_dst_pair(f)
-                dst_ip = '10.0.0.%d' % dst_host
-                dst_hname = self._mapper.reverse_lookup(dst_ip)
-                src_hname = self._mapper.qualify_host_domain(self._mapper.map_sw_to_host(src_host))
-                tx_dict[src_hname][dst_hname] = pkts
+            with open(f, 'rb') as fd:
+                flow_dict = pick.load(fd)
+                for flow_id, flow_info in flow_dict.items():
+                    src_host = flow_info['src_host']
+                    dst_ip = flow_info['dst_ip']
+                    src_port = flow_info['src_port']
+                    dst_hname = self._mapper.reverse_lookup(dst_ip)
+                    src_hname = self._mapper.qualify_host_domain(self._mapper.map_sw_to_host(src_host))
+                    tx_dict[src_hname][dst_hname][src_port] = flow_info['pkt_count']
         return tx_dict
 
     def _mk_rx_dict(self, rx_files):
-        rx_dict = defaultdict(dict)
+        # rx_dict = defaultdict(dict)
+        # for f in rx_files:
+        #     with open(f, 'rb') as fd:
+        #         infos = pick.load(fd)
+        #         for (src_ip, _), pkt_count in infos.items():
+        #             base, _ = os_path.splitext(os_path.basename(f))
+        #             rx_er = base.split('_')[1]
+        #             rx_host = self._mapper.qualify_host_domain(self._mapper.map_sw_to_host(rx_er))
+        #             hostname = self._mapper.reverse_lookup(src_ip)
+        #             rx_dict[rx_host][hostname] = pkt_count
+
+        rx_dict = defaultdict(lambda : defaultdict(dict))
         for f in rx_files:
             with open(f, 'rb') as fd:
                 infos = pick.load(fd)
-                for (src_ip, _), pkt_count in infos.items():
+                for (src_ip, src_port), pkt_count in infos.items():
                     base, _ = os_path.splitext(os_path.basename(f))
                     rx_er = base.split('_')[1]
                     rx_host = self._mapper.qualify_host_domain(self._mapper.map_sw_to_host(rx_er))
                     hostname = self._mapper.reverse_lookup(src_ip)
-                    rx_dict[rx_host][hostname] = pkt_count
+                    rx_dict[rx_host][hostname][src_port] = pkt_count
         return rx_dict
     
     def calc_pkt_loss(self, tx_pkts, rx_pkts):
@@ -206,17 +227,27 @@ class StatsProcessor:
         return pkt_loss
     
     def _mk_loss_dict(self, tx_dict, rx_dict):
-        loss_dict = defaultdict(dict)
-        for src_host, flows in tx_dict.items():
-            for dst_host, tx_pkts in flows.items():
-                print('SRC: %s, DST: %s' % (src_host, dst_host))
-                try:
-                    rx_pkts = rx_dict[dst_host][src_host]
-                except KeyError:
-                    print('ERROR: RxDict lookup failed. ignoring flow %s -> %s' % 
-                        (src_host, dst_host))
-                    continue
-                loss_dict[src_host][dst_host] = self.calc_pkt_loss(tx_pkts, rx_pkts)
+        loss_dict = defaultdict(lambda : defaultdict(dict))
+        # for src_host, flows in tx_dict.items():
+        #     for dst_host, tx_pkts in flows.items():
+        #         print('SRC: %s, DST: %s' % (src_host, dst_host))
+        #         try:
+        #             rx_pkts = rx_dict[dst_host][src_host]
+        #         except KeyError:
+        #             print('ERROR: RxDict lookup failed. ignoring flow %s -> %s' % 
+        #                 (src_host, dst_host))
+        #             continue
+        #         loss_dict[src_host][dst_host] = self.calc_pkt_loss(tx_pkts, rx_pkts)
+        for src_host, vs in tx_dict.items():
+            for dst_host, flows in vs.items():
+                for src_port, tx_pkts in flows.items():
+                    try:
+                        rx_pkts = rx_dict[dst_host][src_host][src_port]
+                    except KeyError:
+                        print('ERROR: RxDict lookup failed. ignoring flow %s -> %s' %
+                            (src_host, dst_host))
+                        continue
+                    loss_dict[src_host][dst_host][src_port] = self.calc_pkt_loss(tx_pkts, rx_pkts)
         return loss_dict
     
     def calc_loss_rates(self, trial_name):
@@ -245,17 +276,21 @@ class StatsProcessor:
                       , time_frame
                       , trial_len ):
         base_path = self.base_path
-        tx_path = '%s%s%s/*.txt' % (base_path, 'tx/', trial_name)
+        tx_path = '%s%s%s/*.p' % (base_path, 'tx/', trial_name)
         rx_path = '%s%s%s/*.p' % (base_path, 'rx/', trial_name)
         tx_files = glob.glob(tx_path)
         rx_files = glob.glob(rx_path)
         rx_dict = self._mk_rx_dict(rx_files)
         tx_dict = self._mk_tx_dict(tx_files)
-        rx_stats = defaultdict(dict)
+        rx_stats = defaultdict(lambda : defaultdict(dict))
+        # for rx_host, v in rx_dict.items():
+        #     for tx_host, rx_count in v.items():
+        #         rx_stats[tx_host][rx_host] = ((rx_count / float(trial_len)) * pkt_size * 8) / 10**6
         for rx_host, v in rx_dict.items():
-            for tx_host, rx_count in v.items():
-                rx_stats[tx_host][rx_host] = ((rx_count / float(trial_len)) * pkt_size * 8) / 10**6
-       
+            for tx_host, flows in v.items():
+                for src_port, rx_count in flows.items():
+                    rx_stats[tx_host][rx_host][src_port] = ((rx_count / float(trial_len)) * pkt_size * 8) / 10**6
+
         return rx_stats
 
 class Grapher:

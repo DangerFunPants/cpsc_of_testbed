@@ -13,6 +13,7 @@ import logging as lg
 import sys as sys
 from collections import defaultdict
 import pprint as pp
+import pickle as pickle
 
 import scipy.stats as stats
 
@@ -94,6 +95,7 @@ SLICE_DURATION = 1
 
 pkt_count = defaultdict(int)
 flow_params = None
+sock_dict = None
 
 # Considers the list of flows to be zero indexed and takes into account
 # that test flows use DSCP values in the range [1, 2**6)
@@ -253,6 +255,8 @@ def transmit(sock_list, ipd_list, duration, flow_params):
 
 def generate_traffic(flow_params):
     socks = { i: socket.socket(type=socket.SOCK_DGRAM) for i in flow_params.keys() }
+    global sock_dict
+    sock_dict = socks
     rvs = { i: create_distribution(fp.tx_rate, fp.variance, fp.traffic_model) for i, fp in flow_params.items() }
     while True:
         ipd_list = []
@@ -264,11 +268,23 @@ def generate_traffic(flow_params):
         transmit(socks, ipd_list, flow_params[0].time_slice, flow_params)
 
 def handle_sig_int(signum, frame):
+    # for flow_num, fp in flow_params.items():
+    #     file_path = ('/home/alexj/packet_counts/sender_%s-%s.txt' 
+    #         % (fp.src_host, fp.dest_addr.split('.')[-1]))
+    #    with open(file_path, 'w') as fd:
+    #        fd.write('%d\n' % pkt_count[flow_num])
+    flow_info = defaultdict(dict)
+    src_host_id = None
     for flow_num, fp in flow_params.items():
-        file_path = ('/home/alexj/packet_counts/sender_%s-%s.txt' 
-            % (fp.src_host, fp.dest_addr.split('.')[-1]))
-        with open(file_path, 'w') as fd:
-            fd.write('%d\n' % pkt_count[flow_num])
+        flow_info[flow_num]['pkt_count'] = pkt_count[flow_num]
+        flow_info[flow_num]['src_port'] = sock_dict[flow_num].getsockname()[1]
+        flow_info[flow_num]['src_host'] = fp.src_host
+        flow_info[flow_num]['dst_ip'] = fp.dest_addr
+        src_host_id = fp.src_host # TODO: Store canonical src_host id
+
+    file_path = 'sender_%d.p' % src_host_id
+    with open(file_path, 'wb') as fd:
+        pickle.dump(flow_info, fd)
     exit()
 
 def register_handlers():

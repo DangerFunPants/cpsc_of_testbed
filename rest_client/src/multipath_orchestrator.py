@@ -220,7 +220,7 @@ class MPTestHost(Host):
 
     def retrieve_client_files(self, dst_dir):
         local_ip = self.get_local_ip()
-        command = 'sshpass -pubuntu scp -o StrictHostKeyChecking=no -r %s*.txt ubuntu@%s:%s' % (self.COUNT_DIR, local_ip, dst_dir)
+        command = 'sshpass -pubuntu scp -o StrictHostKeyChecking=no -r %s*.p ubuntu@%s:%s' % (self.COUNT_DIR, local_ip, dst_dir)
         print('TX: %s' % command)
         self.exec_command(command)
 

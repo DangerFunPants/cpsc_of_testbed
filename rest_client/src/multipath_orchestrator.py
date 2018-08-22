@@ -37,13 +37,10 @@ class MPRouteAdder:
         adj_mat = self.of_proc.get_topo_links().get_adj_mat()
         route_count = 0
         
-        for flow_num, vs in enumerate(routes):
-            # install the default (DSCP 0) route for the shortest path
-            # self.install_route(shortest, adj_mat, 0)
-            for path_num, route in enumerate(vs):
-                dscp_val = MPRouteAdder.calculate_dscp_value(path_num)
-                self.install_route(route, adj_mat, dscp_val)
-                route_count += 1
+        for path_id, route in routes:
+            dscp_val = MPRouteAdder.calculate_dscp_value(path_id)
+            self.install_route(route, adj_mat, dscp_val)
+            route_count += 1
         print('Installed %d routes on physical network.' % route_count)
 
     # Looking back on how this is turning out, it would have been better to inject
@@ -95,9 +92,8 @@ class MPRouteAdder:
     def get_src_dst_pairs(self):
         routes = self._route_provider.get_routes()
         pairs = set()
-        for route in routes:
-            for path in route:
-                pairs.add((path[0], path[-1]))
+        for _, path in routes:
+            pairs.add((path[0], path[-1]))
         return pairs
     
     def get_path_ratios(self):

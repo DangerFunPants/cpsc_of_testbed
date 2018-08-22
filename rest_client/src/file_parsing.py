@@ -32,7 +32,8 @@ class MPTestFileParser(FileParser):
     def get_routes(self):
         routes_path = self._route_dir + './Paths_seed_%s.txt' % self._seed_no 
         routes = self._read_route_file(routes_path)
-        routes = [ [ list(map(lambda n : n + 1, path)) for path in flow ] for flow in routes ]
+        # routes = [ [ list(map(lambda n : n + 1, path)) for path in flow ] for flow in routes ]
+        routes = [ (path_id, list(map(lambda n : n + 1, path))) for flow in routes for path_id, path in enumerate(flow) ]
         return routes
 
     def _read_node_file(self, path): 
@@ -83,12 +84,12 @@ class NETestFileParser(FileParser):
         routes_path = self._route_dir + './Paths_seed_%s.txt' % self._seed_no 
         with open(routes_path, 'r') as rf:
             nets = eval(rf.read())
-        route_d = defaultdict(lambda : defaultdict(dict))
+        routes = []
         for vn_id, vn in enumerate(nets):
             for flow_id, flow in enumerate(vn):
                 for path_id, path in enumerate(flow):
-                    route_d[vn_id][flow_id][path_id] = path
-        return route_d
+                    routes.append((path_id, path))
+        return routes
 
     def _read_partitions_file(self, file_path):
         with open(file_path, 'r') as fd:
@@ -110,6 +111,8 @@ def main():
     parser = NETestFileParser('/home/ubuntu/Downloads/route_files/seed_5678/', '5678')
     pp.pprint(parser.get_routes())
     pp.pprint(parser.get_flow_defs())
+    # parser = MPTestFileParser('/home/ubuntu/cpsc_of_tb/route_files/seed_5678/', '5678')
+    # pp.pprint(parser.get_routes())
 
 if __name__ == '__main__':
     main()

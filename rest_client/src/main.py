@@ -123,7 +123,6 @@ def test_traffic_transmission(route_adder):
     pickle.dump(tx_res, open(tx_file, 'wb'))
     record_trial_name(path_name)
 
-def test_node_embedding(route_adder):
 
 def record_trial_name(trial_name):
     with open('./name_hints.txt', 'w') as fd:

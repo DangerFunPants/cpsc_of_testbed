@@ -1,6 +1,8 @@
 
 import ast
 import abc
+from collections import defaultdict 
+import pprint as pp
 
 class FileParser(metaclass=abc.ABCMeta):
 
@@ -70,6 +72,52 @@ class MPTestFileParser(FileParser):
         for ind, p in enumerate(od_pairs):
             flows[p] = parts[ind]
         return flows
+
+class NETestFileParser(FileParser):
+
+    def __init__(self, route_dir, seed_no):
+        self._route_dir = route_dir
+        self._seed_no = seed_no
+
+    def get_routes(self):
+        routes_path = self._route_dir + './Paths_seed_%s.txt' % self._seed_no 
+        with open(routes_path, 'r') as rf:
+            nets = eval(rf.read())
+        route_d = defaultdict(lambda : defaultdict(dict))
+        for vn_id, vn in enumerate(nets):
+            for flow_id, flow in enumerate(vn):
+                for path_id, path in enumerate(flow):
+                    route_d[vn_id][flow_id][path_id] = path
+        return route_d
+
+    def _read_partitions_file(self, file_path):
+        with open(file_path, 'r') as fd:
+            lines = fd.readlines()
+        flow_vs = defaultdict(lambda : defaultdict(dict))
+        for line in lines:
+            tup_lit = line[1:].split(':')[0]
+            t = eval(tup_lit)
+            flow_val = float(line.split(':')[1])
+            flow_vs[t[0]][t[1]][t[2]] = flow_val
+        return flow_vs
+
+    def get_flow_defs(self):
+        part_file = self._route_dir + './X_matrix_seed_%s.txt' % self._seed_no
+        parts = self._read_partitions_file(part_file)
+        return parts
+
+def main():
+    parser = NETestFileParser('/home/ubuntu/Downloads/route_files/seed_5678/', '5678')
+    pp.pprint(parser.get_routes())
+    pp.pprint(parser.get_flow_defs())
+
+if __name__ == '__main__':
+    main()
+
+
+
+
+
 
 
     

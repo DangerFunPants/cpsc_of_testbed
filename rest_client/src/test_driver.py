@@ -308,21 +308,24 @@ def gen_boxplot(input_files):
     fig, ax = plt.subplots(1, 1)
     stats_avg = []
     for i, f in enumerate(input_files):
-        print(f)
         stat_path = f + '/tx_stats.p'
         tx_stats = pickle.load(open(stat_path, 'rb')) 
-        stats_avg.append(st_proc.calc_link_util(tx_stats, cfg.pkt_size, cfg.time_slice, stp.Units.MegaBitsPerSecond))
+        link_util = st_proc.calc_link_util(tx_stats, cfg.pkt_size, cfg.time_slice, stp.Units.MegaBitsPerSecond)
+        flat = [ util for v in link_util.values() for util in v.values() ]
+        stats_avg.append(flat)
     grapher.graph_timeframes(ax, stats_avg, input_files)
     plt.show()
 
     fig, ax = plt.subplots(1, 1)
     stats_avg = []
     for i, f in enumerate(input_files):
-        print(f)
         stat_path = f + '/tx_stats.p'
         tx_stats = pickle.load(open(stat_path, 'rb')) 
         trial_name = read_trial_name(f + '/name_hints.txt')
-        stats_avg.append(st_proc.calc_flow_rate(trial_name, cfg.pkt_size, cfg.sample_freq, cfg.trial_length))
+        flow_rate = st_proc.calc_flow_rate(trial_name, cfg.pkt_size, cfg.sample_freq, cfg.trial_length)
+        flat = [ rate for v in flow_rate.values() for u in v.values() for rate in u.values() ]
+        stats_avg.append(flat)
+    
     grapher.graph_timeframes(ax, stats_avg, input_files)
     plt.show()
 
@@ -346,6 +349,11 @@ def test_install(route_adder):
     route_adder.install_routes()
     t_f = t.perf_counter()
     print('Installing routes took: %f seconds' % (t_f - t_i))
+
+def show_adj_mat(hm, of_proc):
+    adj_mat = of_proc.get_topo_links()
+    p.pprint(mk_readable(adj_mat.get_adj_mat()))
+    
 
 def main():
    
@@ -372,7 +380,7 @@ def main():
         trial.test_traffic_transmission(route_adder)
     elif argv[1] == 'start_ne':
         route_input = argv[2]
-        route_path = cfg.route_files + route_input
+        route_path = cfg.route_path(route_input)
         route_provider = fp.NETestFileParser(route_path, cfg.seed_no)
         route_adder = mp.MPRouteAdder(of_proc, hm, route_provider)
         trial.test_traffic_transmission(route_adder)
@@ -405,6 +413,9 @@ def main():
         test_install(route_adder)
         remove_all_tbl_100_flows()
         add_low_prio_to_all_sws()
+    elif argv[1] == 'links':
+        show_adj_mat(hm, of_proc)
+
 
 
 if __name__ == '__main__':

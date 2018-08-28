@@ -111,9 +111,16 @@ class NETestFileParser(FileParser):
                 src_host = routes[0][1][0]
                 dst_host = routes[0][1][-1]
                 splits = list(paths.values())
+                print((src_host, dst_host))
                 path_splits.append((src_host, dst_host, splits))
-                routes.pop(0)
+                routes = routes[3:]
         return path_splits
+
+def main():
+    parser = NETestFileParser('/home/ubuntu/Downloads/route_files/seed_5678/prob_mean_1_sigma_1.0/', '5678')
+    # parser.get_flow_defs()
+    pp.pprint(parser.get_routes())
+    pp.pprint(parser.get_flow_defs())
 
 if __name__ == '__main__':
     main()

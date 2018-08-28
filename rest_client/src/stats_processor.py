@@ -268,9 +268,7 @@ class Grapher:
                         , names = ['timeframe']
                         , show_plot = False 
                         , positions = [1] ):
-        network_util = [ 
-            [ util for v in stats.values() for util in v.values() ]
-            for stats in stats_list ]
+        network_util = stats_list
         plt.boxplot(network_util, labels=names)
         plt.ylabel('Link Utilization (Mbps)')
     
@@ -290,11 +288,11 @@ class Grapher:
         plt.cla()
 
     def graph_loss_cdf( self
-                  , axes
-                  , stats_list
-                  , name ):
+                      , axes
+                      , stats_list
+                      , name ):
         pp.pprint(stats_list)
-        loss_list = [ ll for d in stats_list.values() for ll in d.values() ]
+        loss_list = [ ll for d in stats_list.values() for d1 in d.values() for ll in d1.values() ]
         print(loss_list)
         sum_val = sum(loss_list)
         normalized = []

@@ -1,23 +1,28 @@
 #!/usr/bin/env python3
 
+# System Imports
+import argparse as ap
+import pprint as p
+import sys
+import pickle
+from collections import defaultdict
+import time as t
+
+# PyPlot Library
+import matplotlib.pyplot as plt
+
+# Local Imports
 import of_rest_client as of
 import flowmod as fm
-import pprint as p
 import multipath_orchestrator as mp
 from util import *
 import host_mapper as mapper
 import params as cfg
-from collections import defaultdict
-import time as t
 import of_processor as ofp
-import pickle as pickle
 import stats_processor as stp
 import file_parsing as fp
 import params as cfg
-from sys import argv
 import main as trial
-import matplotlib.pyplot as plt
-import time as t
 
 def query_flow_stats(dpid):
     req = of.SwitchFlows(dpid, cfg.of_controller_ip, cfg.of_controller_port)
@@ -127,15 +132,12 @@ def mk_readable(adj_mat):
 
     return ret
 
-def list_friendly_switch_names():
-    req = of.SwitchList(cfg.of_controller_ip, cfg.of_controller_port)
-    sw_list = req.get_response().get_sw_list()
-    hm = mapper.HostMapper([cfg.dns_server_ip], cfg.of_controller_ip, cfg.of_controller_port)
+def list_friendly_switch_names(hm, of_proc):
+    sw_list = of_proc.get_switch_list()
     res = {}
     for sw in sw_list:
         friendly = hm.map_dpid_to_sw(str(sw))
         res[sw] = friendly
-    
     p.pprint(res)
 
 def sw_to_host_list():
@@ -179,14 +181,12 @@ def read_trial_name(file_path):
         line = fd.readline()
     return line.strip()
 
-def test_stats_processor():
+def test_stats_processor(hm, of_proc):
     trial_name = read_trial_name('./name_hints.txt')
-    hm = mapper.HostMapper([cfg.dns_server_ip], cfg.of_controller_ip, cfg.of_controller_port)
     tx_file = './tx_stats.p'
     rx_file = './rx_stats.p'
     stats = pickle.load(open(tx_file, 'rb'))
     rx_stats = pickle.load(open(rx_file, 'rb'))
-    of_proc = ofp.OFProcessor(cfg.of_controller_ip, cfg.of_controller_port)
     st_proc = stp.StatsProcessor(hm, of_proc)
     p.pprint(stats)
     st_dict = st_proc.calc_link_util(stats, cfg.pkt_size, cfg.sample_freq, units=stp.Units.MegaBitsPerSecond)
@@ -265,11 +265,14 @@ def pprint_mst_topo():
     hm = mapper.HostMapper([cfg.dns_server_ip], cfg.of_controller_ip, cfg.of_controller_port)
     p.pprint(mk_pretty_sw_dict(val, hm, lambda k : k, lambda n, k : n))
 
-def port_stats(sw_id):
-    of_proc = ofp.OFProcessor(cfg.of_controller_ip, cfg.of_controller_port)
-    hm = mapper.HostMapper([cfg.dns_server_ip], cfg.of_controller_ip, cfg.of_controller_port)
+def port_stats(sw_id, hm, of_proc):
     dpid = hm.map_sw_to_dpid(int(sw_id))
     p.pprint(of_proc.get_port_stats(dpid).get_rx_packets())
+
+def print_all_port_stats(hm, of_proc):
+    sw_list = of_proc.get_switch_list()
+    for sw in sw_list:
+        p.pprint(of_proc.get_port_stats(dpid).get_rx_packets())
 
 def plot_test():
     of_proc = ofp.OFProcessor(cfg.of_controller_ip, cfg.of_controller_port)
@@ -353,70 +356,102 @@ def test_install(route_adder):
 def show_adj_mat(hm, of_proc):
     adj_mat = of_proc.get_topo_links()
     p.pprint(mk_readable(adj_mat.get_adj_mat()))
-    
+
+def remove_handler(args, hm, of_proc):
+    if args.switch:
+        sw_dpid = hm.map_sw_to_dpid(args.switch)
+        of_proc.remove_table_flows(sw_dpid, 100)
+        of_proc.add_default_route(sw_dpid, 100)
+    else:
+        remove_all_tbl_100_flows()
+        add_low_prio_to_all_sws()
+
+def flows_handler(args, hm, of_proc):
+    if args.switch:
+        sw_dpid = hm.map_sw_to_dpid(args.switch)
+        flows = of_proc.get_switch_flows(int(sw_dpid))
+        p.pprint(flows.get_flows())
+    else:
+        print_all_flows()
+
+def mst_handler(args, hm, of_proc):
+    pprint_mst_topo()
+
+def start_handler(args, hm, of_proc):
+    pass
+
+def ports_handler(args, hm, of_proc):
+    if args.switch:
+        port_stats(args.switch, hm, of_proc)
+    else:
+        print_all_port_stats(hm, of_proc)
+
+def stats_handler(args, hm, of_proc):
+    test_stats_processor(hm, of_proc)
+
+def names_handler(args, hm, of_proc):
+    list_friendly_switch_names(hm, of_proc)
+    pass
+
+def graph_handler(args, hm, of_proc):
+    if args.type == 'boxplot':
+        gen_boxplot(args.file_list)
+    elif args.type == 'lossplot':
+        gen_lossplot(args.file_list)
 
 def main():
-   
     of_proc = ofp.OFProcessor(cfg.of_controller_ip, cfg.of_controller_port)
     hm = mapper.HostMapper([cfg.dns_server_ip], cfg.of_controller_ip, cfg.of_controller_port)
 
-    if argv[1] == 'remove':
-        remove_all_tbl_100_flows()
-        add_low_prio_to_all_sws()
-    elif argv[1] == 'flows':
-        if len(argv) == 2:
-            print_all_flows()
-        elif len(argv) == 3:
-            sw_dpid = hm.map_sw_to_dpid(int(argv[2]))
-            flows = of_proc.get_switch_flows(int(sw_dpid))
-            p.pprint(flows.get_flows())
-    elif argv[1] == 'mst':
-        pprint_mst_topo()
-    elif argv[1] == 'start':
-        route_input = argv[2]
-        route_path = cfg.route_files + route_input
-        route_provider = fp.MPTestFileParser(route_path, cfg.seed_no)
-        route_adder = mp.MPRouteAdder(of_proc, hm, route_provider)
-        trial.test_traffic_transmission(route_adder)
-    elif argv[1] == 'start_ne':
-        route_input = argv[2]
-        route_path = cfg.route_path(route_input)
-        route_provider = fp.NETestFileParser(route_path, cfg.seed_no)
-        route_adder = mp.MPRouteAdder(of_proc, hm, route_provider)
-        trial.test_traffic_transmission(route_adder)
-    elif argv[1] == 'ports':
-        port_stats(argv[2])        
-    elif argv[1] == 'rem_sw':
-        sw_dpid = hm.map_sw_to_dpid(int(argv[2]))
-        of_proc.remove_table_flows(sw_dpid, 100)
-        of_proc.add_default_route(sw_dpid, 100)
-    elif argv[1] == 'stats':
-        test_stats_processor()
-    elif argv[1] == 'add':
-        add_flow_mod_ip()
-    elif argv[1] == 'dpid':
-        list_friendly_switch_names()
-    elif argv[1] == 'stats_list':
-        calc_stats_list()
-    elif argv[1] == 'local_loss':
-        print_local_loss()
-    elif argv[1] == 'plot_test':
-        plot_test()
-    elif argv[1] == 'gen_boxplot':
-        gen_boxplot(argv[2:])
-    elif argv[1] == 'gen_lossplot':
-        gen_lossplot(argv[2:])
-    elif argv[1] == 'test_install':
-        route_input = argv[2]
-        route_path = cfg.route_files + route_input
-        route_adder = mp.MPRouteAdder(cfg.of_controller_ip, cfg.of_controller_port, route_path, cfg.seed_no)
-        test_install(route_adder)
-        remove_all_tbl_100_flows()
-        add_low_prio_to_all_sws()
-    elif argv[1] == 'links':
-        show_adj_mat(hm, of_proc)
+    arg_parser = build_arg_parser()
+    args = arg_parser.parse_args()
+    args.func(args, hm, of_proc)
 
+def build_arg_parser():
+    parser = ap.ArgumentParser()
+    subparsers = parser.add_subparsers()
 
+    # remove all flows
+    parser_remove = subparsers.add_parser('remove')
+    parser_remove.add_argument('--switch', type=int)
+    parser_remove.set_defaults(func=remove_handler)
+
+    # print all flows
+    parser_flows = subparsers.add_parser('flows')
+    parser_flows.add_argument('--switch', type=int)
+    parser_flows.set_defaults(func=flows_handler)
+
+    # print the minimum spanning tree
+    parser_mst = subparsers.add_parser('mst')
+    parser_mst.set_defaults(func=mst_handler)
+
+    # Start a link embedding trial
+    parser_start = subparsers.add_parser('start')
+    parser_start.add_argument('trial_type', type=str)
+    parser_start.add_argument('file_name', type=str)
+    parser_start.set_defaults(func=start_handler)
+
+    # Display switch port info.
+    parser_ports = subparsers.add_parser('ports')
+    parser_ports.add_argument('--switch', type=int)
+    parser_ports.set_defaults(func=ports_handler)
+
+    # Print statistics in the current working directory
+    parser_stats = subparsers.add_parser('stats')
+    parser_stats.set_defaults(func=stats_handler)
+
+    # Print the list of switches currently in the network
+    parser_names = subparsers.add_parser('names')
+    parser_names.set_defaults(func=names_handler)
+
+    # Generate a graph
+    parser_graph = subparsers.add_parser('graph')
+    parser_graph.add_argument('file_list', nargs='+')
+    parser_graph.add_argument('--type', type=str, required = True)
+    parser_graph.set_defaults(func=graph_handler)
+    
+    return parser
 
 if __name__ == '__main__':
     main()
+

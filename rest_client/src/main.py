@@ -43,7 +43,7 @@ def ping_all():
         for ln in fd1:
             print(ln)
 
-def test_traffic_transmission(route_adder):
+def test_traffic_transmission(route_adder, trial_length):
 
     remove_all_count_files(route_adder)
     mapper = hm.HostMapper([cfg.dns_server_ip], cfg.of_controller_ip, cfg.of_controller_port)
@@ -93,7 +93,7 @@ def test_traffic_transmission(route_adder):
     traffic_mon = mp.MPStatMonitor(cfg.of_controller_ip, cfg.of_controller_port, sw_list)
     traffic_mon.start_monitor()
 
-    time.sleep(cfg.trial_length)
+    time.sleep(trial_length)
 
     traffic_mon.stop_monitor()
 

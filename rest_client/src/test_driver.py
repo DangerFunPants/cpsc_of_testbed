@@ -23,6 +23,7 @@ import stats_processor as stp
 import file_parsing as fp
 import params as cfg
 import main as trial
+import topology as vis
 
 def query_flow_stats(dpid):
     req = of.SwitchFlows(dpid, cfg.of_controller_ip, cfg.of_controller_port)
@@ -272,7 +273,7 @@ def port_stats(sw_id, hm, of_proc):
 def print_all_port_stats(hm, of_proc):
     sw_list = of_proc.get_switch_list()
     for sw in sw_list:
-        p.pprint(of_proc.get_port_stats(dpid).get_rx_packets())
+        p.pprint(of_proc.get_port_stats(sw).get_rx_packets())
 
 def plot_test():
     of_proc = ofp.OFProcessor(cfg.of_controller_ip, cfg.of_controller_port)
@@ -378,7 +379,24 @@ def mst_handler(args, hm, of_proc):
     pprint_mst_topo()
 
 def start_handler(args, hm, of_proc):
-    pass
+    trial_type = args.trial_type.lower()
+    route_adder = None
+    if trial_type == 'link':
+        route_input = args.file_name
+        seed_no = args.seed_no
+        route_path = cfg.link_route_path(seed_no) + route_input + '/'
+        route_provider = fp.MPTestFileParser(route_path, seed_no)
+        route_adder = mp.MPRouteAdder(of_proc, hm, route_provider)
+    elif trial_type == 'node':
+        route_input = args.file_name
+        seed_no = args.seed_no
+        route_path = cfg.node_route_path + route_input + '/' + 'seed_%s' % seed_no + '/'
+        route_provider = fp.NETestFileParser(route_path, seed_no)
+        route_adder = mp.MPRouteAdder(of_proc, hm, route_provider)
+    else:
+        print('Invalid trial type: %s. Valid types are: [ link | node ]' % trial_type)
+        sys.exit(0)
+    trial.test_traffic_transmission(route_adder, args.time)
 
 def ports_handler(args, hm, of_proc):
     if args.switch:
@@ -398,6 +416,8 @@ def graph_handler(args, hm, of_proc):
         gen_boxplot(args.file_list)
     elif args.type == 'lossplot':
         gen_lossplot(args.file_list)
+    elif args.type == 'topology':
+        vis.draw_topology()
 
 def main():
     of_proc = ofp.OFProcessor(cfg.of_controller_ip, cfg.of_controller_port)
@@ -429,6 +449,8 @@ def build_arg_parser():
     parser_start = subparsers.add_parser('start')
     parser_start.add_argument('trial_type', type=str)
     parser_start.add_argument('file_name', type=str)
+    parser_start.add_argument('seed_no', type=str)
+    parser_start.add_argument('--time', type=int, nargs='?', const=60)
     parser_start.set_defaults(func=start_handler)
 
     # Display switch port info.
@@ -446,7 +468,7 @@ def build_arg_parser():
 
     # Generate a graph
     parser_graph = subparsers.add_parser('graph')
-    parser_graph.add_argument('file_list', nargs='+')
+    parser_graph.add_argument('file_list', nargs='?', const='prob_mean_1_sigma_1.0')
     parser_graph.add_argument('--type', type=str, required = True)
     parser_graph.set_defaults(func=graph_handler)
     

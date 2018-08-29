@@ -16,10 +16,11 @@ of_controller_ip = '10.0.1.1'
 of_controller_port = 8080
 
 # Per trial parameters
-route_files = '/home/ubuntu/Downloads/corrected_routes/'
-seed_no = '9812'
-trial_name = lambda s : s + 'seed_' + seed_no + '/'
-route_path = lambda s : route_files + trial_name(s)
+link_route_files = '/home/ubuntu/cpsc_of_tb/link_files/'
+node_route_files = '/home/ubuntu/cpsc_of_tb/node_files/'
+trial_name = lambda s : 'seed_' + s + '/'
+link_route_path = lambda s : route_files + trial_name(s)
+node_route_path = node_route_files
 
 # Median Tx Rate for hosts (Bps)
 mu = (100000000 / 8.0)
@@ -31,7 +32,7 @@ traffic_model = 'gamma'
 # Frequency of Tx Rate alteration (seconds)
 time_slice = 10
 # Total number of seconds to run the trial for
-trial_length = 900
+trial_length = 60
 # Destination UDP port for test traffic
 dst_port = 50000
 # Data packet size (Headers included)

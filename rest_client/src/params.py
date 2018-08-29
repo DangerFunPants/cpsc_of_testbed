@@ -17,7 +17,7 @@ of_controller_port = 8080
 
 # Per trial parameters
 route_files = '/home/ubuntu/Downloads/corrected_routes/'
-seed_no = '5678'
+seed_no = '9812'
 trial_name = lambda s : s + 'seed_' + seed_no + '/'
 route_path = lambda s : route_files + trial_name(s)
 

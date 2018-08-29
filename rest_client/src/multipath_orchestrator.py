@@ -104,6 +104,10 @@ class MPRouteAdder:
         path_ratios = self._route_provider.get_flow_defs()
         return path_ratios
 
+    def get_tx_rates(self):
+        tx_rates = self._route_provider.get_tx_rates()
+        return tx_rates
+
 
 class Host:
     """

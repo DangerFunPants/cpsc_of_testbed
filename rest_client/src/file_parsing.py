@@ -27,6 +27,10 @@ class FileParser(metaclass=abc.ABCMeta):
     def get_flow_defs(self):
         pass
 
+    @abc.abstractmethod
+    def get_tx_rates(self):
+        pass
+
 class MPTestFileParser(FileParser):
     def __init__(self, route_dir, seed_no):
         FileParser.__init__(self)
@@ -72,6 +76,9 @@ class MPTestFileParser(FileParser):
             flows.append((src, dst, parts[ind]))
         return flows
 
+    def get_tx_rates(self):
+        return {}
+
 class NETestFileParser(FileParser):
 
     def __init__(self, route_dir, seed_no):
@@ -115,6 +122,17 @@ class NETestFileParser(FileParser):
                 path_splits.append((src_host, dst_host, splits))
                 routes = routes[3:]
         return path_splits
+
+    def get_tx_rates(self):
+        rate_file = self._route_dir + './seed_%s_rates.txt' % self._seed_no
+        with open(rate_file, 'r') as fd:
+            lines = fd.readlines()
+        rates = {}
+        for line in lines:
+            rvs = line.split(',')
+            ind = (rvs[0], rvs[1])
+            rates[ind] = (rvs[2], rvs[3])
+
 
 def main():
     parser = NETestFileParser('/home/ubuntu/Downloads/route_files/seed_5678/prob_mean_1_sigma_1.0/', '5678')

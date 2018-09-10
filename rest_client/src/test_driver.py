@@ -182,7 +182,7 @@ def read_trial_name(file_path):
         line = fd.readline()
     return line.strip()
 
-def test_stats_processor(hm, of_proc):
+def test_stats_processor(hm, of_proc, trial_length):
     trial_name = read_trial_name('./name_hints.txt')
     tx_file = './tx_stats.p'
     rx_file = './rx_stats.p'
@@ -211,7 +211,7 @@ def test_stats_processor(hm, of_proc):
 
     print('*******************************************************************')
     print('GOODPUT FOR FLOWS')
-    p.pprint(st_proc.calc_flow_rate(trial_name, cfg.pkt_size, cfg.sample_freq, cfg.trial_length))
+    p.pprint(st_proc.calc_flow_rate(trial_name, cfg.pkt_size, cfg.sample_freq, trial_length))
     print('*******************************************************************')
 
 def calc_stats_list():
@@ -384,7 +384,7 @@ def start_handler(args, hm, of_proc):
     if trial_type == 'link':
         route_input = args.file_name
         seed_no = args.seed_no
-        route_path = cfg.link_route_path(seed_no) + route_input + '/'
+        route_path = cfg.link_route_path + route_input + '/' + 'seed_%s' % seed_no + '/'
         route_provider = fp.MPTestFileParser(route_path, seed_no)
         route_adder = mp.MPRouteAdder(of_proc, hm, route_provider)
     elif trial_type == 'node':
@@ -396,7 +396,7 @@ def start_handler(args, hm, of_proc):
     else:
         print('Invalid trial type: %s. Valid types are: [ link | node ]' % trial_type)
         sys.exit(0)
-    trial.test_traffic_transmission(route_adder, args.time)
+    trial.test_traffic_transmission(route_adder, args.time, args.mu, args.sigma)
 
 def ports_handler(args, hm, of_proc):
     if args.switch:
@@ -405,19 +405,31 @@ def ports_handler(args, hm, of_proc):
         print_all_port_stats(hm, of_proc)
 
 def stats_handler(args, hm, of_proc):
-    test_stats_processor(hm, of_proc)
+    if not args.time:
+        args.time = 60
+    test_stats_processor(hm, of_proc, args.time)
 
 def names_handler(args, hm, of_proc):
     list_friendly_switch_names(hm, of_proc)
     pass
 
 def graph_handler(args, hm, of_proc):
+    if not args.file_list:
+        args.file_list = [ 'prob_mean_1_sigma_1.0' ]
     if args.type == 'boxplot':
         gen_boxplot(args.file_list)
     elif args.type == 'lossplot':
         gen_lossplot(args.file_list)
     elif args.type == 'topology':
         vis.draw_topology()
+
+def link_handler(args, hm, of_proc):
+    adj_mat = query_topology_links()
+    pretty = mk_readable(adj_mat)
+    print('**************************************************************************')
+    print('Adjacency Matrix')
+    print('**************************************************************************')
+    p.pprint(pretty)
 
 def main():
     of_proc = ofp.OFProcessor(cfg.of_controller_ip, cfg.of_controller_port)
@@ -429,48 +441,57 @@ def main():
 
 def build_arg_parser():
     parser = ap.ArgumentParser()
-    subparsers = parser.add_subparsers()
+    subparsers = parser.add_subparsers(dest='test_driver')
+    subparsers.required = True
 
     # remove all flows
-    parser_remove = subparsers.add_parser('remove')
+    parser_remove = subparsers.add_parser('remove', help='Remove flows from switch flowtables')
     parser_remove.add_argument('--switch', type=int)
     parser_remove.set_defaults(func=remove_handler)
 
     # print all flows
-    parser_flows = subparsers.add_parser('flows')
+    parser_flows = subparsers.add_parser('flows', help='Add flows to switch flowtables')
     parser_flows.add_argument('--switch', type=int)
     parser_flows.set_defaults(func=flows_handler)
 
     # print the minimum spanning tree
-    parser_mst = subparsers.add_parser('mst')
+    parser_mst = subparsers.add_parser('mst', help='Print information about the minimum spanning tree.')
     parser_mst.set_defaults(func=mst_handler)
 
-    # Start a link embedding trial
-    parser_start = subparsers.add_parser('start')
-    parser_start.add_argument('trial_type', type=str)
-    parser_start.add_argument('file_name', type=str)
-    parser_start.add_argument('seed_no', type=str)
-    parser_start.add_argument('--time', type=int, nargs='?', const=60)
+    # Start trial
+    parser_start = subparsers.add_parser('start', help='Start a trial.')
+    parser_start.add_argument('trial_type', type=str, help='[ link | node ]')
+    parser_start.add_argument('file_name', type=str, help='Name of the trial.')
+    parser_start.add_argument('seed_no', type=str, help='Seed No. for the trial.')
+    parser_start.add_argument('--time', type=int, nargs='?', const=60, help='Runtime of the trial.')
+    parser_start.add_argument('--mu', type=int, nargs='?', const=1250000, help='Mean transmit rate (Bps)')
+    parser_start.add_argument('--sigma', type=int, nargs='?', const=(1250000**2), help='Variance of transmit rate (Bps)')
     parser_start.set_defaults(func=start_handler)
 
     # Display switch port info.
-    parser_ports = subparsers.add_parser('ports')
+    parser_ports = subparsers.add_parser('ports', help='Print information about the switch ports.')
     parser_ports.add_argument('--switch', type=int)
     parser_ports.set_defaults(func=ports_handler)
 
     # Print statistics in the current working directory
-    parser_stats = subparsers.add_parser('stats')
+    parser_stats = subparsers.add_parser('stats', help='Print statistics about the results in the current directory.')
+    parser_stats.add_argument('--time', type=int, nargs='?', const=60)
     parser_stats.set_defaults(func=stats_handler)
 
     # Print the list of switches currently in the network
-    parser_names = subparsers.add_parser('names')
+    parser_names = subparsers.add_parser('names', help='Print the \"friendly\" names of all the switches in the network.')
     parser_names.set_defaults(func=names_handler)
 
     # Generate a graph
-    parser_graph = subparsers.add_parser('graph')
-    parser_graph.add_argument('file_list', nargs='?', const='prob_mean_1_sigma_1.0')
-    parser_graph.add_argument('--type', type=str, required = True)
+    parser_graph = subparsers.add_parser('graph', help='Generate various graphs')
+    parser_graph.add_argument('file_list', nargs='*', help='Names of trials to include in the plot')
+    parser_graph.add_argument('--type', type=str, required = True, help='[ lossplot | boxplot | topology ]')
     parser_graph.set_defaults(func=graph_handler)
+
+    # Adjacency Matrix
+    parser_links = subparsers.add_parser('links', help='Print the adjacency matrix for the network.')
+    parser.add_argument('--switch', type=int)
+    parser_links.set_defaults(func=link_handler)
     
     return parser
 

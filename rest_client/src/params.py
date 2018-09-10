@@ -19,8 +19,9 @@ of_controller_port = 8080
 link_route_files = '/home/ubuntu/cpsc_of_tb/link_files/'
 node_route_files = '/home/ubuntu/cpsc_of_tb/node_files/'
 trial_name = lambda s : 'seed_' + s + '/'
-link_route_path = lambda s : route_files + trial_name(s)
+# link_route_path = lambda s : link_route_files + trial_name(s)
 node_route_path = node_route_files
+link_route_path = link_route_files
 
 # Median Tx Rate for hosts (Bps)
 mu = (100000000 / 8.0)

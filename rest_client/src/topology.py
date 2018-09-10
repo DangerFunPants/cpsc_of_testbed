@@ -35,4 +35,5 @@ def draw_topology():
     for sw in dpid_map.values():
         labels[sw] = '$%s$' % sw.split('_')[-1]
     nx.draw_networkx_labels(g, layout, labels, font_size=16)
+    # plt.savefig('/home/ubuntu/test.png', transparent=True, dpi=512)
     plt.show()

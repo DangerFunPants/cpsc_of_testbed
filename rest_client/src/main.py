@@ -43,7 +43,7 @@ def ping_all():
         for ln in fd1:
             print(ln)
 
-def test_traffic_transmission(route_adder, trial_length):
+def test_traffic_transmission(route_adder, trial_length, mu, sigma):
 
     remove_all_count_files(route_adder)
     mapper = hm.HostMapper([cfg.dns_server_ip], cfg.of_controller_ip, cfg.of_controller_port)
@@ -82,7 +82,7 @@ def test_traffic_transmission(route_adder, trial_length):
     for (src_host, dst_host, path_split) in path_ratios:
         dst_hostname = mapper.map_sw_to_host(dst_host)
         dst_ip = mapper.resolve_hostname(dst_hostname)
-        hosts[src_host].configure_client(cfg.mu, cfg.sigma, cfg.traffic_model,
+        hosts[src_host].configure_client(mu, sigma, cfg.traffic_model,
             dst_ip, cfg.dst_port, path_split, src_host, cfg.time_slice)
 
 

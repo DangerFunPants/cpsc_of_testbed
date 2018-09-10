@@ -124,14 +124,19 @@ class NETestFileParser(FileParser):
         return path_splits
 
     def get_tx_rates(self):
-        rate_file = self._route_dir + './seed_%s_rates.txt' % self._seed_no
-        with open(rate_file, 'r') as fd:
-            lines = fd.readlines()
-        rates = {}
-        for line in lines:
-            rvs = line.split(',')
-            ind = (rvs[0], rvs[1])
-            rates[ind] = (rvs[2], rvs[3])
+        # rate_file = self._route_dir + './seed_%s_rates.txt' % self._seed_no
+        # with open(rate_file, 'r') as fd:
+        #     lines = fd.readlines()
+        # rates = {}
+        # for line in lines:
+        #     rvs = line.split(',')
+        #     ind = (rvs[0], rvs[1])
+        #     rates[ind] = (rvs[2], rvs[3])
+        return {}
+
+class VariableRateFileParser(NETestFileParser):
+    def get_tx_rates(self):
+        rate_dir = self._route_dir + 'rate_info/'
 
 
 def main():

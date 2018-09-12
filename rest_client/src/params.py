@@ -18,6 +18,7 @@ of_controller_port = 8080
 # Per trial parameters
 link_route_files = '/home/ubuntu/cpsc_of_tb/link_files/'
 node_route_files = '/home/ubuntu/cpsc_of_tb/node_files/'
+var_rate_route_path = '/home/ubuntu/cpsc_of_tb/var_rate_files/'
 trial_name = lambda s : 'seed_' + s + '/'
 # link_route_path = lambda s : link_route_files + trial_name(s)
 node_route_path = node_route_files

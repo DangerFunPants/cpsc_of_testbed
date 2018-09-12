@@ -79,7 +79,7 @@ def test_traffic_transmission(route_adder, trial_length, mu, sigma):
 
     path_ratios = route_adder.get_path_ratios()
     pp.pprint(path_ratios)
-    for (src_host, dst_host, path_split) in path_ratios:
+    for (src_host, dst_host, path_split, (mu, sigma)) in path_ratios:
         dst_hostname = mapper.map_sw_to_host(dst_host)
         dst_ip = mapper.resolve_hostname(dst_hostname)
         hosts[src_host].configure_client(mu, sigma, cfg.traffic_model,

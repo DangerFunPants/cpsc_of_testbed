@@ -3,6 +3,7 @@ import ast
 import abc
 from collections import defaultdict 
 import pprint as pp
+import os 
 
 class FileParser(metaclass=abc.ABCMeta):
 
@@ -27,15 +28,13 @@ class FileParser(metaclass=abc.ABCMeta):
     def get_flow_defs(self):
         pass
 
-    @abc.abstractmethod
-    def get_tx_rates(self):
-        pass
-
 class MPTestFileParser(FileParser):
-    def __init__(self, route_dir, seed_no):
+    def __init__(self, route_dir, seed_no, mu, sigma):
         FileParser.__init__(self)
         self._route_dir = route_dir
         self._seed_no = seed_no
+        self._mu = mu
+        self._sigma = sigma
     
     def _read_route_file(self, path):
         lst = []
@@ -73,7 +72,7 @@ class MPTestFileParser(FileParser):
             seen.append(elem)
         flows = []
         for ind, (src, dst) in enumerate(od_pairs):
-            flows.append((src, dst, parts[ind]))
+            flows.append((src, dst, parts[ind], (self._mu, self._sigma)))
         return flows
 
     def get_tx_rates(self):
@@ -81,9 +80,11 @@ class MPTestFileParser(FileParser):
 
 class NETestFileParser(FileParser):
 
-    def __init__(self, route_dir, seed_no):
+    def __init__(self, route_dir, seed_no, mu, sigma):
         self._route_dir = route_dir
         self._seed_no = seed_no
+        self._mu = mu
+        self._sigma = sigma
 
     def get_routes(self):
         routes_path = self._route_dir + './Paths_seed_%s.txt' % self._seed_no 
@@ -119,39 +120,70 @@ class NETestFileParser(FileParser):
                 dst_host = routes[0][1][-1]
                 splits = list(paths.values())
                 print((src_host, dst_host))
-                path_splits.append((src_host, dst_host, splits))
+                path_splits.append((src_host, dst_host, splits, (self._mu, self._sigma)))
                 routes = routes[3:]
         return path_splits
 
-    def get_tx_rates(self):
-        # rate_file = self._route_dir + './seed_%s_rates.txt' % self._seed_no
-        # with open(rate_file, 'r') as fd:
-        #     lines = fd.readlines()
-        # rates = {}
-        # for line in lines:
-        #     rvs = line.split(',')
-        #     ind = (rvs[0], rvs[1])
-        #     rates[ind] = (rvs[2], rvs[3])
-        return {}
-
 class VariableRateFileParser(NETestFileParser):
-    def get_tx_rates(self):
-        rate_dir = self._route_dir + 'rate_info/'
+    def __init__(self, route_dir, seed_no, mu, sigma):
+        self._route_dir = route_dir
+        self._seed_no = seed_no
+        self._mu = mu
+        self._sigma = sigma
 
+    def _construct_rate_table(self):
+        def get_nw_id(file_name):
+            toks = file_name.split('_')
+            return int(toks[2])
+
+        def get_flow_params(line):
+            toks = line.split(':')
+            parm_list = toks[-1].split(',')
+            mu = int(float(parm_list[0]))
+            sigma = int(float(parm_list[1]))
+            sigma = sigma if sigma != 0 else 1
+            return (mu, sigma)
+
+        rate_path = self._route_dir + 'rate_files/'
+        # Should be one file for each VN in the trial.
+        # Each of these files will contain N entries where N is the number
+        # of flows in each request. Each flow contains K paths over which 
+        # traffic will be forwarded. Each of these K paths should have the same
+        # source and destination nodes. 
+        all_files = os.listdir(rate_path)
+        rates = defaultdict(dict)
+        for nw_file in all_files:
+            net_id = get_nw_id(nw_file)
+            fq_path = rate_path + nw_file
+            with open(fq_path, 'r') as fd:
+                lines = fd.readlines()
+                for flow_id, line in enumerate(lines):
+                    mu, sigma = get_flow_params(line)
+                    rates[net_id][flow_id] = (mu * self._mu, sigma * self._sigma)
+        return rates
+
+    def get_flow_defs(self):
+        part_file = self._route_dir + './X_matrix_seed_%s.txt' % self._seed_no
+        parts = self._read_partitions_file(part_file)
+        routes = self.get_routes()
+        path_splits = []
+        tx_rates = self._construct_rate_table()
+        for (net_id, net_flows) in parts.items():
+            for (flow_id, paths) in net_flows.items():
+                src_host = routes[0][1][0]
+                dst_host = routes[0][1][-1]
+                splits = list(paths.values())
+                print((src_host, dst_host))
+                path_splits.append((src_host, dst_host, splits, tx_rates[net_id][flow_id]))
+                routes = routes[3:]
+        return path_splits
 
 def main():
-    parser = NETestFileParser('/home/ubuntu/Downloads/route_files/seed_5678/prob_mean_1_sigma_1.0/', '5678')
-    # parser.get_flow_defs()
-    pp.pprint(parser.get_routes())
+    parser = VariableRateFileParser('/home/ubuntu/cpsc_of_tb/var_rate_files/deter_mean_1/seed_1234/', '1234', 131072, 131072)
+    parser.get_flow_defs()
+    # pp.pprint(parser.get_routes())
     pp.pprint(parser.get_flow_defs())
 
 if __name__ == '__main__':
     main()
-
-
-
-
-
-
-
     

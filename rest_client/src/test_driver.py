@@ -379,22 +379,30 @@ def mst_handler(args, hm, of_proc):
     pprint_mst_topo()
 
 def start_handler(args, hm, of_proc):
+    def build_file_path(trial_dir):
+        return trial_dir + route_input + '/' + 'seed_%s' % seed_no + '/'
+
     trial_type = args.trial_type.lower()
     route_adder = None
+    route_input = args.file_name
+    seed_no = args.seed_no
     if trial_type == 'link':
-        route_input = args.file_name
-        seed_no = args.seed_no
-        route_path = cfg.link_route_path + route_input + '/' + 'seed_%s' % seed_no + '/'
-        route_provider = fp.MPTestFileParser(route_path, seed_no)
+        # route_path = cfg.link_route_path + route_input + '/' + 'seed_%s' % seed_no + '/'
+        route_path = build_file_path(cfg.link_route_path)
+        route_provider = fp.MPTestFileParser(route_path, seed_no, args.mu, args.sigma)
         route_adder = mp.MPRouteAdder(of_proc, hm, route_provider)
     elif trial_type == 'node':
-        route_input = args.file_name
-        seed_no = args.seed_no
-        route_path = cfg.node_route_path + route_input + '/' + 'seed_%s' % seed_no + '/'
-        route_provider = fp.NETestFileParser(route_path, seed_no)
+        # route_path = cfg.node_route_path + route_input + '/' + 'seed_%s' % seed_no + '/'
+        route_path = build_file_path(cfg.node_route_path)
+        route_provider = fp.NETestFileParser(route_path, seed_no, args.mu, args.sigma)
+        route_adder = mp.MPRouteAdder(of_proc, hm, route_provider)
+    elif trial_type == 'var_rate':
+        # route_path = cfg.var_rate_route_path + route_input + '/' + 'seed_%s' % seed_no + '/'
+        route_path = build_file_path(cfg.var_rate_route_path)
+        route_provider = fp.VariableRateFileParser(route_path, seed_no, args.mu, args.sigma)
         route_adder = mp.MPRouteAdder(of_proc, hm, route_provider)
     else:
-        print('Invalid trial type: %s. Valid types are: [ link | node ]' % trial_type)
+        print('Invalid trial type: %s. Valid types are: [ link | node | var_rate ]' % trial_type)
         sys.exit(0)
     trial.test_traffic_transmission(route_adder, args.time, args.mu, args.sigma)
 
@@ -460,7 +468,7 @@ def build_arg_parser():
 
     # Start trial
     parser_start = subparsers.add_parser('start', help='Start a trial.')
-    parser_start.add_argument('trial_type', type=str, help='[ link | node ]')
+    parser_start.add_argument('trial_type', type=str, help='[ link | node | var_rate ]')
     parser_start.add_argument('file_name', type=str, help='Name of the trial.')
     parser_start.add_argument('seed_no', type=str, help='Seed No. for the trial.')
     parser_start.add_argument('--time', type=int, nargs='?', const=60, help='Runtime of the trial.')
@@ -475,7 +483,8 @@ def build_arg_parser():
 
     # Print statistics in the current working directory
     parser_stats = subparsers.add_parser('stats', help='Print statistics about the results in the current directory.')
-    parser_stats.add_argument('--time', type=int, nargs='?', const=60)
+    parser_stats.add_argument('--time', type=int, nargs='?', const=60, help=
+        'Runtime of the trial (default 60 seconds, must be adjusted accordingly by the user)')
     parser_stats.set_defaults(func=stats_handler)
 
     # Print the list of switches currently in the network

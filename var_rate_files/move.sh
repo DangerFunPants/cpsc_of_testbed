@@ -1,6 +1,6 @@
 for f in $(find . -maxdepth 1 -type d);
 do
-    for v in $(find ./$f -maxdepth 1 -type d -name "VN_Req_*");
+    for v in $(find ./$f -maxdepth 1 -type d | egrep "VN_Req_[0-9]{4}");
     do
         seed=${v: -4};
         echo $seed;

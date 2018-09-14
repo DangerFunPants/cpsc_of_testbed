@@ -1,1 +1,0 @@
-Link 0,1 with (mu,sigma): 2,0.0

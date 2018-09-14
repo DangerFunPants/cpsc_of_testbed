@@ -1,0 +1,4 @@
+vnode id:0 mapped to physical node:8
+vnode id:1 mapped to physical node:3
+vnode id:2 mapped to physical node:4
+vnode id:3 mapped to physical node:5

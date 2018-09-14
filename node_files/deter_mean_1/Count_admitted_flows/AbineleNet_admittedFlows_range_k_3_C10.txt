@@ -1,0 +1,12 @@
+Seed number: 1234
+Number of requests: 32
+Number of Vlinks: 79
+Seed number: 5678
+Number of requests: 30
+Number of Vlinks: 72
+Seed number: 9812
+Number of requests: 30
+Number of Vlinks: 72
+Seed number: 4065
+Number of requests: 32
+Number of Vlinks: 79

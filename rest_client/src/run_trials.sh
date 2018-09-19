@@ -10,7 +10,7 @@ do
     echo "Running trial ${names[$i]}" 
     let s=12500000*12500000;
     # let s=1
-    test_driver.py start var_rate ${trials[$i]} 1234 --time $time --mu 12500000 --sigma $s;
+    test_driver.py start var_rate ${trials[$i]} 4065 --time $time --mu 12500000 --sigma $s;
     mkdir /home/ubuntu/cpsc_of_tb/results/${names[$i]};
     cp *.p /home/ubuntu/cpsc_of_tb/results/${names[$i]};
     cp ./name_hints.txt /home/ubuntu/cpsc_of_tb/results/${names[$i]}; 

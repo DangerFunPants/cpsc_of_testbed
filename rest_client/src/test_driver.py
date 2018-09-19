@@ -189,7 +189,7 @@ def test_stats_processor(hm, of_proc, trial_length):
     stats = pickle.load(open(tx_file, 'rb'))
     rx_stats = pickle.load(open(rx_file, 'rb'))
     st_proc = stp.StatsProcessor(hm, of_proc)
-    p.pprint(stats)
+    # p.pprint(stats)
     st_dict = st_proc.calc_link_util(stats, cfg.pkt_size, cfg.sample_freq, units=stp.Units.MegaBitsPerSecond)
     ingress_flows_dict = st_proc.calc_ingress_util(rx_stats, cfg.pkt_size, cfg.sample_freq, units=stp.Units.MegaBitsPerSecond)
     egress_flows_dict = st_proc.calc_ingress_util(stats, cfg.pkt_size, cfg.sample_freq, units=stp.Units.MegaBitsPerSecond)
@@ -213,6 +213,28 @@ def test_stats_processor(hm, of_proc, trial_length):
     print('GOODPUT FOR FLOWS')
     p.pprint(st_proc.calc_flow_rate(trial_name, cfg.pkt_size, cfg.sample_freq, trial_length))
     print('*******************************************************************')
+
+def print_util_array(hm, of_proc, trial_length):
+    tx_file = './tx_stats.p'
+    tx_stats = pickle.load(open(tx_file, 'rb'))
+    st_proc = stp.StatsProcessor(hm, of_proc)
+    st_dict = st_proc.calc_link_util(tx_stats, cfg.pkt_size, cfg.sample_freq, units=stp.Units.MegaBitsPerSecond)
+
+    # Print link utilization as a list of percentages.
+    ordered = defaultdict(float)
+    for src, d in st_dict.items():
+        for dst, util in d.items():
+            k = (src, dst) if src < dst else (dst, src)
+            ordered[k] = ordered[k] + util
+    util_arr = [ v for v in ordered.values() ]
+    p.pprint(util_arr)
+
+def print_loss_array(hm, of_proc, trial_length):
+    trial_name = read_trial_name('./name_hints.txt')
+    st_proc = stp.StatsProcessor(hm, of_proc)
+    loss_dict = st_proc.calc_loss_rates(trial_name)
+    loss_arr = [ v for d1 in loss_dict.values() for d2 in d1.values() for v in d2.values() ]
+    p.pprint(loss_arr)
 
 def calc_stats_list():
     trial_name = read_trial_name('./name_hints.txt')
@@ -387,17 +409,14 @@ def start_handler(args, hm, of_proc):
     route_input = args.file_name
     seed_no = args.seed_no
     if trial_type == 'link':
-        # route_path = cfg.link_route_path + route_input + '/' + 'seed_%s' % seed_no + '/'
         route_path = build_file_path(cfg.link_route_path)
         route_provider = fp.MPTestFileParser(route_path, seed_no, args.mu, args.sigma)
         route_adder = mp.MPRouteAdder(of_proc, hm, route_provider)
     elif trial_type == 'node':
-        # route_path = cfg.node_route_path + route_input + '/' + 'seed_%s' % seed_no + '/'
         route_path = build_file_path(cfg.node_route_path)
         route_provider = fp.NETestFileParser(route_path, seed_no, args.mu, args.sigma)
         route_adder = mp.MPRouteAdder(of_proc, hm, route_provider)
     elif trial_type == 'var_rate':
-        # route_path = cfg.var_rate_route_path + route_input + '/' + 'seed_%s' % seed_no + '/'
         route_path = build_file_path(cfg.var_rate_route_path)
         route_provider = fp.VariableRateFileParser(route_path, seed_no, args.mu, args.sigma)
         route_adder = mp.MPRouteAdder(of_proc, hm, route_provider)
@@ -415,7 +434,13 @@ def ports_handler(args, hm, of_proc):
 def stats_handler(args, hm, of_proc):
     if not args.time:
         args.time = 60
-    test_stats_processor(hm, of_proc, args.time)
+
+    if args.u:
+        print_util_array(hm, of_proc, args.time)
+    elif args.l:
+        print_loss_array(hm, of_proc, args.time)
+    elif args.s:
+        test_stats_processor(hm, of_proc, args.time)
 
 def names_handler(args, hm, of_proc):
     list_friendly_switch_names(hm, of_proc)
@@ -485,6 +510,9 @@ def build_arg_parser():
     parser_stats = subparsers.add_parser('stats', help='Print statistics about the results in the current directory.')
     parser_stats.add_argument('--time', type=int, nargs='?', const=60, help=
         'Runtime of the trial (default 60 seconds, must be adjusted accordingly by the user)')
+    parser_stats.add_argument('-u', help='Print link utilization as an array.', action='store_true')
+    parser_stats.add_argument('-l', help='Print end to end loss rates for flows as an array.', action='store_true')
+    parser_stats.add_argument('-s', help='Print a summary of the trial statistics', action='store_true')
     parser_stats.set_defaults(func=stats_handler)
 
     # Print the list of switches currently in the network

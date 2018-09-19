@@ -53,8 +53,6 @@ class StatsProcessor:
     def _calc_link_util_pps(self, stats_dict):
         # stats_dict :: (sw_dpid, egress_port) -> [pkt_counts]
         timeframes = self._compute_timeframes(stats_dict)
-        print('TIMEFRAMES')
-        pp.pprint(timeframes)
         link_utils = defaultdict(dict)
         for (sw_dpid, egress_port), count_list in timeframes.items():
             try:

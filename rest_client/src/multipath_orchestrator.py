@@ -258,7 +258,7 @@ class MPTestHost(Host):
                       , 'dest_addr': dest_ip
                       , 'prob_mat': k_mat
                       , 'tx_rate': mu
-                      , 'variance': sigma
+                      , 'variance': ( sigma ** 2 )
                       , 'traffic_model': traffic_model
                       , 'packet_len': pkt_len
                       , 'src_host': host_no

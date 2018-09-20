@@ -5,6 +5,7 @@ names=(prob_mean_1_sigma_1.0 deter_mean_2.645 deter_mean_1)
 
 time=900
 
+
 for i in $(seq 0 2);
 do
     echo "Running trial ${names[$i]}" 

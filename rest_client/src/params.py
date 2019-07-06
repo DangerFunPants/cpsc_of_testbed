@@ -29,8 +29,8 @@ mu = (100000000 / 8.0)
 # Sigma (variance) for hosts. (Bps)
 sigma = (100000000 / 8.0) ** 2
 # sigma = 1
-# Traffic Model
-traffic_model = 'gamma'
+# Traffic Model [ trunc_norm | uniform | trunc_norm_symmetric | random_sampling ]
+traffic_model = 'uniform' #'gamma'
 # Frequency of Tx Rate alteration (seconds)
 time_slice = 10
 # Total number of seconds to run the trial for

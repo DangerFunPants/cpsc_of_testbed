@@ -38,11 +38,15 @@ class MPTestFileParser(FileParser):
     
     def _read_route_file(self, path):
         lst = []
+        print('file_parsing -> _read_route_file: ' + str(path))
         with open(path, 'r') as rf:
             lst = ast.literal_eval(rf.read())
+        print('file_parsing -> _read_route_file: ' + str(lst))
         return lst
 
     def get_routes(self):
+        print('file_parsing -> get_routes: ' + str(self._route_dir))
+        print('file_parsing -> get_routes: ' + str(self._seed_no))
         routes_path = self._route_dir + './Paths_seed_%s.txt' % self._seed_no 
         routes = self._read_route_file(routes_path)
         routes = [ (path_id, list(map(lambda n : n + 1, path))) for flow in routes for path_id, path in enumerate(flow) ]
@@ -87,15 +91,18 @@ class NETestFileParser(FileParser):
         self._sigma = sigma
 
     def get_routes(self):
+        #print('file parsing -> NETestFileParser: get_routes ' + str(self._route_dir))
         routes_path = self._route_dir + './Paths_seed_%s.txt' % self._seed_no 
         with open(routes_path, 'r') as rf:
             nets = eval(rf.read())
+        #print('file parsing -> NETestFileParser: get_routes: nets: ' + str(nets))
         routes = []
         for vn_id, vn in enumerate(nets):
             for flow_id, flow in enumerate(vn):
                 for path_id, path in enumerate(flow):
                     p = [ n + 1 for n in path ]
                     routes.append((path_id, p))
+        #print('file parsing -> NETestParser: get_routes: routes: ' + str(routes))
         return routes
 
     def _read_partitions_file(self, file_path):
@@ -107,6 +114,7 @@ class NETestFileParser(FileParser):
             t = eval(tup_lit)
             flow_val = float(line.split(':')[1])
             flow_vs[t[0]][t[1]][t[2]] = flow_val
+        print('file parsing -> NETestFile Parser: _read_partiotions_file: ' + str(flow_vs))
         return flow_vs
 
     def get_flow_defs(self):
@@ -140,8 +148,10 @@ class VariableRateFileParser(NETestFileParser):
             toks = line.split(':')
             parm_list = toks[-1].split(',')
             mu = int(float(parm_list[0]))
-            sigma = int(float(parm_list[1]))
-            sigma = sigma if sigma != 0 else 1
+            sigma = float(parm_list[1]) #int(float(parm_list[1]))
+            # why? for gamma distribution, I think sigma shouldn't be zero but this problem must be handled on the hosts. 
+            # Becase, we may change the distribution. 
+            #sigma = sigma if sigma != 0 else 1
             return (mu, sigma)
 
         rate_path = self._route_dir + 'rate_files/'
@@ -176,6 +186,7 @@ class VariableRateFileParser(NETestFileParser):
                 print((src_host, dst_host))
                 path_splits.append((src_host, dst_host, splits, tx_rates[net_id][flow_id]))
                 routes = routes[3:]
+        print('file parsing -> Variable -> get_flow_defs: path_splits: ' + str(path_splits))
         return path_splits
 
 def main():

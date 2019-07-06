@@ -65,6 +65,7 @@ class StatsProcessor:
     
     def _calc_link_util_pps_t(self, stats_dict):
         timeframes = self._compute_timeframes(stats_dict)
+        print('stats_processor-> _calc_link_util_pps_t: timeframes: ' + str(timeframes))
         link_utils = defaultdict(lambda : defaultdict(list))
         for (sw_dpid, egress_port), count_list in timeframes.items():
             try:
@@ -72,6 +73,7 @@ class StatsProcessor:
             except ValueError:
                 continue
             link_utils[src_nm][dst_nm] = count_list
+        print('link utils: ' + str(link_utils))
         return link_utils
 
     def _calc_uplink_port_util_pps( self
@@ -92,7 +94,9 @@ class StatsProcessor:
         ret = defaultdict(dict)
         for src_sw, v in stats_dict.items():
             for dst_sw, count in v.items():
+                print('count: ' + str(count))
                 ret[src_sw][dst_sw] = conv_fn(count)
+                print('link util: ' + str(ret[src_sw][dst_sw]))
         return ret
 
     def _convert_stats_list(self, stats_dict, conv_fn):
@@ -100,6 +104,7 @@ class StatsProcessor:
         for src_sw, v in stats_dict.items():
             for dst_sw, count_list in v.items():
                 ret[src_sw][dst_sw] = list(map(conv_fn, count_list))
+        print('stats_processor-> _convert_stats_list: ' + str(ret))
         return ret
 
     def _build_conv_fn(self, pkt_size, time_frame, units=Units.PacketsPerSecond):
@@ -108,6 +113,7 @@ class StatsProcessor:
         elif units == Units.BitsPerSecond:
             conv_fn = lambda pkts : ((pkts * pkt_size * 8) / float(time_frame))
         elif units == Units.MegaBitsPerSecond:
+            print('Correct unit: Mbps')
             conv_fn = lambda pkts : (((pkts * pkt_size * 8) / float(10**6)) / float(time_frame))
         elif units == Units.BytesPerSecond:
             conv_fn = lambda pkts : ((pkts * 1066) / float(time_frame))
@@ -121,6 +127,9 @@ class StatsProcessor:
                        , time_frame
                        , units=Units.PacketsPerSecond ):
         conv_fn = self._build_conv_fn(pkt_size, time_frame, units)
+        #print('time_frame: ' + str(time_frame))
+        #print('conv_fn: ' + str(conv_fn))
+        #print('pps_stats: ' + str(pps_stats))
         return self._convert_stats(pps_stats, conv_fn)
     
     def _calc_link_util_list( self
@@ -137,6 +146,7 @@ class StatsProcessor:
                       , time_frame
                       , units=Units.PacketsPerSecond ):
         pps_stats = self._calc_link_util_pps(stats_dict)
+        print('pps_stats: ' + str(pps_stats))
         stats = self._calc_link_util(pps_stats, pkt_size, time_frame, units)
         return stats
     
@@ -183,9 +193,16 @@ class StatsProcessor:
                     src_host = flow_info['src_host']
                     dst_ip = flow_info['dst_ip']
                     src_port = flow_info['src_port']
+                    str = dst_ip.split('.')
+                    if str[1] == '0' and str[2] == '168' and str[3] == '192':
+                     dst_ip = str[3] + '.' + str[2] + '.' + str[1] + '.' + str[0]
                     dst_hname = self._mapper.reverse_lookup(dst_ip)
+                    tok_list = dst_hname.split('.')
+                    if tok_list[2] == '168':
+                        dst_hname = tok_list[0] + '.of.cpsc.'
                     src_hname = self._mapper.qualify_host_domain(self._mapper.map_sw_to_host(src_host))
                     tx_dict[src_hname][dst_hname][src_port] = flow_info['pkt_count']
+                    print('stats_processor-> _mk_tx_dict: tx[src=%s][dst=%s][src_port=%s] = pkt_count:%d'%(src_hname,dst_hname,src_port,flow_info['pkt_count']))
         return tx_dict
 
     def _mk_rx_dict(self, rx_files):
@@ -198,7 +215,11 @@ class StatsProcessor:
                     rx_er = base.split('_')[1]
                     rx_host = self._mapper.qualify_host_domain(self._mapper.map_sw_to_host(rx_er))
                     hostname = self._mapper.reverse_lookup(src_ip)
+                    tok_list = hostname.split('.')
+                    if tok_list[2] == '168':
+                        hostname = tok_list[0] + '.of.cpsc.'
                     rx_dict[rx_host][hostname][src_port] = pkt_count
+                    print('stats_processor-> _mk_rx_dict: rx[rx_host=%s][hostname=%s][src_port=%s] = pkt_count:%d'%(rx_host,hostname,src_port,pkt_count))
         return rx_dict
     
     def calc_pkt_loss(self, tx_pkts, rx_pkts):
@@ -228,11 +249,16 @@ class StatsProcessor:
         base_path = self.base_path
         tx_path = '%s%s%s/*.p' % (base_path, 'tx/', trial_name)
         rx_path = '%s%s%s/*.p' % (base_path, 'rx/', trial_name)
+        print('tx_path: ' + str(tx_path))
+        print('rx_path: ' + str(rx_path))
         tx_files = glob.glob(tx_path)
         rx_files = glob.glob(rx_path)
         tx_dict = self._mk_tx_dict(tx_files)
         rx_dict = self._mk_rx_dict(rx_files)
+        print('tx_dict: ' + str(tx_dict))
+        print('rx_dict: ' + str(rx_dict))
         loss_dict = self._mk_loss_dict(tx_dict, rx_dict)
+        
         return loss_dict
 
     def calc_flow_rate( self

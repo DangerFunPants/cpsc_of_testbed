@@ -296,7 +296,7 @@ class OFRequest:
                 raise ValueError('Undefined HTTP Method')
         except req.exceptions.ConnectionError as ex:
             error(ex)
-            raise e
+            raise ex
         except Exception as ex:
             error(ex) 
             raise ex

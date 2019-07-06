@@ -195,23 +195,24 @@ def test_stats_processor(hm, of_proc, trial_length):
     egress_flows_dict = st_proc.calc_ingress_util(stats, cfg.pkt_size, cfg.sample_freq, units=stp.Units.MegaBitsPerSecond)
     print('*******************************************************************')
     print('CORE LINK UTILIZATION')
-    p.pprint(st_dict)
-
+    #p.pprint(st_dict)
+    print('test_driver: ' +str(st_dict))
     print('*******************************************************************')
     print('HOST UPLINK UTILIZATION')
-    p.pprint(ingress_flows_dict)
-    
+    #p.pprint(ingress_flows_dict)
+    print('test_driver: ' +str(ingress_flows_dict))
     print('*******************************************************************')
     print('HOST EGRESS UTILIZATION')
-    p.pprint(egress_flows_dict)
-
+    #p.pprint(egress_flows_dict)
+    print('test_driver: ' +str(egress_flows_dict))    
     print('*******************************************************************')
     print('LOSS RATES')
-    p.pprint(st_proc.calc_loss_rates(trial_name))
-
+    #p.pprint(st_proc.calc_loss_rates(trial_name))
+    print('test_driver: ' +str(st_proc.calc_loss_rates(trial_name)))
     print('*******************************************************************')
     print('GOODPUT FOR FLOWS')
-    p.pprint(st_proc.calc_flow_rate(trial_name, cfg.pkt_size, cfg.sample_freq, trial_length))
+    #p.pprint(st_proc.calc_flow_rate(trial_name, cfg.pkt_size, cfg.sample_freq, trial_length))
+    print(st_proc.calc_flow_rate(trial_name, cfg.pkt_size, cfg.sample_freq, trial_length))
     print('*******************************************************************')
 
 def print_util_array(hm, of_proc, trial_length):
@@ -402,6 +403,7 @@ def mst_handler(args, hm, of_proc):
 
 def start_handler(args, hm, of_proc):
     def build_file_path(trial_dir):
+        print('start_handler: trial_dir: ' + str(trial_dir))
         return trial_dir + route_input + '/' + 'seed_%s' % seed_no + '/'
 
     trial_type = args.trial_type.lower()
@@ -418,12 +420,18 @@ def start_handler(args, hm, of_proc):
         route_adder = mp.MPRouteAdder(of_proc, hm, route_provider)
     elif trial_type == 'var_rate':
         route_path = build_file_path(cfg.var_rate_route_path)
+        #print('start_handler: route_path: ' + str(route_path))
         route_provider = fp.VariableRateFileParser(route_path, seed_no, args.mu, args.sigma)
+        print('test_driver.py -> start_handler: route_provider: ' + str(route_provider._route_dir))
+        print('test_driver.py -> start_handler: route_provider: ' + str(route_provider._seed_no))
         route_adder = mp.MPRouteAdder(of_proc, hm, route_provider)
     else:
         print('Invalid trial type: %s. Valid types are: [ link | node | var_rate ]' % trial_type)
         sys.exit(0)
+    print('test_driver -> route_adder: ' + str(route_adder.get_src_dst_pairs()))
     trial.test_traffic_transmission(route_adder, args.time, args.mu, args.sigma)
+    #print('stats: ')
+    #test_stats_processor(hm, of_proc, args.time)
 
 def ports_handler(args, hm, of_proc):
     if args.switch:
@@ -434,7 +442,8 @@ def ports_handler(args, hm, of_proc):
 def stats_handler(args, hm, of_proc):
     if not args.time:
         args.time = 60
-
+    print('stats_processor: stats_handler')
+    print('args.time = ' + str(args.time))
     if args.u:
         print_util_array(hm, of_proc, args.time)
     elif args.l:
@@ -470,6 +479,7 @@ def main():
 
     arg_parser = build_arg_parser()
     args = arg_parser.parse_args()
+    print('args: ' + str(args))
     args.func(args, hm, of_proc)
 
 def build_arg_parser():

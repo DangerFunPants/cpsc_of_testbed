@@ -105,3 +105,6 @@ venv.bak/
 .mypy_cache/
 
 __pycache__/*
+
+# VIM 
+*.sw[op]

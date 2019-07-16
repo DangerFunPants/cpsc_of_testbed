@@ -87,7 +87,7 @@ class NETestFileParser(FileParser):
         self._sigma = sigma
 
     def get_routes(self):
-        routes_path = self._route_dir + './Paths_seed_%s.txt' % self._seed_no 
+        routes_path = self._route_dir + '/Paths_seed_%s.txt' % self._seed_no 
         with open(routes_path, 'r') as rf:
             nets = eval(rf.read())
         routes = []
@@ -110,7 +110,7 @@ class NETestFileParser(FileParser):
         return flow_vs
 
     def get_flow_defs(self):
-        part_file = self._route_dir + './X_matrix_seed_%s.txt' % self._seed_no
+        part_file = self._route_dir + '/X_matrix_seed_%s.txt' % self._seed_no
         parts = self._read_partitions_file(part_file)
         routes = self.get_routes()
         path_splits = []

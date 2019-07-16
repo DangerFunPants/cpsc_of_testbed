@@ -26,6 +26,8 @@ def ping_all():
     of_proc = ofp.OFProcessor(cfg.of_controller_ip, cfg.of_controller_port)
     mapper = hm.HostMapper([cfg.dns_server_ip], cfg.of_controller_ip, cfg.of_controller_port)
     sw_list = of_proc.get_switch_list()
+    print('switch list:')
+    print(sw_list)
     hosts = {}
     for sw in sw_list:
         sw_num = int(mapper.map_dpid_to_sw_num(sw))
@@ -50,6 +52,11 @@ def test_traffic_transmission(route_adder, trial_length, mu, sigma):
     of_proc = ofp.OFProcessor(cfg.of_controller_ip, cfg.of_controller_port)
     # Start each trial in a known state
     sw_list = of_proc.get_switch_list()
+    print('main -> switch list:')
+    print(sw_list)
+    for sw in sw_list:
+        sw_num = int(mapper.map_dpid_to_sw_num(sw))
+        print('switch: ' + str(sw) + 'maps to id: ' + str(sw_num)) 
     for sw in sw_list:
         of_proc.remove_table_flows(sw, 100)
     
@@ -80,6 +87,7 @@ def test_traffic_transmission(route_adder, trial_length, mu, sigma):
     path_ratios = route_adder.get_path_ratios()
     pp.pprint(path_ratios)
     for (src_host, dst_host, path_split, (mu, sigma)) in path_ratios:
+        print('main -> transmission: (mu,sigma): ' + str((mu,sigma)))
         dst_hostname = mapper.map_sw_to_host(dst_host)
         dst_ip = mapper.resolve_hostname(dst_hostname)
         hosts[src_host].configure_client(mu, sigma, cfg.traffic_model,
@@ -119,6 +127,14 @@ def test_traffic_transmission(route_adder, trial_length, mu, sigma):
 
     route_adder.remove_routes()
     rx_res, tx_res = traffic_mon.retrieve_results()
+    print('main')
+    print('route dir: ' + str(route_adder._route_provider._route_dir))
+    print('seed no: ' + str(route_adder._route_provider._seed_no))
+    for (i,p_n) in rx_res:
+        print('rx(dpid, port_no)=' + '(' + str(i) + ',' + str(p_n) + ')' + ', count=' + str(rx_res[(i,p_n)]))
+    for (i,p_n) in tx_res:
+        print('tx(dpid, port_no)=' + '(' + str(i) + ',' + str(p_n) + ')' + ', count=' + str(rx_res[(i,p_n)]))
+
     rx_file = './rx_stats.p'
     tx_file = './tx_stats.p'
     pickle.dump(rx_res, open(rx_file, 'wb'))

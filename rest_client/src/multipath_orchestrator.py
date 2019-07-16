@@ -52,6 +52,7 @@ class MPRouteAdder:
         pairs = [(src, dst) for (src,dst) in zip(route, route[1:])]
         src_sw = route[0]
         dst_sw = route[-1]
+        #print('multipath_orchestrator:')
         print((src_sw, dst_sw))
         # Need the IP Address for the hosts.
         src_ip = self._mapper.resolve_hostname(self._mapper.map_sw_to_host(src_sw))

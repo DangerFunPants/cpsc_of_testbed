@@ -35,7 +35,10 @@ class HostMapper:
     def reverse_lookup(self, ip_addr):
         dns_resolver = dns.Resolver()
         dns_resolver.nameservers = self.nameservers
+        #dns_resolver.nameservers = ['192.168.0.2']
+        #print('nameservers: ' + str(self.nameservers))
         name = rev_name.dns.reversename.from_address(ip_addr)
+        #print('name: ' + str(name))
         try:
             answers = dns_resolver.query(name, 'PTR')
         except dns.NXDOMAIN:

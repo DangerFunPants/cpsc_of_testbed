@@ -12,6 +12,8 @@ import stats_processor as st_proc
 import of_processor as ofp
 import pickle as pickle
 
+from onos_route_adder import OnosMapper, OnosRouteAdder, OnMonitor
+
 def mk_host_defaults(hostname):
     def_host = mp.MPTestHost(hostname, 'alexj', 'cpsc')
     return def_host
@@ -141,6 +143,41 @@ def test_traffic_transmission(route_adder, trial_length, mu, sigma):
     pickle.dump(tx_res, open(tx_file, 'wb'))
     record_trial_name(path_name)
 
+def conduct_onos_trial(route_adder, trial_length, mu, sigma):
+    remove_all_count_files(route_adder)
+    mapper = OnosMapper([cfg.dns_server_ip], cfg.of_controller_ip, cfg.of_controller_port)
+    
+    od_pairs = route_adder.get_src_dst_pairs()
+    host_ids = set([src for (src, _) in od_pairs] + [dst for (_, dst) in od_pairs]) 
+    hosts = {}
+    for host_id in host_ids:
+        hostname = mapper.map_sw_to_host(host_id)
+        hosts[host_id] = mk_host_defaults(hostname)
+        hosts[host_id].connect()
+        hosts[host_id].start_server(host_id)
+
+    time.sleep(5)
+
+    path_ratios = route_adder.get_path_ratios()
+    for (src_host, dst_host, path_split, (mu, sigma)) in path_ratios:
+        dst_hostname = mapper.map_sw_to_host(dst_host)
+        dst_ip = mapper.resolve_hostname(dst_hostname)
+        hosts[src_host].configure_client(mu, sigma, cfg.traffic_model,
+                dst_ip, cfg.dst_port, path_split, src_host, cfg.time_slice)
+
+    for source_node in set((s for (s, _) in od_pairs)):
+        hosts[source_node].start_clients()
+
+    traffic_monitor = OnMonitor(cfg.of_controller_ip, cfg.of_controller_port)
+    traffic_monitor.start_monitor()
+
+    # @TODO: Nifty progress bar.
+    time.sleep(trial_length)
+
+    traffic_monitor.stop_monitor()
+
+    route_adder.remove_routes()
+
 def record_trial_name(trial_name):
     with open('./name_hints.txt', 'w') as fd:
         fd.writelines(trial_name)
@@ -157,7 +194,7 @@ def test_single_flow_tx():
 
 def remove_all_count_files(route_adder):
     mapper = hm.HostMapper([cfg.dns_server_ip], cfg.of_controller_ip, cfg.of_controller_port)
-    host_ids = [ i for i in range(1, 12) ]
+    host_ids = [i for i in range(1, 12)]
     hosts = {}
     for host_id in host_ids:
         hostname = mapper.map_sw_to_host(host_id)

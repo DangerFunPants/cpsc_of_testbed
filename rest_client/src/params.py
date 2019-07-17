@@ -6,14 +6,14 @@ means but I haven't thought of a better way to do this yet.
 """
 
 # DNS Server IP for OpenFlow Network
-dns_server_ip = '10.0.0.2'
+dns_server_ip = '10.0.0.1'
 # DNS Server IP for management Network
-man_net_dns_ip = '192.168.0.2'
+man_net_dns_ip = '10.0.0.1'
 
 # Openflow Controller address 
-of_controller_ip = '10.0.1.1'
+of_controller_ip = '127.0.0.1'
 # Openflow Controller REST API Port Number
-of_controller_port = 8080
+of_controller_port = 8181
 
 # Per trial parameters
 link_route_files = '/home/ubuntu/cpsc_of_tb/link_files/'

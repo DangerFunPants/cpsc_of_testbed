@@ -1,18 +1,20 @@
-import multipath_orchestrator as mp
-import params as cfg
-import host_mapper as hm
-import of_rest_client as of
-import time as t
-import datetime as dt
-import time as time
-from os import mkdir
-import pprint as pp
-import util as util
-import stats_processor as st_proc
-import of_processor as ofp
-import pickle as pickle
+import multipath_orchestrator       as mp
+import params                       as cfg
+import host_mapper                  as hm
+import of_rest_client               as of
+import time                         as t
+import datetime                     as dt
+import time                         as time
+import pprint                       as pp
+import util                         as util
+import stats_processor              as st_proc
+import of_processor                 as ofp
+import pickle                       as pickle
+import file_parsing                 as fp
+import pathlib                      as path
 
 from onos_route_adder import OnosMapper, OnosRouteAdder, OnMonitor
+from os import mkdir
 
 def mk_host_defaults(hostname):
     def_host = mp.MPTestHost(hostname, 'alexj', 'cpsc')
@@ -143,7 +145,7 @@ def test_traffic_transmission(route_adder, trial_length, mu, sigma):
     pickle.dump(tx_res, open(tx_file, 'wb'))
     record_trial_name(path_name)
 
-def conduct_onos_trial(route_adder, trial_length, mu, sigma):
+def conduct_onos_trial(route_adder, trial_length):
     remove_all_count_files(route_adder)
     mapper = OnosMapper([cfg.dns_server_ip], cfg.of_controller_ip, cfg.of_controller_port)
     
@@ -219,11 +221,18 @@ def print_route_info(route_adder):
         print(p)
         
 def main():
-    route_adder = mp.MPRouteAdder(cfg.of_controller_ip, cfg.of_controller_port, cfg.route_path, cfg.seed_no)
-    remove_all_count_files(route_adder)
-    time.sleep(5)
-    test_traffic_transmission(route_adder)
+    def build_file_path(route_files_dir, trial_name, seed_no):
+        return route_files_dir.joinpath(trial_name).joinpath("seed_%s" % seed_no)
+    mapper = OnosMapper([cfg.dns_server_ip], cfg.of_controller_ip, cfg.of_controller_port)
+    seed_no = "4065"
+    mu = cfg.mu
+    sigma = cfg.sigma
+    trial_path = build_file_path(path.Path(cfg.var_rate_route_path), 
+            "prob_mean_1_sigma_1.0", seed_no)
+    route_provider = fp.VariableRateFileParser(str(trial_path), seed_no, mu, sigma)
+    route_adder = OnosRouteAdder(route_provider, mapper)
+    conduct_onos_trial(route_adder, 60)
 
 if __name__ == '__main__':
-    # main()
-    ping_all()
+    main()
+    # ping_all()

@@ -96,7 +96,7 @@ class OnMonitor:
 
 class OnosMapper(HostMapper):
     def __init__(self, dns_server_ips, controller_ip, controller_port):
-        super(dns_server_ips, controller_ip, controller_port)
+        super().__init__(dns_server_ips, controller_ip, controller_port)
         self._switch_to_dpid_map = { 1  : "of:00039cdc718a17c0"
                                    , 2  : "of:00049cdc718a17c0"
                                    , 3  : "of:00039cdc718ab520"

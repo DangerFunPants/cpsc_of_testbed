@@ -70,29 +70,36 @@ class OnMonitor:
         self._credentials               = ("onos", "rocks")
 
     def start_monitor(self):
-        if self._monitor_token == None:
+        if self._monitor_token != None:
             raise ValueError("Monitor is already running.")
 
         on_mon_url = ("http://%s:%d/onos/on-mon/v1/start-monitor" % 
                 (self._onos_controller_ip, self._onos_controller_port))
         start_monitor_request = req.post(on_mon_url, auth=self._credentials)
-        if req.status == 200:
+        if start_monitor_request.status_code == 200:
             start_monitor_response = json.loads(start_monitor_request.text)
             self._monitor_token = start_monitor_response["token"]
         else:
             raise ValueError("Failed to start OnMonitor. Status %d, Reason %s." %
-                    (start_monitor_request.status, start_monitor_request.reason))
+                    (start_monitor_request.status_code, start_monitor_request.reason))
 
     def stop_monitor(self):
-        on_mon_url = ("http://%s:%d/on-mon/v1/stop-monior?monitor-token=%d" %
+        if self._monitor_token == None:
+            raise ValueError("Monitor was not running.")
+
+        on_mon_url = ("http://%s:%d/onos/on-mon/v1/stop-monitor?monitor-token=%s" %
                 (self._onos_controller_ip, self._onos_controller_port, self._monitor_token))
         stop_monitor_request = req.post(on_mon_url, auth=self._credentials)
-        if req.status == 200:
+        if stop_monitor_request.status_code == 200:
             stop_monitor_response = json.loads(stop_monitor_request.text)
+            self._stop_monitor_response = stop_monitor_response
             self._monitor_token = None
         else:
             raise ValueError("Failed to stop OnMonitor. Status %d, Reason %s." % 
-                    (stop_monitor_request.status, stop_monitor_request.reason))
+                    (stop_monitor_request.status_code, stop_monitor_request.reason))
+
+    def get_monitor_statistics(self):
+        return self._stop_monitor_response
 
 class OnosMapper(HostMapper):
     def __init__(self, dns_server_ips, controller_ip, controller_port):
@@ -121,8 +128,8 @@ def main():
     mu = cfg.mu
     sigma = cfg.sigma
     trial_path = build_file_path(path.Path(cfg.var_rate_route_path), "prob_mean_1_sigma_1.0", seed_no)
-    print(str(trial_path))
-    route_provider = fp.VariableRateFileParser(str(trial_path), seed_no, mu, sigma)
+    print(trial_path)
+    route_provider = fp.VariableRateFileParser(trial_path, seed_no, mu, sigma)
 
     route_adder = OnosRouteAdder(route_provider, 
             OnosMapper([cfg.dns_server_ip], cfg.of_controller_ip, cfg.of_controller_port))

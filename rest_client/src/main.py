@@ -12,6 +12,7 @@ import of_processor                 as ofp
 import pickle                       as pickle
 import file_parsing                 as fp
 import pathlib                      as path
+import json                         as json
 
 from onos_route_adder import OnosMapper, OnosRouteAdder, OnMonitor
 from os import mkdir
@@ -178,7 +179,25 @@ def conduct_onos_trial(route_adder, trial_length):
 
     traffic_monitor.stop_monitor()
 
+    for host_id in host_ids:
+        hosts[host_id].stop_client()
+
+    # This probably isn't necessary, presumably it's to let 
+    # the network "drain" before killing the server processes 
+    # in order to avoid inflated loss rates.
+    time.sleep(15) 
+
+    for host_id in host_ids:
+        hosts[host_id].stop_server()
+
     route_adder.remove_routes()
+    
+    utilization_results = traffic_monitor.get_monitor_statistics()
+    pp.pprint(utilization_results)
+    utilization_results_out_path = path.Path("./utilization-results.txt")
+    with utilization_results_out_path.open("w") as fd:
+        fd.write(json.dumps(utilization_results))
+    pp.pprint(utilization_results)
 
 def record_trial_name(trial_name):
     with open('./name_hints.txt', 'w') as fd:
@@ -223,13 +242,14 @@ def print_route_info(route_adder):
 def main():
     def build_file_path(route_files_dir, trial_name, seed_no):
         return route_files_dir.joinpath(trial_name).joinpath("seed_%s" % seed_no)
+
     mapper = OnosMapper([cfg.dns_server_ip], cfg.of_controller_ip, cfg.of_controller_port)
     seed_no = "4065"
     mu = cfg.mu
     sigma = cfg.sigma
     trial_path = build_file_path(path.Path(cfg.var_rate_route_path), 
             "prob_mean_1_sigma_1.0", seed_no)
-    route_provider = fp.VariableRateFileParser(str(trial_path), seed_no, mu, sigma)
+    route_provider = fp.VariableRateFileParser(trial_path, seed_no, mu, sigma)
     route_adder = OnosRouteAdder(route_provider, mapper)
     conduct_onos_trial(route_adder, 60)
 

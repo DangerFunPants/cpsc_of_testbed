@@ -132,7 +132,7 @@ class Host:
             self.host_ip = host_name
         else:
             mapper = hm.HostMapper([cfg.man_net_dns_ip], 
-                cfg.of_controller_ip, cfg.of_controller_port, domain='management.cpsc.')
+                cfg.of_controller_ip, cfg.of_controller_port, domain='hosts.sdn.')
             self.host_ip = mapper.resolve_hostname(self.host_name)
 
     def connect(self):
@@ -241,7 +241,7 @@ class MPTestHost(Host):
 
     def get_local_ip(self):
         mapper = hm.HostMapper([cfg.man_net_dns_ip], cfg.of_controller_ip,
-            cfg.of_controller_port, domain='management.cpsc.')
+            cfg.of_controller_port, domain='hosts.sdn.')
         local_ip = mapper.resolve_hostname('sdn.cpscopenflow1')
         return local_ip
 

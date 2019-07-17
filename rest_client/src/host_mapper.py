@@ -5,7 +5,7 @@ import util as util
 
 class HostMapper:
 
-    def __init__(self, nameservers, host, port_no, domain='of.cpsc.'):
+    def __init__(self, nameservers, host, port_no, domain='data.sdn.'):
         self.nameservers = nameservers
         self.host = host
         self.port_no = port_no

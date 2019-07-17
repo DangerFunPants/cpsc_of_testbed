@@ -1,9 +1,13 @@
 
 import ast
 import abc
-from collections import defaultdict 
-import pprint as pp
 import os 
+
+import pathlib as       path
+import pprint as        pp
+import params as        cfg
+
+from collections import defaultdict 
 
 class FileParser(metaclass=abc.ABCMeta):
 
@@ -91,8 +95,10 @@ class NETestFileParser(FileParser):
         self._sigma = sigma
 
     def get_routes(self):
-        routes_path = self._route_dir + '/Paths_seed_%s.txt' % self._seed_no 
-        with open(routes_path, 'r') as rf:
+        routes_path = self._route_dir.joinpath("Paths_seed_%s.txt" % self._seed_no)
+        print(self._route_dir)
+        print(routes_path)
+        with routes_path.open("r") as rf:
             nets = eval(rf.read())
         #print('file parsing -> NETestFileParser: get_routes: nets: ' + str(nets))
         routes = []
@@ -105,7 +111,7 @@ class NETestFileParser(FileParser):
         return routes
 
     def _read_partitions_file(self, file_path):
-        with open(file_path, 'r') as fd:
+        with file_path.open("r") as fd:
             lines = fd.readlines()
         flow_vs = defaultdict(lambda : defaultdict(dict))
         for line in lines:
@@ -133,6 +139,7 @@ class NETestFileParser(FileParser):
 
 class VariableRateFileParser(NETestFileParser):
     def __init__(self, route_dir, seed_no, mu, sigma):
+        super().__init__(route_dir, seed_no, mu, sigma)
         self._route_dir = route_dir
         self._seed_no = seed_no
         self._mu = mu
@@ -153,18 +160,19 @@ class VariableRateFileParser(NETestFileParser):
             #sigma = sigma if sigma != 0 else 1
             return (mu, sigma)
 
-        rate_path = self._route_dir + 'rate_files/'
+        rate_path = self._route_dir.joinpath("rate_files/")
         # Should be one file for each VN in the trial.
         # Each of these files will contain N entries where N is the number
         # of flows in each request. Each flow contains K paths over which 
         # traffic will be forwarded. Each of these K paths should have the same
         # source and destination nodes. 
-        all_files = os.listdir(rate_path)
+        # all_files = os.listdir(rate_path)
+        all_files = [f for f in rate_path.iterdir() if f.is_file()]
         rates = defaultdict(dict)
         for nw_file in all_files:
-            net_id = get_nw_id(nw_file)
-            fq_path = rate_path + nw_file
-            with open(fq_path, 'r') as fd:
+            print(nw_file.name)
+            net_id = get_nw_id(nw_file.name)
+            with nw_file.open("r") as fd:
                 lines = fd.readlines()
                 for flow_id, line in enumerate(lines):
                     mu, sigma = get_flow_params(line)
@@ -172,7 +180,7 @@ class VariableRateFileParser(NETestFileParser):
         return rates
 
     def get_flow_defs(self):
-        part_file = self._route_dir + './X_matrix_seed_%s.txt' % self._seed_no
+        part_file = self._route_dir.joinpath("X_matrix_seed_%s.txt" % self._seed_no)
         parts = self._read_partitions_file(part_file)
         routes = self.get_routes()
         path_splits = []
@@ -189,11 +197,21 @@ class VariableRateFileParser(NETestFileParser):
         return path_splits
 
 def main():
-    parser = VariableRateFileParser('/home/ubuntu/cpsc_of_tb/var_rate_files/deter_mean_1/seed_1234/', '1234', 131072, 131072)
-    parser.get_flow_defs()
-    # pp.pprint(parser.get_routes())
-    pp.pprint(parser.get_flow_defs())
+    def build_file_path(route_files_dir, trial_name, seed_no):
+        return route_files_dir.joinpath(trial_name).joinpath("seed_%s" % seed_no)
 
+    # mapper = OnosMapper([cfg.dns_server_ip], cfg.of_controller_ip, cfg.of_controller_port)
+    seed_no = "4065"
+    mu = cfg.mu
+    sigma = cfg.sigma
+    trial_path = build_file_path(path.Path(cfg.var_rate_route_path), 
+            "prob_mean_1_sigma_1.0", seed_no)
+    route_provider = VariableRateFileParser(trial_path, seed_no, mu, sigma)
+
+    routes = route_provider.get_routes()
+    flow_defs = route_provider.get_flow_defs()
+    pp.pprint(flow_defs)
+    
 if __name__ == '__main__':
     main()
     

@@ -95,9 +95,4 @@ class HostMapper:
             host_ip = self.resolve_hostname(fqdn)
             res[sw_dpid] = host_ip
         return res
-            
-        
-
-
-
 

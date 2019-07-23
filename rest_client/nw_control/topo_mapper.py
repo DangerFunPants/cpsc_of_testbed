@@ -27,7 +27,7 @@ def generate_graph_isomorphism(g1, g2):
     return graph_matcher.mapping
 
 def get_collector_switch_dpid():
-    request_url = url.urljoin(cfg.onos_url.geturl(), "hosts")
+    request_url = url.urljoin(cfg.onos_url.geturl(), "v1/hosts")
     hosts_request = req.get(request_url, auth=cfg.ONOS_API_CREDENTIALS)
     if hosts_request.status_code != 200:
         raise ValueError("Failed to get hosts from ONOS controller. Stats %d %s." %
@@ -66,7 +66,7 @@ def get_and_validate_onos_topo(target_topo_file):
                 print("Expected node %s to have edges to %s links. Found edges to %s" %
                         (actual_entry[0], target_entry[1].keys(), actual_entry[1].keys()))
 
-    request_url = url.urljoin(cfg.onos_url.geturl(), "links")
+    request_url = url.urljoin(cfg.onos_url.geturl(), "v1/links")
     links_request = req.get(request_url, auth=cfg.ONOS_API_CREDENTIALS)
     print(request_url)
     if links_request.status_code != 200:
@@ -84,8 +84,6 @@ def get_and_validate_onos_topo(target_topo_file):
         
     id_to_dpid = {v: k for k, v in dpid_to_id.items()}
     return id_to_dpid
-
-
 
 def main():
     pass

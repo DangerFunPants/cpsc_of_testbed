@@ -5,10 +5,10 @@ import json                 as json
 import requests             as req
 import urllib.parse         as url
 
-from collections import namedtuple
+import nw_control.params            as cfg
+import nw_control.topo_mapper       as topo_mapper
 
-import nw_control.params as cfg
-import nw_control.topo_mapper as topo_mapper
+from collections import namedtuple
 
 INPUT_FILE_DIR = path.Path("./port-mirroring-inputs")
 FlowDefinition          = namedtuple("FlowDefinition", "flow_id traffic_rate, path")
@@ -70,7 +70,9 @@ def create_add_mirroring_rules_request_json(flow_def, switches, solution_def, ID
 
 def request_port_mirroring(flow_def, switches, solution_def, id_to_dpid):
     json_body = create_add_mirroring_rules_request_json(flow_def, switches, solution_def, id_to_dpid)
-    rest_endpoint = "http://127.0.0.1:8181/onos/port-mirroring/v1/add-mirrored-flow"
+    # rest_endpoint = "http://127.0.0.1:8181/onos/port-mirroring/v1/add-mirrored-flow"
+    rest_endpoint = url.urljoin(cfg.onos_url.geturl(), "port-mirroring/v1/add-mirrored-flow")
+    print(rest_endpoint)
     port_mirroring_request = req.post(rest_endpoint, data=json_body, auth=cfg.ONOS_API_CREDENTIALS)
     if port_mirroring_request.status_code != 200:
         pp.pprint(port_mirroring_request.text)
@@ -80,6 +82,17 @@ def request_port_mirroring(flow_def, switches, solution_def, id_to_dpid):
         print("Successfully added mirrored flow")
         response = json.loads(port_mirroring_request.text)
         pp.pprint(response)
+        return response["routeId"]
+
+def remove_port_mirroring_rules(flow_token):
+    rest_endpoint = url.urljoin(cfg.onos_url.geturl(), "port-mirroring/v1/remove-mirrored-flow") + ("?route-id=%s" % flow_token)
+    remove_mirroring_rules_request = req.post(rest_endpoint, auth=cfg.ONOS_API_CREDENTIALS)
+    if remove_mirroring_rules_request.status_code != 200:
+        pp.pprint(remove_mirroring_rules_request.text)
+        raise ValueError("remove-mirrored-flow request failed with code %d %s" %
+                (remove_mirroring_rules_request.status_code, remove_mirroring_rules_request.reason))
+    else:
+        print("Successfully removed mirrored flow with ID %s" % flow_token)
 
 def add_port_mirroring_flows():
     topo_file_path          = INPUT_FILE_DIR.joinpath("topo")
@@ -95,10 +108,17 @@ def add_port_mirroring_flows():
     pp.pprint(switches)
     pp.pprint(solutions)
 
+    # flow_ids_to_add = flows.keys()
     flow_ids_to_add = [1]
     id_to_dpid = topo_mapper.get_and_validate_onos_topo(topo_file_path)
+    flow_tokens = {}
     for flow_id in flow_ids_to_add:
-        request_port_mirroring(flows[flow_id], switches, solutions[flow_id], id_to_dpid)
+        flow_tokens[flow_id] = request_port_mirroring(flows[flow_id], switches, solutions[flow_id], id_to_dpid)
+
+    input("Press enter to remove flow rules.")
+
+    for flow_id, flow_token in flow_tokens.items():
+        remove_port_mirroring_rules(flow_token)
 
 def main():
     add_port_mirroring_flows()

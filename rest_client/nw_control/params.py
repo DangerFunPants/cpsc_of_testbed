@@ -17,7 +17,7 @@ of_controller_ip = '127.0.0.1'
 of_controller_port = 8181
 
 # Base URL for ONOS rest calls
-onos_url = url.urlparse("http://%s:%d/onos/v1/" % (of_controller_ip, of_controller_port))
+onos_url = url.urlparse("http://%s:%d/onos/" % (of_controller_ip, of_controller_port))
 
 # IP Address of the collector host (for port mirroring)
 collector_host_ip = "10.10.0.18"

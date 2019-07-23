@@ -1,7 +1,8 @@
-import of_rest_client as of
+from . import of_rest_client as of
+from . import util
+
 import dns.resolver as dns
 import dns.reversename as rev_name
-import util as util
 
 class HostMapper:
 
@@ -35,10 +36,7 @@ class HostMapper:
     def reverse_lookup(self, ip_addr):
         dns_resolver = dns.Resolver()
         dns_resolver.nameservers = self.nameservers
-        #dns_resolver.nameservers = ['192.168.0.2']
-        #print('nameservers: ' + str(self.nameservers))
         name = rev_name.dns.reversename.from_address(ip_addr)
-        #print('name: ' + str(name))
         try:
             answers = dns_resolver.query(name, 'PTR')
         except dns.NXDOMAIN:
@@ -95,4 +93,3 @@ class HostMapper:
             host_ip = self.resolve_hostname(fqdn)
             res[sw_dpid] = host_ip
         return res
-

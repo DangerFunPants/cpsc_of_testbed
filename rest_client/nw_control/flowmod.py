@@ -1,6 +1,6 @@
 from enum import Enum
 from functools import (reduce)
-from util import *
+from . import util
 
 class IPProto(Enum):
     ICMP    = 2

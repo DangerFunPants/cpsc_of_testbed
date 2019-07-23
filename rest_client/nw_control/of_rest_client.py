@@ -4,7 +4,7 @@ from logging import error, warn, info
 # Python3 Enumerations
 from enum import Enum
 # Flowmod structures
-import flowmod as fm
+from . import flowmod as fm
 # Collections
 from collections import defaultdict
 # Pretty Printer for __str__ implementations
@@ -12,7 +12,7 @@ import pprint as pp
 # JSON Formatter/Serializer
 import json
 # Various local utility functions
-import util as util
+from . import util
 
 class HttpReqType(Enum):
     """

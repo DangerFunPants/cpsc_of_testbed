@@ -1,0 +1,94 @@
+import urllib.parse         as url
+import networkx             as nx
+import requests             as req
+import json                 as json
+import pprint               as pp
+
+from . import params as cfg
+
+def build_graph_from_topo_file(topo_str):
+    with topo_str.open("r") as fd:
+        lines = fd.readlines()
+    graph = nx.Graph()
+    num_nodes = int(lines[0])
+    for node_idx in range(1, num_nodes + 1):
+        graph.add_node(node_idx)
+
+    for edge_entry in lines[1:]:
+        [source_node, destination_node] = edge_entry.split(" ")
+        graph.add_edge(int(source_node), int(destination_node))
+
+    return graph
+
+def generate_graph_isomorphism(g1, g2):
+    graph_matcher = nx.algorithms.isomorphism.GraphMatcher(g1, g2)
+    if not graph_matcher.is_isomorphic():
+        raise ValueError("Trying to generate isomorphism for non-isomorphic graphs")
+    return graph_matcher.mapping
+
+def get_collector_switch_dpid():
+    request_url = url.urljoin(cfg.onos_url.geturl(), "hosts")
+    hosts_request = req.get(request_url, auth=cfg.ONOS_API_CREDENTIALS)
+    if hosts_request.status_code != 200:
+        raise ValueError("Failed to get hosts from ONOS controller. Stats %d %s." %
+                (hosts_request.status_code, hosts_request.reason))
+    hosts = json.loads(hosts_request.text)["hosts"]
+    collector_host = next(host for host in hosts if cfg.collector_host_ip in host["ipAddresses"])
+    return collector_host["locations"][0]["elementId"]
+
+def get_and_validate_onos_topo(target_topo_file):
+    def build_onos_topo_graph(links):
+        graph = nx.Graph()
+        node_set = set()
+        collector_switch_dpid = get_collector_switch_dpid()
+        core_topo_links = [link for link in links if link["src"]["device"] != collector_switch_dpid 
+                and link["dst"]["device"] != collector_switch_dpid]
+        print("Links %d || Core %d" % (len(links), len(core_topo_links)))
+
+        for link in core_topo_links:
+            source_dpid = link["src"]["device"]
+            destination_dpid = link["dst"]["device"]
+            
+            if source_dpid not in node_set and source_dpid:
+                node_set.add(source_dpid)
+                graph.add_node(source_dpid)
+            if destination_dpid not in node_set:
+                node_set.add(destination_dpid)
+                graph.add_node(destination_dpid)
+            graph.add_edge(source_dpid, destination_dpid)
+        return graph
+
+    def find_where_graphs_differ(target_graph, actual_graph):
+        target_adj_list = target_graph.adj
+        actual_adj_list = actual_graph.adj
+        for actual_entry, target_entry in zip(actual_adj_list.items(), target_adj_list.items()):
+            if actual_entry != target_entry:
+                print("Expected node %s to have edges to %s links. Found edges to %s" %
+                        (actual_entry[0], target_entry[1].keys(), actual_entry[1].keys()))
+
+    request_url = url.urljoin(cfg.onos_url.geturl(), "links")
+    links_request = req.get(request_url, auth=cfg.ONOS_API_CREDENTIALS)
+    print(request_url)
+    if links_request.status_code != 200:
+        raise ValueError("Failed to get links from ONOS controller. Status %d %s." %
+                (links_request.status_code, links_request.reason))
+    links = json.loads(links_request.text)
+    current_topo = build_onos_topo_graph(links["links"])
+    target_topo = build_graph_from_topo_file(target_topo_file)
+    try:
+        dpid_to_id = generate_graph_isomorphism(current_topo, target_topo)
+    except ValueError as ex:
+        print("Failed to find isomorphism between current ONOS topology and target topology.")
+        find_where_graphs_differ(target_topo, current_topo)
+        raise ex
+        
+    id_to_dpid = {v: k for k, v in dpid_to_id.items()}
+    return id_to_dpid
+
+
+
+def main():
+    pass
+
+if __name__ == "__main__":
+    main()

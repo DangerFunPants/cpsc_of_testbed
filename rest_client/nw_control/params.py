@@ -24,3 +24,6 @@ collector_host_ip = "10.10.0.18"
 
 # Credentials for the ONOS REST API.
 ONOS_API_CREDENTIALS = ("onos", "rocks")
+
+# See dns_server_ip
+man_net_dns_ip = dns_server_ip

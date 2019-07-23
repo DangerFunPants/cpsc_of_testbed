@@ -36,28 +36,39 @@ def get_collector_switch_dpid():
     collector_host = next(host for host in hosts if cfg.collector_host_ip in host["ipAddresses"])
     return collector_host["locations"][0]["elementId"]
 
+def build_onos_topo_graph():
+    def get_nw_links():
+        request_url = url.urljoin(cfg.onos_url.geturl(), "v1/links")
+        links_request = req.get(request_url, auth=cfg.ONOS_API_CREDENTIALS)
+        print(request_url)
+        if links_request.status_code != 200:
+            raise ValueError("Failed to get links from ONOS controller. Status %d %s." %
+                    (links_request.status_code, links_request.reason))
+        links = json.loads(links_request.text)
+        return links["links"]
+
+    links = get_nw_links()
+    graph = nx.Graph()
+    node_set = set()
+    collector_switch_dpid = get_collector_switch_dpid()
+    core_topo_links = [link for link in links if link["src"]["device"] != collector_switch_dpid 
+            and link["dst"]["device"] != collector_switch_dpid]
+    print("Links %d || Core %d" % (len(links), len(core_topo_links)))
+
+    for link in core_topo_links:
+        source_dpid = link["src"]["device"]
+        destination_dpid = link["dst"]["device"]
+        
+        if source_dpid not in node_set and source_dpid:
+            node_set.add(source_dpid)
+            graph.add_node(source_dpid)
+        if destination_dpid not in node_set:
+            node_set.add(destination_dpid)
+            graph.add_node(destination_dpid)
+        graph.add_edge(source_dpid, destination_dpid)
+    return graph
+
 def get_and_validate_onos_topo(target_topo_file):
-    def build_onos_topo_graph(links):
-        graph = nx.Graph()
-        node_set = set()
-        collector_switch_dpid = get_collector_switch_dpid()
-        core_topo_links = [link for link in links if link["src"]["device"] != collector_switch_dpid 
-                and link["dst"]["device"] != collector_switch_dpid]
-        print("Links %d || Core %d" % (len(links), len(core_topo_links)))
-
-        for link in core_topo_links:
-            source_dpid = link["src"]["device"]
-            destination_dpid = link["dst"]["device"]
-            
-            if source_dpid not in node_set and source_dpid:
-                node_set.add(source_dpid)
-                graph.add_node(source_dpid)
-            if destination_dpid not in node_set:
-                node_set.add(destination_dpid)
-                graph.add_node(destination_dpid)
-            graph.add_edge(source_dpid, destination_dpid)
-        return graph
-
     def find_where_graphs_differ(target_graph, actual_graph):
         target_adj_list = target_graph.adj
         actual_adj_list = actual_graph.adj
@@ -66,14 +77,7 @@ def get_and_validate_onos_topo(target_topo_file):
                 print("Expected node %s to have edges to %s links. Found edges to %s" %
                         (actual_entry[0], target_entry[1].keys(), actual_entry[1].keys()))
 
-    request_url = url.urljoin(cfg.onos_url.geturl(), "v1/links")
-    links_request = req.get(request_url, auth=cfg.ONOS_API_CREDENTIALS)
-    print(request_url)
-    if links_request.status_code != 200:
-        raise ValueError("Failed to get links from ONOS controller. Status %d %s." %
-                (links_request.status_code, links_request.reason))
-    links = json.loads(links_request.text)
-    current_topo = build_onos_topo_graph(links["links"])
+    current_topo = build_onos_topo_graph()
     target_topo = build_graph_from_topo_file(target_topo_file)
     try:
         dpid_to_id = generate_graph_isomorphism(current_topo, target_topo)
@@ -84,6 +88,34 @@ def get_and_validate_onos_topo(target_topo_file):
         
     id_to_dpid = {v: k for k, v in dpid_to_id.items()}
     return id_to_dpid
+
+def verify_flows_against_nw_topo(target_topo_file, flows):
+    nw_graph = build_onos_topo_graph()
+    id_to_dpid = get_and_validate_onos_topo(target_topo_file)
+    invalid_edges = set()
+    for flow_id, flow in flows.items():
+        flow_path = flow.path
+        print("%s" % str(flow))
+        for u, v in zip(flow_path, flow_path[1:]):
+            if not nw_graph.has_edge(id_to_dpid[u], id_to_dpid[v]):
+                print("\tNetwork graph does not contain edge between %d and %d (%s -> %s)" %
+                        (u, v, id_to_dpid[u], id_to_dpid[v]))
+                invalid_edges.add((u, v))
+    return invalid_edges
+
+def verify_flows_against_target_topo(target_topo_file, flows):
+    target_graph = build_graph_from_topo_file(target_topo_file)
+    id_to_dpid = get_and_validate_onos_topo(target_topo_file)
+    invalid_edges = set()
+    for flow_id, flow in flows.items():
+        flow_path = flow.path
+        print(str(flow))
+        for u, v in zip(flow_path, flow_path[1:]):
+            if not target_graph.has_edge(u, v):
+                print("\tNetwork graph does not contain edge between %d and %d (%s -> %s)" %
+                        (u, v, id_to_dpid[u], id_to_dpid[v]))
+                invalid_edges.add((u, v))
+    return invalid_edges
 
 def main():
     pass

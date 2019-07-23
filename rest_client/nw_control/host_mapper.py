@@ -1,8 +1,10 @@
-from . import of_rest_client as of
+import dns.resolver         as dns
+import dns.reversename      as rev_name
+
 from . import util
 
-import dns.resolver as dns
-import dns.reversename as rev_name
+from . import of_rest_client    as of
+from . import topo_mapper       as topo_mapper
 
 class HostMapper:
 
@@ -93,3 +95,12 @@ class HostMapper:
             host_ip = self.resolve_hostname(fqdn)
             res[sw_dpid] = host_ip
         return res
+
+class OnosMapper(HostMapper):
+    def __init__(self, dns_server_ip, controller_ip, controller_port, target_topo_file):
+        super().__init__([dns_server_ip], controller_ip, controller_port)
+        self._switch_to_dpid_map = topo_mapper.get_and_validate_onos_topo(target_topo_file)
+
+    def map_sw_to_dpid(self, sw_num):
+        return self._switch_to_dpid_map[sw_num]
+

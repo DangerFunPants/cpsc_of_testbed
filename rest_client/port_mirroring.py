@@ -165,36 +165,6 @@ def run_provider_trials(provider):
     for trial in provider:
         conduct_port_mirroring_trial(provider.name, trial, results_repository) 
 
-def test_results_repository():
-    results_repository = rr.ResultsRepository.create_repository(pm_cfg.base_repository_path, 
-            pm_cfg.repository_schema, pm_cfg.repository_name)
-    utilization_results_out_path = path.Path("./utilization-results.txt")
-
-    results_files = [ utilization_results_out_path
-                    , pm_cfg.target_topo_path
-                    , pm_cfg.flow_file_path
-                    , pm_cfg.switch_file_path
-                    , pm_cfg.solution_file_path
-                    ]
-    results_repository.write_trial_results({"trial-name": "test-trial"}, results_files)
-
-def test_trial_provider():
-    provider = trials.trial_one()
-
-    results_repository = rr.ResultsRepository.create_repository(pm_cfg.base_repository_path,
-            pm_cfg.repository_schema, pm_cfg.repository_name)
-    for idx, trial in enumerate(provider):
-        flows           = trial.flows
-        switches        = trial.switches
-        solutions       = trial.approx_solutions
-        results_files = [ ("topo", trial.topology)
-                        , ("flows", trial_provider.FlowDefinition.serialize(flows))
-                        , ("switches", trial_provider.SwitchDefinition.serialize(switches))
-                        , ("solutions", trial_provider.SolutionDefinition.serialize(solutions))
-                        ]
-        schema_vars = {"provider-name": provider.name, "trial-name": trial.name}
-        results_repository.write_trial_results(schema_vars, results_files)
-
 def main():
     # conduct_port_mirroring_trial()
     # test_results_repository()

@@ -90,7 +90,7 @@ def close_all_host_connections(hosts):
     for host in hosts.values():
         host.disconnect()
 
-def conduct_port_mirroring_trial(trial):
+def conduct_port_mirroring_trial(provider_name, trial, results_repository):
     mapper = host_mapper.OnosMapper(cfg.dns_server_ip, cfg.of_controller_ip, 
             cfg.of_controller_port, pm_cfg.target_topo_path)
 
@@ -147,9 +147,6 @@ def conduct_port_mirroring_trial(trial):
 
     remove_port_mirroring_flows(flow_tokens)
 
-    results_repository = rr.ResultsRepository.create_repository(pm_cfg.base_repository_path, 
-            pm_cfg.repository_schema, pm_cfg.repository_name)
-
     utilization_results = traffic_monitor.get_monitor_statistics()
 
     results_files = [ ("utilization-results.txt", utilization_results)
@@ -158,7 +155,14 @@ def conduct_port_mirroring_trial(trial):
                     , ("switches"   , trial_provider.SwitchDefinition.serialize(switches))
                     , ("solutions"  , trial_provider.SolutionDefinition.serialize(solutions))
                     ]
-    results_repository.write_trial_results({"trial-name": trial.name}, results_files)
+    schema_vars = {"provider-name": provider_name, "trial-name": trial.name}
+    results_repository.write_trial_results(schema_vars, results_files)
+
+def run_provider_trials(provider):
+    results_repository = rr.ResultsRepository.create(pm_cfg.base_repository_path,
+            pm_cfg.repository_schema, pm_cfg.repository_name)
+    for trial in provider:
+        conduct_port_mirroring_trial(provider.name, trial, results_repository) 
 
 def test_results_repository():
     results_repository = rr.ResultsRepository.create_repository(pm_cfg.base_repository_path, 
@@ -174,7 +178,7 @@ def test_results_repository():
     results_repository.write_trial_results({"trial-name": "test-trial"}, results_files)
 
 def test_trial_provider():
-    provider = trials.trial_two()
+    provider = trials.trial_one()
 
     results_repository = rr.ResultsRepository.create_repository(pm_cfg.base_repository_path,
             pm_cfg.repository_schema, pm_cfg.repository_name)
@@ -193,7 +197,8 @@ def test_trial_provider():
 def main():
     # conduct_port_mirroring_trial()
     # test_results_repository()
-    test_trial_provider()
+    # test_trial_provider()
+    run_provider_trials(trials.trial_one())
 
 if __name__ == "__main__":
     main()

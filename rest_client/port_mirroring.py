@@ -11,57 +11,13 @@ import nw_control.topo_mapper                   as topo_mapper
 import nw_control.host_mapper                   as host_mapper
 import nw_control.host                          as host
 import nw_control.stat_monitor                  as stat_monitor
+import nw_control.util                          as util
+import nw_control.results_repository            as rr
 import port_mirroring.params                    as pm_cfg
-import data_visualization.link_utilization      as link_utilization
+import port_mirroring.util                      as pm_util  
 
 from collections            import namedtuple
 from sys                    import argv
-
-FlowDefinition          = namedtuple("FlowDefinition", "flow_id traffic_rate, path")
-SwitchDefinition        = namedtuple("SwitchDefinition", "switch_id resident_flows")
-SolutionDefinition      = namedtuple("SolutionDefinition", "flow_id mirror_switch_id")
-
-def parse_flows_from_file(file_path):
-    with file_path.open("r") as fd:
-        lines = fd.readlines()
-    flows = {}
-    for line in lines:
-        tokens = line.split(" ")
-        [flow_id, traffic_rate], path = tokens[:2], tokens[2:]
-        flow_id = int(flow_id)
-        traffic_rate = float(traffic_rate)
-        path = [int(node_id) for node_id in path]
-        flow_def = FlowDefinition(flow_id, traffic_rate, path)
-        flows[flow_id] = flow_def
-
-    return flows
-        
-def parse_switches_from_file(file_path):
-    with file_path.open("r") as fd:
-        lines = fd.readlines()
-    switches = {}
-    for line in lines:
-        tokens = line.split(" ")
-        [[switch_id], resident_flows] = tokens[:1], tokens[1:]
-        switch_id = int(switch_id)
-        resident_flows = [int(flow_id) for flow_id in resident_flows]
-        switch_def = SwitchDefinition(switch_id, resident_flows)
-        switches[switch_id] = switch_def
-
-    return switches
-
-def parse_solutions_from_file(file_path):
-    with file_path.open("r") as fd:
-        lines = fd.readlines()
-    solutions = {}
-    for line in lines[:-1]:
-        [flow_id, mirror_switch_id] = line.split(" ")
-        flow_id = int(flow_id)
-        mirror_switch_id = int(mirror_switch_id)
-        solution_def = SolutionDefinition(flow_id, mirror_switch_id)
-        solutions[flow_id] = solution_def
-
-    return solutions
 
 def create_add_mirroring_rules_request_json(flow_def, switches, solution_def, id_to_dpid, tag_value):
     def create_path_json(flow_def):
@@ -135,9 +91,9 @@ def conduct_port_mirroring_trial():
     mapper = host_mapper.OnosMapper(cfg.dns_server_ip, cfg.of_controller_ip, 
             cfg.of_controller_port, pm_cfg.target_topo_path)
 
-    flows           = parse_flows_from_file(pm_cfg.flow_file_path)
-    switches        = parse_switches_from_file(pm_cfg.switch_file_path)
-    solutions       = parse_solutions_from_file(pm_cfg.solution_file_path)
+    flows           = pm_util.parse_flows_from_file(pm_cfg.flow_file_path)
+    switches        = pm_util.parse_switches_from_file(pm_cfg.switch_file_path)
+    solutions       = pm_util.parse_solutions_from_file(pm_cfg.solution_file_path)
 
     flow_tokens = add_port_mirroring_flows(pm_cfg.target_topo_path, flows, switches, solutions)
 
@@ -151,7 +107,7 @@ def conduct_port_mirroring_trial():
 
     for flow_id, flow in flows.items():
         destination_hostname    = mapper.map_sw_to_host(flow.path[-1])
-        tx_rate                 = flow.traffic_rate * 1000000
+        tx_rate                 = util.mbps_to_bps(flow.traffic_rate * 100) / 8
         tx_variance             = 0.0
         traffic_model           = "uniform"
         destination_ip          = mapper.resolve_hostname(destination_hostname)
@@ -187,52 +143,38 @@ def conduct_port_mirroring_trial():
         hosts[host_id].stop_server()
 
     remove_port_mirroring_flows(flow_tokens)
+
+    results_repository = rr.ResultsRepository.create_repository(pm_cfg.base_repository_path, 
+            pm_cfg.repository_schema, pm_cfg.repository_name)
+
     utilization_results = traffic_monitor.get_monitor_statistics()
     utilization_results_out_path = path.Path("./utilization-results.txt")
-    with utilization_results_out_path.open("w") as fd:
-        fd.write(json.dumps(utilization_results))
+    utilization_results_out_path.write_text(json.dumps(utilization_results))
+
+    results_files = [ utiliazation_results_out_path
+                    , pm_cfg.target_topo_path
+                    , pm_cfg.flow_file_path
+                    , pm_cfg.switch_file_path
+                    , pm_cfg.solution_file_path
+                    ]
+    results_repository.write_trial_results({"trial-name": "test-trial"}, results_files)
+
+def test_results_repository():
+    results_repository = rr.ResultsRepository.create_repository(pm_cfg.base_repository_path, 
+            pm_cfg.repository_schema, pm_cfg.repository_name)
+    utilization_results_out_path = path.Path("./utilization-results.txt")
+
+    results_files = [ utilization_results_out_path
+                    , pm_cfg.target_topo_path
+                    , pm_cfg.flow_file_path
+                    , pm_cfg.switch_file_path
+                    , pm_cfg.solution_file_path
+                    ]
+    results_repository.write_trial_results({"trial-name": "test-trial"}, results_files)
 
 def main():
-    link_utilization.main()
     # conduct_port_mirroring_trial()
-    # flow_path   = pm_cfg.flow_file_path
-    # flows       = parse_flows_from_file(flow_path)
-    # hosts = create_and_initialize_host_connections(flows)
-    # input("Press enter to close host connections...")
-    # close_all_host_connections(hosts)
-
-    # if len(argv) == 1:
-    #     add_port_mirroring_flows()
-    # else:
-    #     topo_path = pm_cfg.target_topo_path
-    #     id_to_dpid = topo_mapper.get_and_validate_onos_topo(topo_path)
-    #     dpid_to_id = {v: k for k, v in id_to_dpid.items()}
-    #     for dpid in argv[1:]:
-    #         print("DPID %s maps to %d" % (dpid, dpid_to_id.get(dpid, "UNKNOWN")))
-
-    # topo_path = INPUT_FILE_DIR.joinpath("network/topo")
-    # try:
-    #     id_to_dpid = topo_mapper.get_and_validate_onos_topo(topo_path)
-    # except ValueError:
-    #     print("Network topo is incorrect.")
-    #     return 
-    # print("Network topo is correct.")
-
-    # topo_path   = INPUT_FILE_DIR.joinpath("network/topo")
-    # flow_path   = INPUT_FILE_DIR.joinpath("network/flows")
-    # flows       = parse_flows_from_file(flow_path)
-
-    # nw_invalid_edges     = topo_mapper.verify_flows_against_nw_topo(topo_path, flows)
-    # target_invalid_edges = topo_mapper.verify_flows_against_target_topo(topo_path, flows)
-
-    # if nw_invalid_edges != target_invalid_edges:
-    #     print("Target and network are different.")
-    #     print("Network:")
-    #     pp.pprint(nw_invalid_edges)
-    #     print("Target:")
-    #     pp.pprint(target_invalid_edges)
-    # else:
-    #     print("Flows do not correspond to topologies in the same way.")
+    # test_results_repository()
 
 if __name__ == "__main__":
     main()

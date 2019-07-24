@@ -1,5 +1,8 @@
-import re
-from functools import reduce
+
+import re       as re
+import json     as json
+
+from functools      import reduce
 
 def is_ip_addr(data):
     ip_regex = re.compile('([0-9]{1,3}\.){3}([0-9]{1,3})')
@@ -40,3 +43,13 @@ def mk_pretty_sw_dict(sw_dict, mapper, reader = None, writer = None):
        res[writer(friendly_name, k)] = v
     return res
 
+def mbps_to_bps(rate_in_mbps):
+    return rate_in_mbps * 10**6
+
+def bytes_per_second_to_mbps(rate_in_bytes_per_second):
+    return (rate_in_bytes_per_second * 8) / 10**6
+
+def read_json_from_file(file_path):
+    with file_path.open("r") as fd:
+        json_str = fd.read()
+    return json.loads(json_str)

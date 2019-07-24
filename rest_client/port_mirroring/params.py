@@ -18,3 +18,6 @@ solution_file_path      = INPUT_FILE_DIR.joinpath("solutions/approx")
 
 # Duration of a single trial in seconds.
 trial_length            = 300
+
+# IP Address of the collector machine
+collector_ip_addr       = "10.10.0.18"

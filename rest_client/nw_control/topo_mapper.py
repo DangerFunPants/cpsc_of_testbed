@@ -4,7 +4,7 @@ import requests             as req
 import json                 as json
 import pprint               as pp
 
-from . import params as cfg
+import nw_control.params    as cfg
 
 def build_graph_from_topo_file(topo_str):
     with topo_str.open("r") as fd:
@@ -117,8 +117,12 @@ def verify_flows_against_target_topo(target_topo_file, flows):
                 invalid_edges.add((u, v))
     return invalid_edges
 
-def main():
-    pass
-
-if __name__ == "__main__":
-    main()
+def get_switch_mirroring_ports():
+    requests_url = url.urljoin(cfg.onos_url.geturl(), "port-mirroring/v1/mirroring-ports")
+    mirroring_ports_request = req.get(requests_url, auth=cfg.ONOS_API_CREDENTIALS)
+    if mirroring_ports_request.status_code != 200:
+        raise ValueError(
+                "Failed to get switch mirroring ports from ONOS controller. Status %d %s." % 
+                (mirroring_ports_request.status_code, mirroring_ports_request.reason))
+    mirroring_ports = json.loads(mirroring_ports_request.text)
+    return json.loads(mirroring_ports["result"])

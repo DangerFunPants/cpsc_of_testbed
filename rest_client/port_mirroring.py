@@ -6,12 +6,13 @@ import requests             as req
 import urllib.parse         as url
 import time                 as time
 
-import nw_control.params                as cfg
-import nw_control.topo_mapper           as topo_mapper
-import nw_control.host_mapper           as host_mapper
-import nw_control.host                  as host
-import nw_control.stat_monitor          as stat_monitor
-import port_mirroring.params            as pm_cfg
+import nw_control.params                        as cfg
+import nw_control.topo_mapper                   as topo_mapper
+import nw_control.host_mapper                   as host_mapper
+import nw_control.host                          as host
+import nw_control.stat_monitor                  as stat_monitor
+import port_mirroring.params                    as pm_cfg
+import data_visualization.link_utilization      as link_utilization
 
 from collections            import namedtuple
 from sys                    import argv
@@ -192,7 +193,8 @@ def conduct_port_mirroring_trial():
         fd.write(json.dumps(utilization_results))
 
 def main():
-    conduct_port_mirroring_trial()
+    link_utilization.main()
+    # conduct_port_mirroring_trial()
     # flow_path   = pm_cfg.flow_file_path
     # flows       = parse_flows_from_file(flow_path)
     # hosts = create_and_initialize_host_connections(flows)

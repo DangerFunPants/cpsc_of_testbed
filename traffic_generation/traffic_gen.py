@@ -46,36 +46,39 @@ class TrafficModels(Enum):
 
 class FlowParameters:
     def __init__( self
-                , dest_port = 0
-                , dest_addr = '0.0.0.0'
-                , prob_mat = []
-                , tx_rate = 131072
-                , variance = 131072
-                , traffic_model = TrafficModels.UNIFORM
-                , packet_len = 1024
-                , src_host = 0
-                , time_slice = 1 
+                , dest_port         = 0
+                , dest_addr         = '0.0.0.0'
+                , prob_mat          = []
+                , tx_rate           = 131072
+                , variance          = 131072
+                , traffic_model     = TrafficModels.UNIFORM
+                , packet_len        = 1024
+                , src_host          = 0
+                , time_slice        = 1 
+                , tag_value         = None
                 ):
-        self.dest_port = dest_port
-        self.dest_addr = dest_addr
-        self.prob_mat = prob_mat
-        self.tx_rate = tx_rate
-        self.variance = variance
-        self.traffic_model = traffic_model
-        self.packet_len = packet_len
-        self.src_host = src_host
-        self.time_slice = time_slice
+        self.dest_port          = dest_port
+        self.dest_addr          = dest_addr
+        self.prob_mat           = prob_mat
+        self.tx_rate            = tx_rate
+        self.variance           = variance
+        self.traffic_model      = traffic_model
+        self.packet_len         = packet_len
+        self.src_host           = src_host
+        self.time_slice         = time_slice
+        self.tag_value          = tag_value
 
     def __str__(self):
-        str_rep = [ 'Dest. Port: %d' % self.dest_port
-                  , 'Dest. Addr: %s' % self.dest_addr
-                  , 'Prob. Mat: %s' % self.prob_mat
-                  , 'Tx Rate: %d' % self.tx_rate
-                  , 'Variance: %d' % self.variance
-                  , 'Traffic Model: %s' % self.traffic_model
-                  , 'Packet Length: %d' % self.packet_len
-                  , 'Source Host: %d' % self.src_host
-                  , 'Time Slice: %d' % self.time_slice
+        str_rep = [ 'Dest. Port: %d'        % self.dest_port
+                  , 'Dest. Addr: %s'        % self.dest_addr
+                  , 'Prob. Mat: %s'         % self.prob_mat
+                  , 'Tx Rate: %d'           % self.tx_rate
+                  , 'Variance: %d'          % self.variance
+                  , 'Traffic Model: %s'     % self.traffic_model
+                  , 'Packet Length: %d'     % self.packet_len
+                  , 'Source Host: %d'       % self.src_host
+                  , 'Time Slice: %d'        % self.time_slice
+                  , "Tag Value: %d"         % self.tag_value
                   ]
         s = reduce(lambda s1, s2 : s1 + '\n' + s2, str_rep)
         return s
@@ -241,7 +244,12 @@ def transmit(sock_list, ipd_list, duration, flow_params):
         expired = [ i for i, (_, t) in ipds.items() if t <= 0.0 ]
         for i in expired:
             flow = ipds[i]
-            dscp_val = select_dscp(flow_params[i].prob_mat)
+
+            if flow_params[i].tag_value != None:
+                dscp_val = flow_params[i].tag_value << 2
+            else:
+                dscp_val = select_dscp(flow_params[i].prob_mat)
+                
             set_dscp(flow[0], dscp_val)
             for _ in range(10):
                 flow[0].sendto(DATA_STR, (flow_params[i].dest_addr, flow_params[i].dest_port))

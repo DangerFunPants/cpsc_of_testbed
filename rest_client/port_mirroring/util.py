@@ -1,9 +1,6 @@
 
 from collections import namedtuple
 
-FlowDefinition          = namedtuple("FlowDefinition", "flow_id traffic_rate, path")
-SwitchDefinition        = namedtuple("SwitchDefinition", "switch_id resident_flows")
-SolutionDefinition      = namedtuple("SolutionDefinition", "flow_id mirror_switch_id")
 
 def parse_flows_from_file(file_path):
     with file_path.open("r") as fd:

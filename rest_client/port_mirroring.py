@@ -15,6 +15,7 @@ import nw_control.util                          as util
 import nw_control.results_repository            as rr
 import port_mirroring.params                    as pm_cfg
 import port_mirroring.util                      as pm_util  
+import port_mirroring.trials                    as trials
 
 from collections            import namedtuple
 from sys                    import argv
@@ -151,13 +152,13 @@ def conduct_port_mirroring_trial():
     utilization_results_out_path = path.Path("./utilization-results.txt")
     utilization_results_out_path.write_text(json.dumps(utilization_results))
 
-    results_files = [ utiliazation_results_out_path
+    results_files = [ utilization_results_out_path
                     , pm_cfg.target_topo_path
                     , pm_cfg.flow_file_path
                     , pm_cfg.switch_file_path
                     , pm_cfg.solution_file_path
                     ]
-    results_repository.write_trial_results({"trial-name": "test-trial"}, results_files)
+    results_repository.write_trial_results({"trial-name": "test-trial-with-results"}, results_files)
 
 def test_results_repository():
     results_repository = rr.ResultsRepository.create_repository(pm_cfg.base_repository_path, 
@@ -172,9 +173,15 @@ def test_results_repository():
                     ]
     results_repository.write_trial_results({"trial-name": "test-trial"}, results_files)
 
+def test_trial_provider():
+    provider = trials.trial_one()
+    for trial in provider:
+        print(trial)
+
 def main():
     # conduct_port_mirroring_trial()
     # test_results_repository()
+    test_trial_provider()
 
 if __name__ == "__main__":
     main()

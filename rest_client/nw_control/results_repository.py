@@ -14,8 +14,8 @@ from functools              import reduce
 # {base_path}
 # 
 # The behavior of the ResultsRepository differs depending whether a repository at {base_path} already
-# exists. If a repository already exists at {base_path} then a handle to the existing repository will 
-# be created. If a repository does not exist, one will be created.
+# exists. If a repository already exists at {base_path} then a handle to the existing 
+# repository will be created. If a repository does not exist, one will be created.
 class ResultsRepository:
     REPO_METADATA_FILE = path.Path(".results_repo")
     

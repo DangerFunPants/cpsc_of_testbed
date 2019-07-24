@@ -151,16 +151,18 @@ class TrafficGenHost(Host):
                         , k_mat
                         , host_no
                         , slice
+                        , tag_value
                         , pkt_len=1066 ):
-        client_args = { 'dest_port' : port_no
-                      , 'dest_addr': dest_ip
-                      , 'prob_mat': k_mat
-                      , 'tx_rate': mu
-                      , 'variance': ( sigma ** 2 )
-                      , 'traffic_model': traffic_model
-                      , 'packet_len': pkt_len
-                      , 'src_host': host_no
-                      , 'time_slice': slice
+        client_args = { "dest_port"         : port_no
+                      , "dest_addr"         : dest_ip
+                      , "prob_mat"          : k_mat
+                      , "tx_rate"           : mu
+                      , "variance"          : ( sigma ** 2 )
+                      , "traffic_model"     : traffic_model
+                      , "packet_len"        : pkt_len
+                      , "src_host"          : host_no
+                      , "time_slice"        : slice
+                      , "tag_value"         : tag_value
                       }
         self._add_client(client_args)
 

@@ -62,19 +62,19 @@ def parse_solutions_from_file(file_path):
 
     return solutions
 
-def create_add_mirroring_rules_request_json(flow_def, switches, solution_def, ID_TO_DPID):
+def create_add_mirroring_rules_request_json(flow_def, switches, solution_def, id_to_dpid, tag_value):
     def create_path_json(flow_def):
-        path_json_dict = {"nodes": [ID_TO_DPID[node_id] for node_id in flow_def.path]}
+        path_json_dict = {"nodes": [id_to_dpid[node_id] for node_id in flow_def.path]}
         return path_json_dict
 
-    json_dict = { "mirrorSwitch"        : ID_TO_DPID[solution_def.mirror_switch_id]
-                , "tagValue"            : 1
+    json_dict = { "mirrorSwitch"        : id_to_dpid[solution_def.mirror_switch_id]
+                , "tagValue"            : tag_value
                 , "flowRoute"           : create_path_json(flow_def)
                 }
     return json.dumps(json_dict)
 
-def request_port_mirroring(flow_def, switches, solution_def, id_to_dpid):
-    json_body = create_add_mirroring_rules_request_json(flow_def, switches, solution_def, id_to_dpid)
+def request_port_mirroring(flow_def, switches, solution_def, id_to_dpid, tag_value):
+    json_body = create_add_mirroring_rules_request_json(flow_def, switches, solution_def, id_to_dpid, tag_value)
     # rest_endpoint = "http://127.0.0.1:8181/onos/port-mirroring/v1/add-mirrored-flow"
     rest_endpoint = url.urljoin(cfg.onos_url.geturl(), "port-mirroring/v1/add-mirrored-flow")
     print(rest_endpoint)
@@ -104,7 +104,7 @@ def add_port_mirroring_flows(topo_file_path, flows, switches, solutions):
     id_to_dpid = topo_mapper.get_and_validate_onos_topo(topo_file_path)
     flow_tokens = {}
     for flow_id in flow_ids_to_add:
-        flow_tokens[flow_id] = request_port_mirroring(flows[flow_id], switches, solutions[flow_id], id_to_dpid)
+        flow_tokens[flow_id] = request_port_mirroring(flows[flow_id], switches, solutions[flow_id], id_to_dpid, flow_id)
     return flow_tokens
 
 def remove_port_mirroring_flows(flow_tokens):
@@ -148,9 +148,9 @@ def conduct_port_mirroring_trial():
         # tell the host about itself.
         hosts[destination_host].start_server(destination_host)
 
-    for flow in flows.values():
+    for flow_id, flow in flows.items():
         destination_hostname    = mapper.map_sw_to_host(flow.path[-1])
-        tx_rate                 = flow.traffic_rate * 200000
+        tx_rate                 = flow.traffic_rate * 1000000
         tx_variance             = 0.0
         traffic_model           = "uniform"
         destination_ip          = mapper.resolve_hostname(destination_hostname)
@@ -159,9 +159,10 @@ def conduct_port_mirroring_trial():
         host_num                = flow.path[0]
         time_slice              = 100
         pkt_len                 = 1066
+        tag_value               = flow_id
 
         hosts[flow.path[0]].configure_client(tx_rate, tx_variance, traffic_model,
-                destination_ip, destination_port, k_mat, host_num, time_slice)
+                destination_ip, destination_port, k_mat, host_num, time_slice, tag_value, pkt_len)
 
     traffic_monitor = stat_monitor.OnMonitor(cfg.of_controller_ip, cfg.of_controller_port)
     traffic_monitor.start_monitor()

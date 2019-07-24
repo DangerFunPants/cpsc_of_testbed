@@ -17,4 +17,4 @@ switch_file_path        = INPUT_FILE_DIR.joinpath("network/switches")
 solution_file_path      = INPUT_FILE_DIR.joinpath("solutions/approx")
 
 # Duration of a single trial in seconds.
-trial_length            = 60
+trial_length            = 300

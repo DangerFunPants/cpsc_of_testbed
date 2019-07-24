@@ -15,6 +15,7 @@ import nw_control.util                          as util
 import nw_control.results_repository            as rr
 import port_mirroring.params                    as pm_cfg
 import port_mirroring.util                      as pm_util  
+import port_mirroring.trial_provider            as trial_provider
 import port_mirroring.trials                    as trials
 
 from collections            import namedtuple
@@ -88,13 +89,16 @@ def close_all_host_connections(hosts):
     for host in hosts.values():
         host.disconnect()
 
-def conduct_port_mirroring_trial():
+def conduct_port_mirroring_trial(trial):
     mapper = host_mapper.OnosMapper(cfg.dns_server_ip, cfg.of_controller_ip, 
             cfg.of_controller_port, pm_cfg.target_topo_path)
 
-    flows           = pm_util.parse_flows_from_file(pm_cfg.flow_file_path)
-    switches        = pm_util.parse_switches_from_file(pm_cfg.switch_file_path)
-    solutions       = pm_util.parse_solutions_from_file(pm_cfg.solution_file_path)
+    # flows           = pm_util.parse_flows_from_file(pm_cfg.flow_file_path)
+    # switches        = pm_util.parse_switches_from_file(pm_cfg.switch_file_path)
+    # solutions       = pm_util.parse_solutions_from_file(pm_cfg.solution_file_path)
+    flows           = trial.flows
+    switches        = trial.switches
+    solutions       = trial.solutions
 
     flow_tokens = add_port_mirroring_flows(pm_cfg.target_topo_path, flows, switches, solutions)
 
@@ -128,7 +132,7 @@ def conduct_port_mirroring_trial():
     for source_node in {flow.path[0] for flow in flows.values()}:
         hosts[source_node].start_clients()
 
-    time.sleep(pm_cfg.trial_length)
+    time.sleep(trial.duration)
 
     traffic_monitor.stop_monitor()
 
@@ -149,16 +153,14 @@ def conduct_port_mirroring_trial():
             pm_cfg.repository_schema, pm_cfg.repository_name)
 
     utilization_results = traffic_monitor.get_monitor_statistics()
-    utilization_results_out_path = path.Path("./utilization-results.txt")
-    utilization_results_out_path.write_text(json.dumps(utilization_results))
 
-    results_files = [ utilization_results_out_path
-                    , pm_cfg.target_topo_path
-                    , pm_cfg.flow_file_path
-                    , pm_cfg.switch_file_path
-                    , pm_cfg.solution_file_path
+    results_files = [ ("utilization-results.txt", utilization_results)
+                    , ("topo"       , trial.topology)
+                    , ("flows"      , trial_provider.FlowDefinition.serialize(flows))
+                    , ("switches"   , trial_provider.SwitchDefinition.serialize(switches))
+                    , ("solutions"  , trial_provider.SolutionDefinition.serialize(solutions))
                     ]
-    results_repository.write_trial_results({"trial-name": "test-trial-with-results"}, results_files)
+    results_repository.write_trial_results({"trial-name": trial.name}, results_files)
 
 def test_results_repository():
     results_repository = rr.ResultsRepository.create_repository(pm_cfg.base_repository_path, 
@@ -175,8 +177,21 @@ def test_results_repository():
 
 def test_trial_provider():
     provider = trials.trial_one()
-    for trial in provider:
-        print(trial)
+    # for trial in provider:
+    #     print(trial)
+
+    results_repository = rr.ResultsRepository.create_repository(pm_cfg.base_repository_path,
+            pm_cfg.repository_schema, pm_cfg.repository_name)
+    for idx, trial in enumerate(provider):
+        flows           = trial.flows
+        switches        = trial.switches
+        solutions       = trial.approx_solutions
+        results_files = [ ("topo", trial.topology)
+                        , ("flows", trial_provider.FlowDefinition.serialize(flows))
+                        , ("switches", trial_provider.SwitchDefinition.serialize(switches))
+                        , ("solutions", trial_provider.SolutionDefinition.serialize(solutions))
+                        ]
+        results_repository.write_trial_results({"trial-name": "test_trial-%d" % idx}, results_files)
 
 def main():
     # conduct_port_mirroring_trial()

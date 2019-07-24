@@ -14,7 +14,6 @@ import nw_control.stat_monitor                  as stat_monitor
 import nw_control.util                          as util
 import nw_control.results_repository            as rr
 import port_mirroring.params                    as pm_cfg
-import port_mirroring.util                      as pm_util  
 import port_mirroring.trial_provider            as trial_provider
 import port_mirroring.trials                    as trials
 
@@ -96,7 +95,7 @@ def conduct_port_mirroring_trial(provider_name, trial, results_repository):
 
     flows           = trial.flows
     switches        = trial.switches
-    solutions       = trial.solutions
+    solutions       = trial.approx_solutions
 
     flow_tokens = add_port_mirroring_flows(pm_cfg.target_topo_path, flows, switches, solutions)
 
@@ -145,11 +144,13 @@ def conduct_port_mirroring_trial(provider_name, trial, results_repository):
     for host_id in {flow.path[-1] for flow in flows.values()}:
         hosts[host_id].stop_server()
 
+    close_all_host_connections(hosts)
+
     remove_port_mirroring_flows(flow_tokens)
 
     utilization_results = traffic_monitor.get_monitor_statistics()
 
-    results_files = [ ("utilization-results.txt", utilization_results)
+    results_files = [ ("utilization-results.txt", json.dumps(utilization_results))
                     , ("topo"       , trial.topology)
                     , ("flows"      , trial_provider.FlowDefinition.serialize(flows))
                     , ("switches"   , trial_provider.SwitchDefinition.serialize(switches))
@@ -159,7 +160,7 @@ def conduct_port_mirroring_trial(provider_name, trial, results_repository):
     results_repository.write_trial_results(schema_vars, results_files)
 
 def run_provider_trials(provider):
-    results_repository = rr.ResultsRepository.create(pm_cfg.base_repository_path,
+    results_repository = rr.ResultsRepository.create_repository(pm_cfg.base_repository_path,
             pm_cfg.repository_schema, pm_cfg.repository_name)
     for trial in provider:
         conduct_port_mirroring_trial(provider.name, trial, results_repository) 

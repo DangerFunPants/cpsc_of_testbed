@@ -115,13 +115,15 @@ class FlowMirroringTrial:
                 , switches
                 , approx_solutions
                 , optimal_solutions
-                , duration):
+                , duration
+                , name):
         self._topology              = topology
         self._flows                 = flows
         self._switches              = switches
         self._approx_solutions      = approx_solutions
         self._optimal_solutions     = optimal_solutions
         self._duration              = duration
+        self._name                  = name
 
     @property
     def topology(self):
@@ -149,10 +151,10 @@ class FlowMirroringTrial:
 
     @property
     def name(self):
-        return "flow-mirroring"
+        return self._name
 
     @staticmethod
-    def create_trial(topology, minimum_flow_rate, maximum_flow_rate, num_flows, duration):
+    def create_trial(topology, minimum_flow_rate, maximum_flow_rate, num_flows, duration, name):
         FlowMirroringTrial.invoke_solver_with_params(topology, minimum_flow_rate,
                 maximum_flow_rate, num_flows)
         flows_file              = FlowMirroringTrial.SOLVER_PATH.joinpath("network/flows")
@@ -166,7 +168,7 @@ class FlowMirroringTrial:
         optimal_solutions   = FlowMirroringTrial.parse_solutions_from_file(optimal_solutions_file)
 
         trial = FlowMirroringTrial(topology, flows, switches, approx_solutions, 
-                optimal_solutions, duration)
+                optimal_solutions, duration, name)
         return trial
 
     @staticmethod
@@ -246,7 +248,7 @@ class TrialProvider:
         self._trials = []
 
     @property
-    def provider_name(self):
+    def name(self):
         return self._provider_name
     
     @staticmethod

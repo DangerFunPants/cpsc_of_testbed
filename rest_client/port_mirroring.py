@@ -71,7 +71,8 @@ def remove_port_mirroring_flows(flow_tokens):
         remove_port_mirroring_rules(flow_token)
 
 def create_and_initialize_host_connections(flows):
-    mapper = host_mapper.OnosMapper([cfg.dns_server_ip], cfg.of_controller_ip, cfg.of_controller_port, pm_cfg.target_topo_path)
+    mapper = host_mapper.OnosMapper([cfg.dns_server_ip], cfg.of_controller_ip, 
+            cfg.of_controller_port, pm_cfg.target_topo_path)
     host_ids = set()
     for flow in flows.values():
         host_ids.add(flow.path[0])
@@ -93,9 +94,6 @@ def conduct_port_mirroring_trial(trial):
     mapper = host_mapper.OnosMapper(cfg.dns_server_ip, cfg.of_controller_ip, 
             cfg.of_controller_port, pm_cfg.target_topo_path)
 
-    # flows           = pm_util.parse_flows_from_file(pm_cfg.flow_file_path)
-    # switches        = pm_util.parse_switches_from_file(pm_cfg.switch_file_path)
-    # solutions       = pm_util.parse_solutions_from_file(pm_cfg.solution_file_path)
     flows           = trial.flows
     switches        = trial.switches
     solutions       = trial.solutions
@@ -176,9 +174,7 @@ def test_results_repository():
     results_repository.write_trial_results({"trial-name": "test-trial"}, results_files)
 
 def test_trial_provider():
-    provider = trials.trial_one()
-    # for trial in provider:
-    #     print(trial)
+    provider = trials.trial_two()
 
     results_repository = rr.ResultsRepository.create_repository(pm_cfg.base_repository_path,
             pm_cfg.repository_schema, pm_cfg.repository_name)
@@ -191,7 +187,8 @@ def test_trial_provider():
                         , ("switches", trial_provider.SwitchDefinition.serialize(switches))
                         , ("solutions", trial_provider.SolutionDefinition.serialize(solutions))
                         ]
-        results_repository.write_trial_results({"trial-name": "test_trial-%d" % idx}, results_files)
+        schema_vars = {"provider-name": provider.name, "trial-name": trial.name}
+        results_repository.write_trial_results(schema_vars, results_files)
 
 def main():
     # conduct_port_mirroring_trial()

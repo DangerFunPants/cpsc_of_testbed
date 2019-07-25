@@ -8,6 +8,9 @@ def main():
             pm_cfg.repository_schema, pm_cfg.repository_name)
 
     link_utilization.generate_max_mirror_port_utilization_bar_plot(results_repository)
+    link_utilization.generate_theoretical_vs_actual_utilization_bar_plot(results_repository)
+    # link_utilization.generate_approx_vs_optimal_theoretical_utilization_bar_plot(results_repository)
+    link_utilization.generate_mirroring_port_utilization_bar_plot(results_repository)
 
 if __name__ == "__main__":
     main()

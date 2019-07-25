@@ -3,7 +3,6 @@ import pathlib              as path
 import nw_control.util      as util
 import shutil               as shutil
 import json                 as json
-import pprint               as pp
 
 from functools              import reduce
 
@@ -86,7 +85,6 @@ class ResultsRepository:
         if not base_path.exists() or not base_path.is_dir():
             return False
         files_in_base_path = base_path.iterdir()
-        # pp.pprint(list(files_in_base_path))
         metadata_file = base_path.joinpath(ResultsRepository.REPO_METADATA_FILE)
         return metadata_file in files_in_base_path
 

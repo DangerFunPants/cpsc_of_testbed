@@ -2,7 +2,6 @@ import urllib.parse         as url
 import networkx             as nx
 import requests             as req
 import json                 as json
-import pprint               as pp
 
 import nw_control.params    as cfg
 
@@ -43,7 +42,6 @@ def build_onos_topo_graph():
     def get_nw_links():
         request_url = url.urljoin(cfg.onos_url.geturl(), "v1/links")
         links_request = req.get(request_url, auth=cfg.ONOS_API_CREDENTIALS)
-        print(request_url)
         if links_request.status_code != 200:
             raise ValueError("Failed to get links from ONOS controller. Status %d %s." %
                     (links_request.status_code, links_request.reason))
@@ -56,7 +54,6 @@ def build_onos_topo_graph():
     collector_switch_dpid = get_collector_switch_dpid()
     core_topo_links = [link for link in links if link["src"]["device"] != collector_switch_dpid 
             and link["dst"]["device"] != collector_switch_dpid]
-    print("Links %d || Core %d" % (len(links), len(core_topo_links)))
 
     for link in core_topo_links:
         source_dpid = link["src"]["device"]

@@ -95,7 +95,7 @@ def conduct_port_mirroring_trial(provider_name, trial, results_repository):
 
     flows           = trial.flows
     switches        = trial.switches
-    solutions       = trial.optimal_solutions
+    solutions       = trial.solutions
 
     flow_tokens = add_port_mirroring_flows(pm_cfg.target_topo_path, flows, switches, solutions)
 
@@ -166,8 +166,16 @@ def run_provider_trials(provider):
         conduct_port_mirroring_trial(provider.name, trial, results_repository) 
 
 def main():
-    run_provider_trials(trials.approx_trials())
-    # run_provider_trials(trials.optimal_trials())
+    provider = trials.trial_one()
+    # provider = trials.test_trial()
+
+    provider.name = "approx"
+    provider.set_solution_type("approx")
+    run_provider_trials(provider)
+
+    provider.name = "optimal"
+    provider.set_solution_type("optimal")
+    run_provider_trials(provider)
 
 if __name__ == "__main__":
     main()

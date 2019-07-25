@@ -213,6 +213,10 @@ class FlowMirroringTrial:
     def name(self):
         return self._name
 
+    @name.setter
+    def name(self, name):
+        self._name = name
+
     def set_solution_type(self, type_name):
         lower_type_name = type_name.lower()
         if lower_type_name == "optimal":
@@ -221,7 +225,6 @@ class FlowMirroringTrial:
             self_solutions = self._approx_solutions
         else:
             raise ValueError("Do not recognize solution type %s" % type_name)
-
 
     @staticmethod
     def create_trial(topology, minimum_flow_rate, maximum_flow_rate, num_flows, duration, name):
@@ -320,6 +323,14 @@ class TrialProvider:
     @property
     def name(self):
         return self._provider_name
+
+    @name.setter
+    def name(self, name):
+        self._provider_name = name
+
+    def set_solution_type(self, soln_type):
+        for trial in self._trials:
+            trial.set_solution_type(soln_type)
     
     @staticmethod
     def create_provider(provider_name):

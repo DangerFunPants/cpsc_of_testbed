@@ -99,7 +99,7 @@ class HostMapper:
 class OnosMapper(HostMapper):
     def __init__(self, dns_server_ip, controller_ip, controller_port, target_topo_file):
         super().__init__([dns_server_ip], controller_ip, controller_port)
-        self._switch_to_dpid_map = topo_mapper.get_and_validate_onos_topo(target_topo_file)
+        self._switch_to_dpid_map = topo_mapper.get_and_validate_onos_topo(target_topo_file.read_text())
 
     def map_sw_to_dpid(self, sw_num):
         return self._switch_to_dpid_map[sw_num]

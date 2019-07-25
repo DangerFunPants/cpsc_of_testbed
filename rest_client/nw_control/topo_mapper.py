@@ -6,14 +6,17 @@ import pprint               as pp
 
 import nw_control.params    as cfg
 
-def build_graph_from_topo_file(topo_str):
-    with topo_str.open("r") as fd:
-        lines = fd.readlines()
+def build_graph_from_topo_file(topo_file):
+    text = topo_file.read_text()
+    return build_graph_from_topo_string(text)
+
+def build_graph_from_topo_string(topo_str):
+    lines = topo_str.splitlines()
     graph = nx.Graph()
     num_nodes = int(lines[0])
     for node_idx in range(1, num_nodes + 1):
         graph.add_node(node_idx)
-
+    
     for edge_entry in lines[1:]:
         [source_node, destination_node] = edge_entry.split(" ")
         graph.add_edge(int(source_node), int(destination_node))
@@ -68,7 +71,7 @@ def build_onos_topo_graph():
         graph.add_edge(source_dpid, destination_dpid)
     return graph
 
-def get_and_validate_onos_topo(target_topo_file):
+def get_and_validate_onos_topo(target_topo_string):
     def find_where_graphs_differ(target_graph, actual_graph):
         target_adj_list = target_graph.adj
         actual_adj_list = actual_graph.adj
@@ -78,7 +81,7 @@ def get_and_validate_onos_topo(target_topo_file):
                         (actual_entry[0], target_entry[1].keys(), actual_entry[1].keys()))
 
     current_topo = build_onos_topo_graph()
-    target_topo = build_graph_from_topo_file(target_topo_file)
+    target_topo = build_graph_from_topo_string(target_topo_string)
     try:
         dpid_to_id = generate_graph_isomorphism(current_topo, target_topo)
     except ValueError as ex:
@@ -91,7 +94,7 @@ def get_and_validate_onos_topo(target_topo_file):
 
 def verify_flows_against_nw_topo(target_topo_file, flows):
     nw_graph = build_onos_topo_graph()
-    id_to_dpid = get_and_validate_onos_topo(target_topo_file)
+    id_to_dpid = get_and_validate_onos_topo(target_topo_file.read_text())
     invalid_edges = set()
     for flow_id, flow in flows.items():
         flow_path = flow.path
@@ -105,7 +108,7 @@ def verify_flows_against_nw_topo(target_topo_file, flows):
 
 def verify_flows_against_target_topo(target_topo_file, flows):
     target_graph = build_graph_from_topo_file(target_topo_file)
-    id_to_dpid = get_and_validate_onos_topo(target_topo_file)
+    id_to_dpid = get_and_validate_onos_topo(target_topo_file.read_text())
     invalid_edges = set()
     for flow_id, flow in flows.items():
         flow_path = flow.path

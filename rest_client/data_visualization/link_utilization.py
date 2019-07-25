@@ -14,22 +14,23 @@ import nw_control.topo_mapper       as topo_mapper
 import nw_control.util              as util
 import data_visualization.params    as cfg
 import port_mirroring.params        as pm_cfg
-import port_mirroring.util          as pm_util
 
-from collections        import defaultdict
-from statistics         import mean
+from collections                    import defaultdict
+from statistics                     import mean
+from port_mirroring.trial_provider  import FlowDefinition, SolutionDefinition
 
 def save_figure(figure_name, **kwargs):
     p = cfg.FIGURE_OUTPUT_PATH.joinpath(figure_name)
     plt.savefig(str(p), **kwargs)
+    plt.clf()
 
 def read_json_response_from_file(file_path):
-    with file_path.open("r") as fd:
-        text = fd.read()
+    text = file_path.read_text()
+    return read_json_response(text)
 
+def read_json_response(text):
     root_response_json = json.loads(text)
-    actual_response_json = root_response_json
-    return actual_response_json
+    return root_response_json 
 
 def compute_initial_byte_counts(byte_counts_per_time_period):
     return byte_counts_per_time_period[0]
@@ -48,7 +49,7 @@ def subtract_counts(count_a, count_b):
 def compute_utilization_from_byte_counts(byte_count, link_capacity):
     return {s: {d: b / link_capacity for d, b in t.items()} for s, t in byte_count.items()}
 
-def generate_network_util_data_over_time(util_results):
+def compute_network_util_over_time(util_results):
     byte_counts_per_time_period = []
     for link_util_dict in util_results:
         # Each results_list represents a snapshot of the network at a point in time.
@@ -101,8 +102,8 @@ def graph_link_utilization(link_utilization_data):
     ax.set_xticklabels(range(1, 12))
     ax.bar(ind-(width/2), ys, width, label="measured", color="skyblue", hatch=".")
 
-    flows           = pm_util.parse_flows_from_file(pm_cfg.flow_file_path)
-    solutions       = pm_util.parse_solutions_from_file(pm_cfg.solution_file_path)
+    flows = FlowDefinition.deserialize(pm_cfg.flow_file_path.read_text())
+    solutions = SolutionDefinition.deserialize(pm_cfg.solution_file_path.read_text())
     mirroring_utils = defaultdict(float)
     for flow in flows.values():
         mirroring_switch_for_flow = solutions[flow.flow_id].mirror_switch_id
@@ -125,10 +126,69 @@ def graph_link_utilization(link_utilization_data):
     save_figure("link-util.pdf")
     plt.clf()
 
+def compute_most_used_mirroring_port(flows, solutions):
+    mirroring_utils = defaultdict(float)
+    for flow in flows.values():
+        mirroring_switch_for_flow = solutions[flow.flow_id].mirror_switch_id
+        mirroring_utils[mirroring_switch_for_flow] += flow.traffic_rate
+
+    return max(mirroring_utils.items(), key=lambda t: t[1])[0]
+
+def generate_max_mirror_port_utilization_bar_plot(results_repository):
+    utilization_data = defaultdict(list)
+    # for provider_name in ["approx", "optimal"]:
+    for provider_name in ["approx"]:
+        for trial_idx in range(5):
+            schema_variables = { "provider-name": provider_name
+                               , "trial-name": "sub-trial-%d" % trial_idx
+                               }
+            files = [ "utilization-results.txt"
+                    , "topo"
+                    , "flows"
+                    , "switches"
+                    , "solutions"
+                    ]
+            results = results_repository.read_trial_results(schema_variables, files)
+            topo                = results["topo"]
+            flows               = FlowDefinition.deserialize(results["flows"])
+            solutions           = SolutionDefinition.deserialize(results["solutions"])
+            utilization_json    = read_json_response(results["utilization-results.txt"])
+            net_utilization     = compute_network_util_over_time(utilization_json)
+
+            most_used_mirroring_port = compute_most_used_mirroring_port(flows, solutions)
+            id_to_dpid = topo_mapper.get_and_validate_onos_topo(topo)
+            mirror_port_dpid = id_to_dpid[most_used_mirroring_port]
+            collector_switch_dpid = topo_mapper.get_collector_switch_dpid()
+            
+            utilization = mean([util_at_time_t[mirror_port_dpid][collector_switch_dpid]
+                for util_at_time_t in net_utilization])
+            utilization_data[provider_name].append((len(flows), utilization))
+    
+    pp.pprint(utilization_data)
+
+    width = 0.35
+    ind = np.arange(1, 6) 
+    fig, ax = plt.subplots()
+    xs = [t[0] for t in utilization_data["approx"]]
+    ys = [t[1] for t in utilization_data["approx"]]
+    ax.bar(ind-(width/2), ys, width, color="skyblue", hatch=".", tick_label=xs, label="approx")
+
+    # xs = [t[0] + (width/2) for t in utilizatoin_data["optimal"]]
+    # ys = [t[1] for t in utilization_data["optimal"]]
+    # ax.bar(xs, ys, width, color="yellow", hatch="\\", tick_label=xs, label="optimal")
+
+    plt.rc('text', usetex=True)
+    plt.rc('font', family='serif')
+    plt.xlabel("Number of Flows")
+    plt.ylabel("Utilization of most utilized mirroring port")
+    plt.legend(loc="best")
+
+    save_figure("approx-link-util.pdf")
+
 def main():
     mirroring_ports = topo_mapper.get_switch_mirroring_ports()
     pp.pprint(mirroring_ports)
     util_results = read_json_response_from_file(path.Path("./utilization-results.txt"))
-    results_over_time = generate_network_util_data_over_time(util_results)
+    results_over_time = compute_network_util_over_time(util_results)
     graph_link_utilization(results_over_time)
 

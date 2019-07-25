@@ -23,7 +23,7 @@ trial_length            = 300
 collector_ip_addr       = "10.10.0.18"
 
 # Root directory of the results repository
-base_repository_path    = path.Path("/home/cpsc-net-user/repos/flow-mirroring-results/")
+base_repository_path    = path.Path("/home/cpsc-net-user/repos/flow-mirroring-results-2/")
 
 # Schema string for the repository
 repository_schema       = "/provider-name/trial-name/"

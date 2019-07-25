@@ -59,7 +59,7 @@ def remove_port_mirroring_rules(flow_token):
 
 def add_port_mirroring_flows(topo_file_path, flows, switches, solutions):
     flow_ids_to_add = flows.keys()
-    id_to_dpid = topo_mapper.get_and_validate_onos_topo(topo_file_path)
+    id_to_dpid = topo_mapper.get_and_validate_onos_topo(topo_file_path.read_text())
     flow_tokens = {}
     for flow_id in flow_ids_to_add:
         flow_tokens[flow_id] = request_port_mirroring(flows[flow_id], switches, solutions[flow_id], id_to_dpid, flow_id)
@@ -95,7 +95,7 @@ def conduct_port_mirroring_trial(provider_name, trial, results_repository):
 
     flows           = trial.flows
     switches        = trial.switches
-    solutions       = trial.approx_solutions
+    solutions       = trial.optimal_solutions
 
     flow_tokens = add_port_mirroring_flows(pm_cfg.target_topo_path, flows, switches, solutions)
 
@@ -166,10 +166,9 @@ def run_provider_trials(provider):
         conduct_port_mirroring_trial(provider.name, trial, results_repository) 
 
 def main():
-    # conduct_port_mirroring_trial()
-    # test_results_repository()
-    # test_trial_provider()
-    run_provider_trials(trials.trial_one())
+    # run_provider_trials(trials.trial_one())
+    run_provider_trials(trials.trial_two())
+    # run_provider_trials(trials.test_trial())
 
 if __name__ == "__main__":
     main()

@@ -39,10 +39,30 @@ class FlowDefinition:
 
     @staticmethod
     def serialize(flows):
+        def to_undelimited_list(python_list):
+            s = ""
+            for elem in python_list[:-1]:
+                s += "%d " % elem
+            s += "%d" % python_list[-1]
+            return s
+                
         s = ""
         for flow in flows.values():
-            s += "%d %f %s\n" % (flow.flow_id, flow.traffic_rate, flow.path)
+            s += "%d %f %s\n" % (flow.flow_id, flow.traffic_rate, to_undelimited_list(flow.path))
         return s
+
+    @staticmethod
+    def deserialize(text):
+        flows = {}
+        for line in text.splitlines():
+            tokens = line.split(" ")
+            [flow_id, traffic_rate], path = tokens[:2], tokens[2:]
+            flow_id = int(flow_id)
+            traffic_rate = float(traffic_rate)
+            path = [int(node_id) for node_id in path]
+            flow_def = FlowDefinition(flow_id, traffic_rate, path)
+            flows[flow_id] = flow_def
+        return flows
 
     def __str__(self):
         return ("FlowDefinition {flow_id: %d, traffic_rate: %f, path: %s}" %
@@ -64,10 +84,32 @@ class SwitchDefinition:
 
     @staticmethod
     def serialize(switches):
+        def to_undelimited_list(python_list):
+            s = ""
+            for elem in python_list[:-1]:
+                s += "%d " % elem
+            s += "%d" % python_list[-1]
+            return s
+
         s = ""
         for switch in switches.values():
-            s += "%d %s\n" % (switch.switch_id, switch.resident_flows)
+            if len(switch.resident_flows) > 0:
+                s += "%d %s\n" % (switch.switch_id, to_undelimited_list(switch.resident_flows))
+            else:
+                s += "%d\n" % (switch.switch_id)
         return s
+
+    @staticmethod
+    def deserialize(text):
+        switches = {}
+        for line in text.splitlines():
+            tokens = line.split(" ")
+            [[switch_id], resident_flows] = tokens[:1], tokens[1:]
+            switch_id = int(switch_id)
+            resident_flows = [int(flow_id) for flow_id in resident_flows]
+            switch_def = SwitchDefinition(switch_id, resident_flows)
+            switches[switch_id] = switch_def
+        return switches
 
     def __str__(self):
         return ("SwitchDefinition {switch_id: %d, resident_flows: %s}" % 
@@ -100,6 +142,19 @@ class SolutionDefinition:
             s += "%d %d\n" % (solution.flow_id, solution.mirror_switch_id)
         s += "%f" % objective_value
         return s
+
+    @staticmethod
+    def deserialize(text):
+        solutions = {}
+        lines = text.splitlines()
+        objective_value = float(lines[-1])
+        for line in lines[:-1]:
+            [flow_id, mirror_switch_id] = line.split(" ")
+            flow_id = int(flow_id)
+            mirror_switch_id = int(mirror_switch_id)
+            solution_def = SolutionDefinition(flow_id, mirror_switch_id, objective_value)
+            solutions[flow_id] = solution_def
+        return solutions
 
     def __str__(self):
         return ("SolutionDefinition {flow_id: %d, mirror_switch_id: %d}" %

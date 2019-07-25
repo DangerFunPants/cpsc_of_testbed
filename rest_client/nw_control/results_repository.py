@@ -16,6 +16,10 @@ from functools              import reduce
 # The behavior of the ResultsRepository differs depending whether a repository at {base_path} already
 # exists. If a repository already exists at {base_path} then a handle to the existing 
 # repository will be created. If a repository does not exist, one will be created.
+# 
+# Also need to define an API for accessing the results stored in a repository should be able to reconstruct
+# the FlowMirroringTrial object plus the utilization results and allow consumers to load these from 
+# a repository handle.
 class ResultsRepository:
     REPO_METADATA_FILE = path.Path(".results_repo")
     
@@ -23,6 +27,18 @@ class ResultsRepository:
         self._base_path         = base_path
         self._schema            = schema
         self._repository_name   = repository_name
+
+    @property
+    def base_path(self):
+        return self._base_path
+
+    @property
+    def schema(self):
+        return self._schema
+
+    @property
+    def repository_name(self):
+        return self._repository_name
 
     @staticmethod
     def create_repository(base_path, schema, repository_name):
@@ -43,13 +59,27 @@ class ResultsRepository:
 
     def write_trial_results(self, schema_variables, results):
         output_path_segments = [schema_variables[schema_label] for schema_label in 
-                self._schema.split("/") if schema_label != ""]
+                self.schema.split("/") if schema_label != ""]
         output_path = reduce(lambda acc, v: acc.joinpath(path.Path(v)), output_path_segments,
-                self._base_path)
+                self.base_path)
         output_path.mkdir(parents=True)
         for file_name, results_data in results:
             output_file = output_path.joinpath(file_name)
             output_file.write_text(results_data)
+
+
+    def read_trial_results(self, schema_variables, file_names):
+        output_path_segments = [schema_variables[schema_label] for schema_label in
+                self.schema.split("/") if schema_label != ""]
+        output_path = reduce(lambda acc, v: acc.joinpath(path.Path(v)), output_path_segments,
+                self.base_path)
+        output_files = {}
+        for file_name in file_names:
+            results_file = output_path.joinpath(file_name)
+            file_text = results_file.read_text()
+            output_files[file_name] = file_text
+
+        return output_files
 
     @staticmethod
     def repository_exists(base_path):

@@ -166,9 +166,8 @@ def run_provider_trials(provider):
         conduct_port_mirroring_trial(provider.name, trial, results_repository) 
 
 def main():
-    # run_provider_trials(trials.trial_one())
-    run_provider_trials(trials.trial_two())
-    # run_provider_trials(trials.test_trial())
+    run_provider_trials(trials.approx_trials())
+    # run_provider_trials(trials.optimal_trials())
 
 if __name__ == "__main__":
     main()

@@ -182,6 +182,7 @@ class FlowMirroringTrial:
         self._name                  = name
         self._solutions             = approx_solutions
         self._solution_type         = "approx"
+        self._add_flows             = onos_rest_helpers.add_flow_mirroring_flows
 
     @property
     def topology(self):
@@ -226,6 +227,10 @@ class FlowMirroringTrial:
     @solution_type.setter
     def solution_type(self, new_solution_type):
         self._solution_type = new_solution_type
+
+    @property
+    def add_flow(self):
+        return self._add_flow
 
     def set_solution_type(self, type_name):
         lower_type_name = type_name.lower()
@@ -475,6 +480,7 @@ class PortMirroringTrial:
         self._name                  = name
         self._solutions             = optimal_solutions
         self._solution_type         = "optimal"
+        self._add_flows             = onos_rest_helpers.add_port_mirroring_flows
     
     @property
     def topology(self):
@@ -531,6 +537,10 @@ class PortMirroringTrial:
     @solution_type.setter
     def solution_type(self, new_solution_type):
         self._solution_type = new_solution_type
+
+    @property
+    def add_flows(self):
+        return self._add_flows
 
     def get_solution_types(self):
         solution_types = [ "det"

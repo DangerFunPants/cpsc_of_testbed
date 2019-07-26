@@ -16,8 +16,5 @@ def main():
     link_utilization.generate_approx_vs_optimal_theoretical_utilization_bar_plot(results_repository)
     link_utilization.generate_mirroring_port_utilization_bar_plot(results_repository)
 
-    # actual, theoretical = link_utilization.compute_theoretical_and_actual_mean_utilization(results_repository)
-    # pp.pprint(theoretical)
-
 if __name__ == "__main__":
     main()

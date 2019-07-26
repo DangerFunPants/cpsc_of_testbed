@@ -124,7 +124,7 @@ def generate_max_mirror_port_utilization_bar_plot(results_repository):
     fig, ax = plt.subplots()
     xs = [t[0] for t in utilization_data["approx"]]
     ys = [util.bytes_per_second_to_mbps(t[1]) for t in utilization_data["approx"]]
-    ax.bar(ind-(width/2), ys, width, color="skyblue", hatch=".", tick_label=xs, label="FSM",
+    ax.bar(ind-(width/2), ys, width, color="skyblue", hatch=".", tick_label=xs, label="BiSec",
             yerr=std_deviations["approx"], ecolor="black")
 
     xs = [t[0] for t in utilization_data["optimal"]]
@@ -231,8 +231,8 @@ def generate_mirroring_port_utilization_bar_plot(results_repository):
     plt.legend(loc="upper center", bbox_to_anchor=(0.5, LEGEND_HEIGHT), shadow=True, ncol=2)
     plt.rc('text', usetex=True)
     plt.rc('font', family='serif')
-    plt.xlabel("Node ID")
-    plt.ylabel("Mean Mirroring Port Throughput ($\\frac{Mb}{s}$)")
+    plt.xlabel("Switch ID")
+    plt.ylabel("Mean Mirroring Port Rate ($\\frac{Mb}{s}$)")
     save_figure("plot-three.pdf")
     plt.clf()
 

@@ -156,7 +156,10 @@ def conduct_port_mirroring_trial(provider_name, trial, results_repository):
                     , ("switches"   , trial_provider.SwitchDefinition.serialize(switches))
                     , ("solutions"  , trial_provider.SolutionDefinition.serialize(solutions))
                     ]
-    schema_vars = {"provider-name": provider_name, "trial-name": trial.name}
+    schema_vars = { "provider-name"     : provider_name
+                  , "solution-type"     : trial.solution_type
+                  , "trial-name"        : trial.name
+                  }
     results_repository.write_trial_results(schema_vars, results_files)
 
 def run_provider_trials(provider):
@@ -167,21 +170,14 @@ def run_provider_trials(provider):
 
 def main():
     # provider = trials.test_trial()
-    # provider = trials.trial_one()
-    provider = trials.port_mirroring_trials()
+    provider = trials.flow_mirroring_trials()
+    # provider = trials.port_mirroring_trials()
     trial_count = 0
     for trial in provider:
-        print(trial)
+        print(trial.solution_type)
         trial_count += 1
-    print("trial_count: %d" % trial_count)
 
-    # provider.name = "approx"
-    # provider.set_solution_type("approx")
-    # run_provider_trials(provider)
-    #
-    # provider.name = "optimal"
-    # provider.set_solution_type("optimal")
-    # run_provider_trials(provider)
+    run_provider_trials(provider)
 
 if __name__ == "__main__":
     main()

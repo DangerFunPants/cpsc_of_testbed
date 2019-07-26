@@ -181,6 +181,7 @@ class FlowMirroringTrial:
         self._duration              = duration
         self._name                  = name
         self._solutions             = approx_solutions
+        self._solution_type         = "approx"
 
     @property
     def topology(self):
@@ -218,6 +219,14 @@ class FlowMirroringTrial:
     def name(self, name):
         self._name = name
 
+    @property
+    def solution_type(self):
+        return self._solution_type
+
+    @solution_type.setter
+    def solution_type(self, new_solution_type):
+        self._solution_type = new_solution_type
+
     def set_solution_type(self, type_name):
         lower_type_name = type_name.lower()
         if lower_type_name == "optimal":
@@ -226,6 +235,13 @@ class FlowMirroringTrial:
             self_solutions = self._approx_solutions
         else:
             raise ValueError("Do not recognize solution type %s" % type_name)
+        self.solution_type = lower_type_name
+
+    def get_solution_types(self):
+        solution_types = [ "approx"
+                         , "optimal"
+                         ]
+        return solution_types
 
     @staticmethod
     def create_trial(topology, minimum_flow_rate, maximum_flow_rate, num_flows, duration, name):
@@ -458,6 +474,7 @@ class PortMirroringTrial:
         self._duration              = duration
         self._name                  = name
         self._solutions             = optimal_solutions
+        self._solution_type         = "optimal"
     
     @property
     def topology(self):
@@ -507,6 +524,14 @@ class PortMirroringTrial:
     def name(self, new_name):
         self._name = new_name
 
+    @property
+    def solution_type(self):
+        return self._solution_type
+
+    @solution_type.setter
+    def solution_type(self, new_solution_type):
+        self._solution_type = new_solution_type
+
     def get_solution_types(self):
         solution_types = [ "det"
                          , "df"
@@ -529,6 +554,7 @@ class PortMirroringTrial:
             self._solutions = self._rnd_solutions
         else:
             raise ValueError("Do not recognize solution type %s" % lower_type_name)
+        self._solution_type = lower_type_name
 
     @staticmethod
     def create_trial(topology, minimum_flow_rate, maximum_flow_rate, num_flows, duration, name):

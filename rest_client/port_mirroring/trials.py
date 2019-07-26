@@ -2,7 +2,7 @@
 import port_mirroring.params                as pm_cfg
 import port_mirroring.trial_provider        as trial_provider
 
-def trial_one():
+def flow_mirroring_trials():
     topology = pm_cfg.target_topo_path.read_text()
     provider = trial_provider.TrialProvider.create_provider("approx")
     for trial_idx, flow_count in enumerate([idx*10 for idx in range(1, 6)]):

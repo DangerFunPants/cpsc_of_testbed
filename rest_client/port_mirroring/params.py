@@ -26,7 +26,7 @@ collector_ip_addr       = "10.10.0.18"
 base_repository_path    = path.Path("/home/cpsc-net-user/repos/flow-mirroring-results-4/")
 
 # Schema string for the repository
-repository_schema       = "/provider-name/trial-name/"
+repository_schema       = "/provider-name/solution-type/trial-name/"
 
 # Name of the repository
 repository_name         = "flow-mirroring"

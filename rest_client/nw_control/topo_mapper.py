@@ -38,16 +38,16 @@ def get_collector_switch_dpid():
     collector_host = next(host for host in hosts if cfg.collector_host_ip in host["ipAddresses"])
     return collector_host["locations"][0]["elementId"]
 
-def build_onos_topo_graph():
-    def get_nw_links():
-        request_url = url.urljoin(cfg.onos_url.geturl(), "v1/links")
-        links_request = req.get(request_url, auth=cfg.ONOS_API_CREDENTIALS)
-        if links_request.status_code != 200:
-            raise ValueError("Failed to get links from ONOS controller. Status %d %s." %
-                    (links_request.status_code, links_request.reason))
-        links = json.loads(links_request.text)
-        return links["links"]
+def get_nw_links():
+    request_url = url.urljoin(cfg.onos_url.geturl(), "v1/links")
+    links_request = req.get(request_url, auth=cfg.ONOS_API_CREDENTIALS)
+    if links_request.status_code != 200:
+        raise ValueError("Failed to get links from ONOS controller. Status %d %s." %
+                (links_request.status_code, links_request.reason))
+    links = json.loads(links_request.text)
+    return links["links"]
 
+def build_onos_topo_graph():
     links = get_nw_links()
     graph = nx.Graph()
     node_set = set()
@@ -67,6 +67,13 @@ def build_onos_topo_graph():
             graph.add_node(destination_dpid)
         graph.add_edge(source_dpid, destination_dpid)
     return graph
+
+def get_ports_that_connect(source_dpid, destination_dpid):
+    links = get_nw_links()
+    for link in links:
+        if link["src"]["device"] == source_dpid and link["dst"]["device"] == destination_dpid:
+            return (int(link["src"]["port"]), int(link["dst"]["port"]))
+    raise ValueError("Could not find link connecting %s and %s" % (source_dpid, destination_dpid))
 
 def get_and_validate_onos_topo(target_topo_string):
     def find_where_graphs_differ(target_graph, actual_graph):

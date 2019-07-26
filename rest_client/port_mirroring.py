@@ -16,6 +16,7 @@ import nw_control.results_repository            as rr
 import port_mirroring.params                    as pm_cfg
 import port_mirroring.trial_provider            as trial_provider
 import port_mirroring.trials                    as trials
+import port_mirroring.onos_rest_helpers         as onos_rest_helpers
 
 from collections                            import namedtuple
 from sys                                    import argv
@@ -49,7 +50,8 @@ def conduct_port_mirroring_trial(provider_name, trial, results_repository):
     solutions       = trial.solutions
 
     # flow_tokens = add_port_mirroring_flows(pm_cfg.target_topo_path, flows, switches, solutions)
-    flow_tokens = trial.add_flows(trial.topology, flows, switches, solutions)
+    # flow_tokens = trial.add_flows(trial.topology, flows, switches, solutions)
+    flow_tokens = trial.add_flows()
 
     hosts = create_and_initialize_host_connections(flows)
 
@@ -98,7 +100,7 @@ def conduct_port_mirroring_trial(provider_name, trial, results_repository):
 
     close_all_host_connections(hosts)
 
-    remove_port_mirroring_flows(flow_tokens)
+    onos_rest_helpers.remove_port_mirroring_flows(flow_tokens)
 
     utilization_results = traffic_monitor.get_monitor_statistics()
 
@@ -121,12 +123,8 @@ def run_provider_trials(provider):
         conduct_port_mirroring_trial(provider.name, trial, results_repository) 
 
 def main():
-    provider = trials.flow_mirroring_trials()
-    # provider = trials.port_mirroring_trials()
-    trial_count = 0
-    for trial in provider:
-        print(trial.solution_type)
-        trial_count += 1
+    # provider = trials.flow_mirroring_trials()
+    provider = trials.port_mirroring_trials()
 
     run_provider_trials(provider)
 

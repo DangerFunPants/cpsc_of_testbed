@@ -23,7 +23,7 @@ solution_file_path      = INPUT_FILE_DIR.joinpath("solutions/opt")
 collector_ip_addr       = "10.10.0.18"
 
 # Root directory of the results repository
-base_repository_path    = path.Path("/home/cpsc-net-user/repos/flow-mirroring-results-4/")
+base_repository_path    = path.Path("/home/cpsc-net-user/repos/port-mirroring-test-results/")
 
 # Schema string for the repository
 repository_schema       = "/provider-name/solution-type/trial-name/"

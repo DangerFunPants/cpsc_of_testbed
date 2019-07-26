@@ -2,6 +2,7 @@
 import pathlib          as path
 import subprocess       as subprocess
 import pprint           as pp
+import json             as json
 
 import port_mirroring.onos_rest_helpers     as onos_rest_helpers
 
@@ -286,6 +287,15 @@ class FlowMirroringTrial:
         cmd = create_solver_cmd(topology, minimum_flow_rate, maximum_flow_rate, num_flows)
         subprocess.run(cmd)
 
+    def build_results_files(self, utilization_results):
+        results_files = { "utilization-results.txt" : json.dumps(utilization_results)
+                        , "topo"                    : self.topology
+                        , "flows"                   : FlowDefinition.serialize(self.flows)
+                        , "switches"                : SwitchDefinition.serialize(self.switches)
+                        , "solutions"               : SolutionDefinition.serialize(self.solutions)
+                        }
+        return results_files
+
     def __str__(self):
         s = "Flows:\n"
         for flow in self._flows.values():
@@ -329,6 +339,7 @@ class PortMirroringFlow:
         s = ""
         for flow_id, flow in flows.items():
             s += "%d %f %s\n" % (flow.flow_id, flow.traffic_rate, path_to_str(list(zip(flow.path, flow.ports))))
+        return s
 
     @staticmethod
     def deserialize(text):
@@ -399,6 +410,7 @@ class PortMirroringSwitch:
             for port in switch.ports:
                 s += "%d %d %f %s\n" % (switch.switch_id, port.port_id, port.flow_rate,
                         flow_list_to_str(port.flows))
+        return s
             
     @staticmethod
     def deserialize(text):
@@ -649,6 +661,17 @@ class PortMirroringTrial:
         
         cmd = create_solver_cmd(topology, minimum_flow_rate, maximum_flow_rate, num_flows)
         subprocess.run(cmd)
+
+    def build_results_files(self, utilization_results):
+        solution_text       = PortMirroringSolution.serialize(self.solutions)
+        switch_text         = PortMirroringSwitch.serialize(self.switches)
+        results_files = { "utilization-results.txt"     : json.dumps(utilization_results)
+                        , "topo"                        : self.topology
+                        , "flows"                       : PortMirroringFlow.serialize(self.flows)
+                        , "switches"                    : switch_text
+                        , "solutions"                   : solution_text
+                        }
+        return results_files
 
     def __str__(self):
         s = "Flows:\n"

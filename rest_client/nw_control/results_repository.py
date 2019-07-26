@@ -62,10 +62,9 @@ class ResultsRepository:
         output_path = reduce(lambda acc, v: acc.joinpath(path.Path(v)), output_path_segments,
                 self.base_path)
         output_path.mkdir(parents=True)
-        for file_name, results_data in results:
+        for file_name, results_data in results.items():
             output_file = output_path.joinpath(file_name)
             output_file.write_text(results_data)
-
 
     def read_trial_results(self, schema_variables, file_names):
         output_path_segments = [schema_variables[schema_label] for schema_label in

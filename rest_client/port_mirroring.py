@@ -104,12 +104,14 @@ def conduct_port_mirroring_trial(provider_name, trial, results_repository):
 
     utilization_results = traffic_monitor.get_monitor_statistics()
 
-    results_files = [ ("utilization-results.txt", json.dumps(utilization_results))
-                    , ("topo"       , trial.topology)
-                    , ("flows"      , trial_provider.FlowDefinition.serialize(flows))
-                    , ("switches"   , trial_provider.SwitchDefinition.serialize(switches))
-                    , ("solutions"  , trial_provider.SolutionDefinition.serialize(solutions))
-                    ]
+    # results_files = [ ("utilization-results.txt", json.dumps(utilization_results))
+    #                 , ("topo"       , trial.topology)
+    #                 , ("flows"      , trial_provider.FlowDefinition.serialize(flows))
+    #                 , ("switches"   , trial_provider.SwitchDefinition.serialize(switches))
+    #                 , ("solutions"  , trial_provider.SolutionDefinition.serialize(solutions))
+    #                 ]
+    results_files = trial.build_results_files(utilization_results)
+
     schema_vars = { "provider-name"     : provider_name
                   , "solution-type"     : trial.solution_type
                   , "trial-name"        : trial.name

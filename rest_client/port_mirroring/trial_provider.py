@@ -333,7 +333,8 @@ class PortMirroringFlow:
             s = ""
             for node_id, port_id in path[:-1]:
                 s += "%d %d " % (node_id, port_id)
-            s += "%d %d" % (path[-1][0], path[-1][1])
+            if len(path) > 0:
+                s += "%d %d" % (path[-1][0], path[-1][1])
             return s
 
         s = ""
@@ -359,9 +360,9 @@ class PortMirroringFlow:
                 (self.flow_id, self.traffic_rate, self.path))
 
 class SwitchPort:
-    def __init__(self, port_id, port_rate, flow_list):
+    def __init__(self, port_id, flow_rate, flow_list):
         self._port_id       = port_id
-        self._port_rate     = port_rate
+        self._flow_rate     = flow_rate
         self._flow_list     = flow_list
 
     @property
@@ -369,8 +370,8 @@ class SwitchPort:
         return self._port_id
 
     @property
-    def port_rate(self):
-        return self._port_rate
+    def flow_rate(self):
+        return self._flow_rate
 
     @property
     def flow_list(self):
@@ -378,7 +379,7 @@ class SwitchPort:
 
     def __str__(self):
         s = ("SwitchPort { port_id: %d, port_rate: %f, flow_list: %s }" %
-                (self.port_id, self.port_rate, str(self.flow_list)))
+                (self.port_id, self.flow_rate, str(self.flow_list)))
         return s
 
 class PortMirroringSwitch:
@@ -402,14 +403,15 @@ class PortMirroringSwitch:
             s = ""
             for flow_id in flow_list[:-1]:
                 s += "%d " % flow_id
-            s += "%d" % flow_id
+            if len(flow_list) > 0:
+                s += "%d" % flow_list[-1]
             return s
 
         s = ""
         for switch_id, switch in switches.items():
             for port in switch.ports:
                 s += "%d %d %f %s\n" % (switch.switch_id, port.port_id, port.flow_rate,
-                        flow_list_to_str(port.flows))
+                        flow_list_to_str(port.flow_list))
         return s
             
     @staticmethod
@@ -422,7 +424,7 @@ class PortMirroringSwitch:
             port_id     = int(port_id)
             port_rate   = float(port_rate) 
             flow_list   = [int(flow) for flow in flow_list]
-            ports[switch_id] = SwitchPort(port_id, port_rate, flow_list)
+            ports[switch_id].append(SwitchPort(port_id, port_rate, flow_list))
 
         switches = {}
         for switch_id, ports in ports.items():
@@ -663,13 +665,18 @@ class PortMirroringTrial:
         subprocess.run(cmd)
 
     def build_results_files(self, utilization_results):
-        solution_text       = PortMirroringSolution.serialize(self.solutions)
+        utilization_text    = json.dumps(utilization_results)
+        flow_text           = PortMirroringFlow.serialize(self.flows)
         switch_text         = PortMirroringSwitch.serialize(self.switches)
-        results_files = { "utilization-results.txt"     : json.dumps(utilization_results)
+        solution_text       = PortMirroringSolution.serialize(self.solutions)
+        ports_text          = PortMirroringPorts.serialize(self.mirroring_ports)
+
+        results_files = { "utilization-results.txt"     : utilization_text
                         , "topo"                        : self.topology
-                        , "flows"                       : PortMirroringFlow.serialize(self.flows)
+                        , "flows"                       : flow_text
                         , "switches"                    : switch_text
                         , "solutions"                   : solution_text
+                        , "ports"                       : ports_text
                         }
         return results_files
 

@@ -2,6 +2,8 @@
 import pathlib          as path
 import subprocess       as subprocess
 
+from collections        import defaultdict
+
 # How do I want this API to work? 
 #   * Load a series of trials
 #       * How to specify trials?
@@ -235,7 +237,7 @@ class FlowMirroringTrial:
         optimal_solutions_file  = FlowMirroringTrial.SOLVER_PATH.joinpath("solutions/opt")
 
         flows               = FlowDefinition.deserialize(flows_file.read_text())
-        switches            = SwitchDefinition.deserialzie(switches_file.read_text()) 
+        switches            = SwitchDefinition.deserialize(switches_file.read_text()) 
         approx_solutions    = SolutionDefinition.deserialize(approx_solutions_file.read_text())
         optimal_solutions   = SolutionDefinition.deserialize(optimal_solutions_file.read_text())
 
@@ -269,7 +271,7 @@ class FlowMirroringTrial:
         return s
 
 class PortMirroringFlow:
-    def __init__(flow_id, traffic_rate, path):
+    def __init__(self, flow_id, traffic_rate, path):
         self._flow_id       = flow_id
         self._traffic_rate  = traffic_rate
         self._path          = path
@@ -316,6 +318,29 @@ class PortMirroringFlow:
         return ("PortMirroringFlow {flow_id: %d, traffic_rate: %f, path: %s}" %
                 (self.flow_id, self.traffic_rate, self.path))
 
+class SwitchPort:
+    def __init__(self, port_id, port_rate, flow_list):
+        self._port_id       = port_id
+        self._port_rate     = port_rate
+        self._flow_list     = flow_list
+
+    @property
+    def port_id(self):
+        return self._port_id
+
+    @property
+    def port_rate(self):
+        return self._port_rate
+
+    @property
+    def flow_list(self):
+        return self._flow_list
+
+    def __str__(self):
+        s = ("SwitchPort { port_id: %d, port_rate: %f, flow_list: %s }" %
+                (self.port_id, self.port_rate, str(self.flow_list)))
+        return s
+
 class PortMirroringSwitch:
     def __init__( self
                 , switch_id
@@ -337,14 +362,14 @@ class PortMirroringSwitch:
             s = ""
             for flow_id in flow_list[:-1]:
                 s += "%d " % flow_id
-            s += "%d" flow_id
+            s += "%d" % flow_id
             return s
 
         s = ""
         for switch_id, switch in switches.items():
             for port in switch.ports:
-            s += "%d %d %f %s\n" % (switch.switch_id, port.port_id, port.flow_rate,
-                    flow_list_to_str(port.flows))
+                s += "%d %d %f %s\n" % (switch.switch_id, port.port_id, port.flow_rate,
+                        flow_list_to_str(port.flows))
             
     @staticmethod
     def deserialize(text):
@@ -363,8 +388,52 @@ class PortMirroringSwitch:
             switches[switch_id] = PortMirroringSwitch(switch_id, ports)
         return switches
 
+    def __str__(self):
+        s = ("PortMirroringSwitch { switch_id: %d, ports: %s" %
+                (self.switch_id, str(self.ports)))
+        return s
+
+class PortMirroringSolution:
+    def __init__(self, mirror_switch_id, mirror_switch_port, objective_value):
+        self._mirror_switch_id      = mirror_switch_id
+        self._mirror_switch_port    = mirror_switch_port
+        self._objective_value       = objective_value
+
+    @property
+    def mirror_switch_id(self):
+        return self._mirror_switch_id
+
+    @property
+    def mirror_switch_port(self):
+        return self._mirror_switch_port
+
+    @property
+    def objective_value(self):
+        return self._objective_value
+
+    @staticmethod
+    def serialize(solutions):
+        pass
+
+    @staticmethod
+    def deserialize(text):
+        solutions = {}
+        lines = text.splitlines()
+        objective_value = float(lines[-1])
+        for line in lines[:-1]:
+            [switch_id, port_id]    = line.split(" ")
+            mirror_switch_id        = int(switch_id)
+            mirror_port_id          = int(port_id)
+            solutions[switch_id]    = PortMirroringSolution(mirror_switch_id,
+                    mirror_port_id, objective_value)
+        return solutions
+
+    def __str__(self):
+        s = ("PortMirroringSolution { mirror_switch_id: %d, mirror_switch_port: %d, objective_value: %f" % (self.mirror_switch_id, self.mirror_switch_port, self.objective_value))
+        return s
+
 class PortMirroringTrial:
-    SOLVER_PATH     = path.Path("/home/cpsc-net-user/repos/flow-mirroring-scheme/")
+    SOLVER_PATH     = path.Path("/home/cpsc-net-user/repos/port-mirroring-scheme/")
     TOPOLOGY_FILE   = SOLVER_PATH.joinpath("network/temp-topo.txt")
 
     def __init__( self
@@ -388,6 +457,7 @@ class PortMirroringTrial:
         self._rnd_solutions         = rnd_solutions
         self._duration              = duration
         self._name                  = name
+        self._solutions             = optimal_solutions
     
     @property
     def topology(self):
@@ -403,7 +473,7 @@ class PortMirroringTrial:
 
     @property
     def det_solutions(self):
-        return self._def_solutions
+        return self._det_solutions
 
     @property
     def df_solutions(self):
@@ -422,6 +492,10 @@ class PortMirroringTrial:
         return self._rnd_solutions
 
     @property
+    def solutions(self):
+        return self._solutions
+
+    @property
     def duration(self):
         return self._duration
 
@@ -432,6 +506,14 @@ class PortMirroringTrial:
     @name.setter
     def name(self, new_name):
         self._name = new_name
+
+    def get_solution_types(self):
+        solution_types = [ "det"
+                         , "df"
+                         , "greedy"
+                         , "optimal"
+                         ]
+        return solution_types
 
     def set_solution_type(self, type_name):
         lower_type_name = type_name.lower()
@@ -452,24 +534,25 @@ class PortMirroringTrial:
     def create_trial(topology, minimum_flow_rate, maximum_flow_rate, num_flows, duration, name):
         PortMirroringTrial.invoke_solver_with_params(topology, minimum_flow_rate,
                 maximum_flow_rate, num_flows)
-        flows_file                  = PortMirroringTrial.SOLVER_PATH.joinpath("network/flows")
-        switches_file               = PortMirroringTrial.SOLVER_PATH.joinpath("network/switches")
-        det_solutions_file          = PortMirroringTrial.SOLVER_PATH.joinpath("solutions/det")
-        df_solutions_file           = PortMirroringTrial.SOLVER_PATH.joinpath("solutions/df")
-        greedy_solutions_file       = PortMirroringTrial.SOLVER_PATH.joinpath("solutions/greedy")
-        optimal_solutions_file      = PortMirroringTrial.SOLVER_PATH.joinpath("solutions/optimal")
-        rnd_solutions_file          = PortMirroringTrial.SOLVER_PATH.joinpath("solutions/rnd")
+        flows_file              = PortMirroringTrial.SOLVER_PATH.joinpath("network/flows")
+        switches_file           = PortMirroringTrial.SOLVER_PATH.joinpath("network/switches")
+        det_solutions_file      = PortMirroringTrial.SOLVER_PATH.joinpath("solutions/det")
+        df_solutions_file       = PortMirroringTrial.SOLVER_PATH.joinpath("solutions/df")
+        greedy_solutions_file   = PortMirroringTrial.SOLVER_PATH.joinpath("solutions/greedy_port")
+        optimal_solutions_file  = PortMirroringTrial.SOLVER_PATH.joinpath("solutions/opt")
+        # rnd_solutions_file      = PortMirroringTrial.SOLVER_PATH.joinpath("solutions/rnd")
 
         flows               = PortMirroringFlow.deserialize(flows_file.read_text())
-        switches            = PortMirroringSwitch.deserialzie(switches_file.read_text())
-        det_solutions       = PortMirroringSolutions.deserialize(det_solutions_file.read_text())
-        df_solutions        = PortMirroringSolutions.deserialize(df_solutions_file.read_text())
-        greedy_solutions    = PortMirroringSolutions.deserialize(greedy_solutions_file.read_text())
-        optimal_solutions   = PortMirroringSolutions.deserialize(optimal_solutions_file.read_text())
-        rnd_solutions       = PortMirroringSolutions.deserialize(rnd_solutions_file.read_text())
+        switches            = PortMirroringSwitch.deserialize(switches_file.read_text())
+        det_solutions       = PortMirroringSolution.deserialize(det_solutions_file.read_text())
+        df_solutions        = PortMirroringSolution.deserialize(df_solutions_file.read_text())
+        greedy_solutions    = PortMirroringSolution.deserialize(greedy_solutions_file.read_text())
+        optimal_solutions   = PortMirroringSolution.deserialize(optimal_solutions_file.read_text())
+        # rnd_solutions       = PortMirroringSolution.deserialize(rnd_solutions_file.read_text())
+        rnd_solutions       = None
 
         trial = PortMirroringTrial(topology, flows, switches, det_solutions, df_solutions,
-                    greedy_solutions, optimal_solutions, rnd_solutions)
+                    greedy_solutions, optimal_solutions, rnd_solutions, duration, name)
         return trial
 
     @staticmethod
@@ -477,7 +560,7 @@ class PortMirroringTrial:
         def create_solver_cmd(topology, minimum_flow_rate, maximum_flow_rate, num_flows):
             PortMirroringTrial.TOPOLOGY_FILE.write_text(topology)
             base_cmd = PortMirroringTrial.SOLVER_PATH.joinpath("invoke_solver.sh")
-            args = [ PortMirroringTrial.topology_file
+            args = [ PortMirroringTrial.TOPOLOGY_FILE.name
                    , str(num_flows)
                    , str(minimum_flow_rate)
                    , str(maximum_flow_rate)
@@ -496,6 +579,7 @@ class PortMirroringTrial:
         for solution in self.solutions.values():
             s += "\t%s\n" % str(solution)
         return s
+
 
 class TrialProvider:
     def __init__(self, provider_name):
@@ -523,4 +607,7 @@ class TrialProvider:
         return self
 
     def __iter__(self):
-        return iter(self._trials)
+        for trial in self._trials:
+            for trial_type in trial.get_solution_types():
+                trial.set_solution_type(trial_type)
+                yield trial

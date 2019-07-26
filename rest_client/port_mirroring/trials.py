@@ -23,6 +23,14 @@ def optimal_trials():
     
     return provider
 
+def port_mirroring_trials():
+    topology = pm_cfg.target_topo_path.read_text()
+    provider = trial_provider.TrialProvider.create_provider("port_mirroring")
+    trial = trial_provider.PortMirroringTrial.create_trial(topology, 0.1, 0.5,
+            10, 30, "sub-trial-1")
+    provider.add_trial(trial)
+    return provider
+
 def all_trials():
     topology = pm_cfg.target_topo_path.read_text()
     provider = trial_provider.TrialProvider.create_provider("approx")

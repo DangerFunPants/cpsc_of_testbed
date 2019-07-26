@@ -166,16 +166,22 @@ def run_provider_trials(provider):
         conduct_port_mirroring_trial(provider.name, trial, results_repository) 
 
 def main():
-    provider = trials.trial_one()
     # provider = trials.test_trial()
+    # provider = trials.trial_one()
+    provider = trials.port_mirroring_trials()
+    trial_count = 0
+    for trial in provider:
+        print(trial)
+        trial_count += 1
+    print("trial_count: %d" % trial_count)
 
-    provider.name = "approx"
-    provider.set_solution_type("approx")
-    run_provider_trials(provider)
-
-    provider.name = "optimal"
-    provider.set_solution_type("optimal")
-    run_provider_trials(provider)
+    # provider.name = "approx"
+    # provider.set_solution_type("approx")
+    # run_provider_trials(provider)
+    #
+    # provider.name = "optimal"
+    # provider.set_solution_type("optimal")
+    # run_provider_trials(provider)
 
 if __name__ == "__main__":
     main()

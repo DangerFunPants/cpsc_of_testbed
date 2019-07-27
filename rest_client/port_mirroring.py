@@ -63,7 +63,7 @@ def conduct_port_mirroring_trial(provider_name, trial, results_repository):
 
     for flow_id, flow in flows.items():
         destination_hostname    = mapper.map_sw_to_host(flow.path[-1])
-        tx_rate                 = util.mbps_to_bps(flow.traffic_rate * 100) / 8
+        tx_rate                 = util.mbps_to_bps(flow.traffic_rate * 10) / 8
         tx_variance             = 0.0
         traffic_model           = "uniform"
         destination_ip          = mapper.resolve_hostname(destination_hostname)

@@ -21,8 +21,6 @@ from statistics                     import mean
 from trials.flow_mirroring_trial    import FlowDefinition, SolutionDefinition
 from data_visualization.helpers     import save_figure, read_json_response_from_file, compute_initial_byte_counts, subtract_counts, compute_utilization_from_byte_counts, compute_network_util_over_time
 
-LEGEND_HEIGHT = 1.125
-
 def compute_most_used_mirroring_port(flows, solutions):
     mirroring_utils = defaultdict(float)
     for flow in flows.values():
@@ -85,7 +83,7 @@ def generate_max_mirror_port_utilization_bar_plot(results_repository):
     plt.rc('font', family='serif')
     plt.xlabel("Number of Flows")
     plt.ylabel("Maximum mirroring port rate ($\\frac{Mb}{s}$)")
-    plt.legend(loc="upper center", bbox_to_anchor=(0.5, LEGEND_HEIGHT), shadow=True, ncol=2)
+    plt.legend(loc="upper center", bbox_to_anchor=(0.5, cfg.LEGEND_HEIGHT), shadow=True, ncol=2)
 
     save_figure("plot-one.pdf")
 
@@ -177,7 +175,7 @@ def generate_mirroring_port_utilization_bar_plot(results_repository):
         ys.append(aggregate_rate * 100)
     
     ax.bar(ind+(width/2), ys, width, color="green", hatch="\\", label="Expected") 
-    plt.legend(loc="upper center", bbox_to_anchor=(0.5, LEGEND_HEIGHT), shadow=True, ncol=2)
+    plt.legend(loc="upper center", bbox_to_anchor=(0.5, cfg.LEGEND_HEIGHT), shadow=True, ncol=2)
     plt.rc('text', usetex=True)
     plt.rc('font', family='serif')
     plt.xlabel("Switch ID")
@@ -212,7 +210,7 @@ def generate_theoretical_vs_actual_utilization_bar_plot(results_repository):
     plt.rc('font', family='serif')
     plt.xlabel("Number of Flows")
     plt.ylabel("Maximum mirroring port rate ($\\frac{Mb}{s}$)")
-    plt.legend(loc="upper center", bbox_to_anchor=(0.5, LEGEND_HEIGHT), shadow=True, ncol=2)
+    plt.legend(loc="upper center", bbox_to_anchor=(0.5, cfg.LEGEND_HEIGHT), shadow=True, ncol=2)
 
     save_figure("plot-two.pdf")
 
@@ -235,7 +233,7 @@ def generate_approx_vs_optimal_theoretical_utilization_bar_plot(results_reposito
     plt.rc('font', family='serif')
     plt.xlabel("Number of Flows")
     plt.ylabel("Maximum mirroring rate ($\\frac{Mb}{s}$)")
-    plt.legend(loc="upper center", bbox_to_anchor=(0.5, LEGEND_HEIGHT), shadow=True, ncol=2)
+    plt.legend(loc="upper center", bbox_to_anchor=(0.5, cfg.LEGEND_HEIGHT), shadow=True, ncol=2)
 
     save_figure("approx-vs-optimal-theoretical.pdf")
     

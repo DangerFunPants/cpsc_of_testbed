@@ -3,7 +3,7 @@ import pathlib          as path
 import subprocess       as subprocess
 import json             as json
 
-import onos_rest_helpers            as onos_rest_helpers
+import port_mirroring.onos_rest_helpers            as onos_rest_helpers
 
 class FlowDefinition:
     def __init__(self, flow_id, traffic_rate, path):

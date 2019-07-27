@@ -1,3 +1,12 @@
+import matplotlib
+matplotlib.use("Agg")
+
+import data_visualization.params        as cfg
+
+import matplotlib.pyplot                as plt
+import json                             as json
+
+from collections import defaultdict
 
 def save_figure(figure_name, **kwargs):
     p = cfg.FIGURE_OUTPUT_PATH.joinpath(figure_name)

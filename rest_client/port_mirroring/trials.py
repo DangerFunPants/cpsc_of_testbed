@@ -16,10 +16,10 @@ def flow_mirroring_trials():
 
 def port_mirroring_trials():
     topology = pm_cfg.target_topo_path.read_text()
-    provider = trial_provider.TrialProvider.create_provider("port_mirroring")
+    provider = trial_provider.TrialProvider.create_provider("run-0")
     for trial_idx, flow_count in enumerate([idx*10 for idx in range(1, 6)]):
         trial = port_mirroring_trial.PortMirroringTrial.create_trial(topology, 0.1, 0.5,
-                flow_count, 300, "sub-trial-%d" % trial_idx)
+                flow_count, 60, "sub-trial-%d" % trial_idx)
         provider.add_trial(trial)
 
     return provider

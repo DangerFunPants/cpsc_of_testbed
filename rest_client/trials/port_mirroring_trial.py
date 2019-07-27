@@ -4,7 +4,7 @@ import pprint               as pp
 import subprocess           as subprocess
 import json                 as json
 
-import onos_rest_helpers        as onos_rest_helpers
+import port_mirroring.onos_rest_helpers     as onos_rest_helpers
 
 from collections                import defaultdict
 
@@ -100,6 +100,12 @@ class PortMirroringSwitch:
     def ports(self):
         return self._ports
 
+    def rate_for_port(self, port_id):
+        for port in self.ports:
+            if port.port_id == port_id:
+                return port.flow_rate
+        raise ValueError("Switch %d does not have port with ID %d" % (self.switch_id, port_id))
+
     @staticmethod
     def serialize(switches):
         def flow_list_to_str(flow_list):
@@ -126,7 +132,7 @@ class PortMirroringSwitch:
             switch_id   = int(switch_id)
             port_id     = int(port_id)
             port_rate   = float(port_rate) 
-            flow_list   = [int(flow) for flow in flow_list]
+            flow_list   = [int(flow) for flow in flow_list if flow != ""]
             ports[switch_id].append(SwitchPort(port_id, port_rate, flow_list))
 
         switches = {}
@@ -173,10 +179,10 @@ class PortMirroringSolution:
         lines = text.splitlines()
         objective_value = float(lines[-1])
         for line in lines[:-1]:
-            [switch_id, port_id]    = line.split(" ")
-            mirror_switch_id        = int(switch_id)
-            mirror_port_id          = int(port_id)
-            solutions[switch_id]    = PortMirroringSolution(mirror_switch_id,
+            [switch_id, port_id]            = line.split(" ")
+            mirror_switch_id                = int(switch_id)
+            mirror_port_id                  = int(port_id)
+            solutions[mirror_switch_id]     = PortMirroringSolution(mirror_switch_id,
                     mirror_port_id, objective_value)
         return solutions
 

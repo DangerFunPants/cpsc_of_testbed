@@ -49,19 +49,30 @@ def read_results(results_repository, provider_name, solution_name, trial_name):
 
 def compute_theoretical_mirroring_rates_for_switches(switches, solutions):
     rates_for_switch = defaultdict(float)
-    for switch_id, solution in solutions.items():
-        mirrored_port_rate = switches[switch_id].rate_for_port(solution.mirror_switch_port)
-        rates_for_switch[switch_id] += mirrored_port_rate
+    for switch_id, solutions in solutions.items():
+        for solution in solutions:
+            mirrored_port_rate = switches[solution.mirror_switch_id].rate_for_port(
+                    solution.mirror_switch_port)
+            rates_for_switch[solution.mirror_switch_id] += mirrored_port_rate
     return rates_for_switch
 
 def compute_most_used_mirroring_port(switches, solutions):
     rates_for_switch = compute_theoretical_mirroring_rates_for_switches(switches, solutions)
-    return max(rates_for_switch.items(), key=lambda kvp: kvp[1])[0]
+    max_mirroring_port_switch_id = max(rates_for_switch.items(), key=lambda kvp: kvp[1])
+    max_port_rate = compute_most_used_mirroring_port_rate(switches, solutions)
+    if max_mirroring_port_switch_id[1] != max_port_rate:
+        # pp.pprint({k: str(v) for k, v in switches.items()})
+        # pp.pprint({k: str(v) for k, v in solutions.items()})
+        raise ValueError("Max port rates don't match %f and %f. Max node Id %d" % 
+                (max_mirroring_port_switch_id[1], max_port_rate, max_mirroring_port_switch_id[0]))
+        # print("max port rates don't match, computed %f, actual %f." %
+        #         (max_mirroring_port_switch_id[1], max_port_rate))
+    return max_mirroring_port_switch_id[0]
 
 def compute_most_used_mirroring_port_rate(switches, solutions):
     # rates_for_switch = compute_theoretical_mirroring_rates_for_switches(switches, solutions)
     # return max(rates_for_switch.items(), key=lambda kvp: kvp[1])[1]
-    return next(iter(solutions.values())).objective_value
+    return next(iter(solutions.values()))[0].objective_value
 
 def compute_theoretical_and_actual_utilization(results_repository):
     utilization_data = defaultdict(lambda: defaultdict(list))
@@ -73,7 +84,12 @@ def compute_theoretical_and_actual_utilization(results_repository):
                 topo, flows, switches, solutions, net_utilization, ports = read_results(
                         results_repository, run, solution_name, trial_name)
 
-                most_used_mirroring_port = compute_most_used_mirroring_port(switches, solutions)
+                try:
+                    most_used_mirroring_port = compute_most_used_mirroring_port(switches, solutions)
+                except ValueError as ve:
+                    print(ve)
+                    print("FOR %s %s %s" % (run, solution_name, trial_name))
+                    continue
 
                 id_to_dpid = topo_mapper.get_and_validate_onos_topo(topo)
                 mirror_port_dpid = id_to_dpid[most_used_mirroring_port]
@@ -153,7 +169,7 @@ def generate_theoretical_vs_actual_utilization_bar_plot(results_repository):
             results_repository)
     actual_std_deviation = compute_actual_std_deviation(results_repository)
 
-    width = 0.35
+    width           = 0.35
     labels          = ["det", "df", "greedy", "optimal"]
     half            = len(labels) // 2
     bar_locations   = [w for w in np.arange((width/2), len(labels)*width, width)]
@@ -161,7 +177,7 @@ def generate_theoretical_vs_actual_utilization_bar_plot(results_repository):
     hatch           = ["\\", "//", "\\", "//"]
 
     for solution_name in labels:
-        ind = np.arange(1, 6)
+        ind = np.arange(1, 2)
         fig, ax = plt.subplots()
         data_tuples = sorted([(k, v) for k, v in utilization_data[solution_name].items()],
                 key=lambda kvp: kvp[0])
@@ -175,7 +191,7 @@ def generate_theoretical_vs_actual_utilization_bar_plot(results_repository):
         theoretical_tuples = sorted([(k, v) for k, v in theoretical_data[solution_name].items()],
                 key=lambda kvp: kvp[0])
         xs = [flow_count for flow_count, _ in theoretical_tuples]
-        ys = [util_val*10 for _, util_val in theoretical_tuples]
+        ys = [util_val * pm_cfg.rate_factor for _, util_val in theoretical_tuples]
         pp.pprint(ys)
         ax.bar(ind+(width/2), ys, width, color="skyblue", hatch=".", 
                 tick_label=xs, label="Expected")
@@ -231,7 +247,7 @@ def generate_mirroring_port_utilization_bar_plot(results_repository):
         for switch_id in switches.keys():
             aggregate_rate = mirroring_utils[switch_id]
             xs.append(switch_id)
-            ys.append(aggregate_rate * 10)
+            ys.append(aggregate_rate * pm_cfg.rate_factor)
         ax.bar(ind+(width/2), ys, width, color="green", hatch="\\", label="Expected") 
 
         plt.legend(loc="upper center", bbox_to_anchor=(0.5, cfg.LEGEND_HEIGHT), 

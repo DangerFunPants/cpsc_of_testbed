@@ -36,10 +36,11 @@ def create_add_port_mirroring_rules_request_json( flow_def
 
     def create_mirrored_ports_json(solutions, id_to_dpid, port_ids_to_port_numbers):
         mirrored_switch_ports = defaultdict(list)
-        for solution_id, solution in solutions.items():
-            actual_port_number = port_ids_to_port_numbers[solution.mirror_switch_id][solution.mirror_switch_port]
-            mirror_switch_dpid = id_to_dpid[solution.mirror_switch_id]
-            mirrored_switch_ports[mirror_switch_dpid].append(actual_port_number)
+        for solution_id, solution_list in solutions.items():
+            for solution in solution_list:
+                actual_port_number = port_ids_to_port_numbers[solution.mirror_switch_id][solution.mirror_switch_port]
+                mirror_switch_dpid = id_to_dpid[solution.mirror_switch_id]
+                mirrored_switch_ports[mirror_switch_dpid].append(actual_port_number)
         return dict(mirrored_switch_ports)
 
     mirrored_ports_json = create_mirrored_ports_json(solutions, id_to_dpid,

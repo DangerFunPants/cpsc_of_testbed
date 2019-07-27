@@ -142,7 +142,7 @@ class PortMirroringSwitch:
 
     def __str__(self):
         s = ("PortMirroringSwitch { switch_id: %d, ports: %s" %
-                (self.switch_id, str(self.ports)))
+                (self.switch_id, str([str(port) for port in self.ports])))
         return s
 
 class PortMirroringSolution:
@@ -167,23 +167,24 @@ class PortMirroringSolution:
     def serialize(solutions):
         s = ""
         objective = None
-        for solution_id, solution in solutions.items():
-            objective = solution.objective_value
-            s += "%d %d\n" % (solution.mirror_switch_id, solution.mirror_switch_port)
+        for solution_id, solution_list in solutions.items():
+            for solution in solution_list:
+                objective = solution.objective_value
+                s += "%d %d\n" % (solution.mirror_switch_id, solution.mirror_switch_port)
         s += "%f" % objective
         return s
 
     @staticmethod
     def deserialize(text):
-        solutions = {}
+        solutions = defaultdict(list)
         lines = text.splitlines()
         objective_value = float(lines[-1])
         for line in lines[:-1]:
             [switch_id, port_id]            = line.split(" ")
             mirror_switch_id                = int(switch_id)
             mirror_port_id                  = int(port_id)
-            solutions[mirror_switch_id]     = PortMirroringSolution(mirror_switch_id,
-                    mirror_port_id, objective_value)
+            solutions[mirror_switch_id].append(PortMirroringSolution(mirror_switch_id,
+                    mirror_port_id, objective_value))
         return solutions
 
     def __str__(self):

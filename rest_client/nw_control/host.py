@@ -100,7 +100,6 @@ class TrafficGenHost(Host):
                ]
         comm_str = util.inject_arg_opts(start_comm, args)
         comm_str += ' &'
-        print(comm_str)
         return self.exec_command(comm_str)
 
     def stop_client(self):
@@ -127,13 +126,11 @@ class TrafficGenHost(Host):
     def retrieve_client_files(self, dst_dir):
         local_ip = self.get_local_ip()
         command = 'sshpass -pubuntu scp -o StrictHostKeyChecking=no -r %ssender_*.p ubuntu@%s:%s' % (self.COUNT_DIR, local_ip, dst_dir)
-        print('TX: %s' % command)
         self.exec_command(command)
 
     def retrieve_server_files(self, dst_dir):
         local_ip = self.get_local_ip()
         command = 'sshpass -pubuntu scp -o StrictHostKeyChecking=no -r %sreceiver_*.p ubuntu@%s:%s' % (self.COUNT_DIR, local_ip, dst_dir)
-        print('RX: %s' % command)
         self.exec_command(command)
 
     def get_local_ip(self):
@@ -171,7 +168,6 @@ class TrafficGenHost(Host):
         start_comm = '%s/traffic_gen.py' % TrafficGenHost.BIN_DIR
         comm_str = util.inject_arg_opts(start_comm, [command_args])
         comm_str += ' &'
-        print(comm_str)
         return self.exec_command(comm_str)
 
     @staticmethod

@@ -3,7 +3,8 @@ import networkx             as nx
 import requests             as req
 import json                 as json
 
-import nw_control.params    as cfg
+import nw_control.params            as cfg
+import port_mirroring.params        as pm_cfg
 
 def build_graph_from_topo_file(topo_file):
     text = topo_file.read_text()
@@ -90,7 +91,9 @@ def get_host_port(switch_dpid):
     for host in hosts:
         host_locations = host["locations"]
         for host_location in host_locations:
-            if host_location["elementId"] == switch_dpid:
+            if (host_location["elementId"] == switch_dpid and 
+                    pm_cfg.collector_ip_addr not in host["ipAddresses"] and
+                    cfg.dns_server_ip not in host["ipAddresses"]):
                 return int(host_location["port"])
     raise ValueError("Could not find host connected to switch with DPID %s" %
             switch_dpid)

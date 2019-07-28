@@ -19,7 +19,7 @@ def flow_mirroring_plots():
 
 def port_mirroring_plots():
     # repo_path = pm_cfg.base_repository_path
-    repo_path = path.Path("/home/cpsc-net-user/repos/port-mirroring-results-2")
+    repo_path = path.Path("/home/cpsc-net-user/repos/port-mirroring-results-test")
     results_repository = rr.ResultsRepository.create_repository(repo_path,
             "/provider-name/solution-type/trial-name/", "port-mirroring")
 

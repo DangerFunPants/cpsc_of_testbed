@@ -121,18 +121,18 @@ def run_provider_trials(provider):
 
 def main():
     # provider = trials.flow_mirroring_trials()
-    # provider = trials.port_mirroring_trials()
-    provider = trials.port_mirroring_test()
+    provider = trials.port_mirroring_trials()
+    # provider = trials.port_mirroring_test()
     # provider = trials.re_run_trials()
     
-    for trial in provider:
-        nw_trial = port_mirroring_trial.PortMirroringTrial.map_to_physical_network(trial)
-        print(nw_trial)
-        onos_rest_helpers.verify_path_ports(nw_trial.flows)
-        # if not trial.verify_trial_state():
-        #     print("Not all flows in trial were mirrored.")
-        # else:
-        #     print("All flows were mirrored successfully.")
+    # for trial in provider:
+    #     nw_trial = port_mirroring_trial.PortMirroringTrial.map_to_physical_network(trial)
+    #     print(nw_trial)
+    #     onos_rest_helpers.verify_path_ports(nw_trial.flows)
+    #     # if not trial.verify_trial_state():
+    #     #     print("Not all flows in trial were mirrored.")
+    #     # else:
+    #     #     print("All flows were mirrored successfully.")
     run_provider_trials(provider)
 
 if __name__ == "__main__":

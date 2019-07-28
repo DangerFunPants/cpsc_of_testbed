@@ -80,7 +80,7 @@ def compute_theoretical_and_actual_utilization(results_repository):
 
     for run in ["run-%d" % run_idx for run_idx in range(0, 1)]:
         for solution_name in ["det", "df", "greedy", "optimal"]:
-            for trial_name in ["sub-trial-%d" % trial_idx for trial_idx in range(1)]:
+            for trial_name in ["sub-trial-%d" % trial_idx for trial_idx in range(5)]:
                 topo, flows, switches, solutions, net_utilization, ports = read_results(
                         results_repository, run, solution_name, trial_name)
 
@@ -99,8 +99,6 @@ def compute_theoretical_and_actual_utilization(results_repository):
                     except KeyError as ke:
                         print("KEY ERROR KE %s" % ke)
 
-                # mirror_port_utils = [util_at_time_t[mirror_port_dpid][collector_switch_dpid]
-                #     for util_at_time_t in net_utilization]
                 theoretical_util = compute_most_used_mirroring_port_rate(switches, solutions)
                 utilization_data[solution_name][len(flows)].extend(mirror_port_utils)
                 theoretical_data[solution_name][len(flows)] = theoretical_util
@@ -181,7 +179,7 @@ def generate_theoretical_vs_actual_utilization_bar_plot(results_repository):
     hatch           = ["\\", "//", "\\", "//"]
 
     for solution_name in labels:
-        ind = np.arange(1, 2)
+        ind = np.arange(1, 6)
         fig, ax = plt.subplots()
         data_tuples = sorted([(k, v) for k, v in utilization_data[solution_name].items()],
                 key=lambda kvp: kvp[0])

@@ -63,10 +63,10 @@ def compute_most_used_mirroring_port(switches, solutions):
     if max_mirroring_port_switch_id[1] != max_port_rate:
         # pp.pprint({k: str(v) for k, v in switches.items()})
         # pp.pprint({k: str(v) for k, v in solutions.items()})
-        raise ValueError("Max port rates don't match %f and %f. Max node Id %d" % 
-                (max_mirroring_port_switch_id[1], max_port_rate, max_mirroring_port_switch_id[0]))
-        # print("max port rates don't match, computed %f, actual %f." %
-        #         (max_mirroring_port_switch_id[1], max_port_rate))
+        # raise ValueError("Max port rates don't match %f and %f. Max node Id %d" % 
+        #         (max_mirroring_port_switch_id[1], max_port_rate, max_mirroring_port_switch_id[0]))
+        print("max port rates don't match, computed %f, actual %f." %
+                (max_mirroring_port_switch_id[1], max_port_rate))
     return max_mirroring_port_switch_id[0]
 
 def compute_most_used_mirroring_port_rate(switches, solutions):
@@ -80,23 +80,27 @@ def compute_theoretical_and_actual_utilization(results_repository):
 
     for run in ["run-%d" % run_idx for run_idx in range(0, 1)]:
         for solution_name in ["det", "df", "greedy", "optimal"]:
-            for trial_name in ["sub-trial-%d" % trial_idx for trial_idx in range(5)]:
+            for trial_name in ["sub-trial-%d" % trial_idx for trial_idx in range(1)]:
                 topo, flows, switches, solutions, net_utilization, ports = read_results(
                         results_repository, run, solution_name, trial_name)
 
-                try:
-                    most_used_mirroring_port = compute_most_used_mirroring_port(switches, solutions)
-                except ValueError as ve:
-                    print(ve)
-                    print("FOR %s %s %s" % (run, solution_name, trial_name))
-                    continue
+                most_used_mirroring_port = compute_most_used_mirroring_port(switches, solutions)
 
                 id_to_dpid = topo_mapper.get_and_validate_onos_topo(topo)
                 mirror_port_dpid = id_to_dpid[most_used_mirroring_port]
                 collector_switch_dpid = topo_mapper.get_collector_switch_dpid()
 
-                mirror_port_utils = [util_at_time_t[mirror_port_dpid][collector_switch_dpid]
-                    for util_at_time_t in net_utilization]
+                print(mirror_port_dpid, collector_switch_dpid)
+                mirror_port_utils = []
+                for util_at_time_t in net_utilization:
+                    try:
+                        mirror_port_utils.append(
+                                util_at_time_t[mirror_port_dpid][collector_switch_dpid])
+                    except KeyError as ke:
+                        print("KEY ERROR KE %s" % ke)
+
+                # mirror_port_utils = [util_at_time_t[mirror_port_dpid][collector_switch_dpid]
+                #     for util_at_time_t in net_utilization]
                 theoretical_util = compute_most_used_mirroring_port_rate(switches, solutions)
                 utilization_data[solution_name][len(flows)].extend(mirror_port_utils)
                 theoretical_data[solution_name][len(flows)] = theoretical_util
@@ -259,8 +263,37 @@ def generate_mirroring_port_utilization_bar_plot(results_repository):
         save_figure("plot-three-%s.pdf" % solution_name)
         plt.clf()
 
+def generate_theoretical_util_graph(results_repository):
+    utilization_data, theoretical_data = compute_theoretical_and_actual_mean_utilization(
+            results_repository)
 
+    width = 0.2
+    ind = np.arange(1, 6)
+    fig, ax = plt.subplots()
+    labels          = ["det", "df", "greedy", "optimal"]
+    half            = len(labels) // 2
+    bar_locations   = [w for w in np.arange((width/2), len(labels)*width, width)]
+    colors          = ["green", "skyblue", "purple", "yellow"]
+    hatch           = ["\\", "//", "\\", "//"]
 
+    for bar_idx, solution_name in enumerate(labels):
+        theoretical_tuples = sorted([(k, v) for k, v in theoretical_data[solution_name].items()],
+                key=lambda kvp: kvp[0])
+        xs = [flow_count for flow_count, _ in theoretical_tuples]
+        ys = [util_val * pm_cfg.rate_factor for _, util_val in theoretical_tuples]
+        ax.bar(ind+bar_locations[bar_idx], ys, width, color=colors[bar_idx], hatch=hatch[bar_idx], 
+                label=labels[bar_idx])
+
+    
+    plt.rc('text', usetex=True)
+    plt.rc('font', family='serif')
+    plt.xlabel("Number of Flows")
+    plt.ylabel("Maximum mirroring port rate ($\\frac{Mb}{s}$)")
+    plt.xticks(ind+0.4, ind*10)
+    plt.legend(loc="upper center", bbox_to_anchor=(0.5, cfg.LEGEND_HEIGHT), 
+            shadow=True, ncol=len(labels))
+
+    helpers.save_figure("pm-plot-four.pdf")
 
 
 

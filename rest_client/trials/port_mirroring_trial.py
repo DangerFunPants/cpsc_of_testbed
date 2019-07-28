@@ -5,6 +5,7 @@ import subprocess           as subprocess
 import json                 as json
 
 import port_mirroring.onos_rest_helpers     as onos_rest_helpers
+import nw_control.topo_mapper               as topo_mapper
 
 from collections                import defaultdict
 
@@ -51,16 +52,17 @@ class PortMirroringFlow:
         for line in text.splitlines():
             tokens = line.split(" ")
             [flow_id, traffic_rate], path_str = tokens[:2], tokens[2:]
-            path = [(path_str[idx], path_str[idx+1]) for idx in range(0, len(path_str), 2)]
+            path = [(int(path_str[idx]), int(path_str[idx+1])) 
+                    for idx in range(0, len(path_str)-1, 2)]
+            path.append((int(path_str[-1]), 0))
             flow_id = int(flow_id)
             traffic_rate = float(traffic_rate)
-            path = [(int(node_id), int(switch_id)) for node_id, switch_id in path]
             flows[flow_id] = PortMirroringFlow(flow_id, traffic_rate, path)
         return flows
 
     def __str__(self):
         return ("PortMirroringFlow {flow_id: %d, traffic_rate: %f, path: %s}" %
-                (self.flow_id, self.traffic_rate, self.path))
+                (self.flow_id, self.traffic_rate, list(zip(self.path, self.ports))))
 
 class SwitchPort:
     def __init__(self, port_id, flow_rate, flow_list):
@@ -104,6 +106,12 @@ class PortMirroringSwitch:
         for port in self.ports:
             if port.port_id == port_id:
                 return port.flow_rate
+        raise ValueError("Switch %d does not have port with ID %d" % (self.switch_id, port_id))
+
+    def get_port(self, port_id):
+        for port in self.ports:
+            if port.port_id == port_id:
+                return port
         raise ValueError("Switch %d does not have port with ID %d" % (self.switch_id, port_id))
 
     @staticmethod
@@ -188,7 +196,7 @@ class PortMirroringSolution:
         return solutions
 
     def __str__(self):
-        s = ("PortMirroringSolution { mirror_switch_id: %d, mirror_switch_port: %d, objective_value: %f" % (self.mirror_switch_id, self.mirror_switch_port, self.objective_value))
+        s = ("PortMirroringSolution { mirror_switch_id: %s, mirror_switch_port: %s, objective_value: %f" % (self.mirror_switch_id, self.mirror_switch_port, self.objective_value))
         return s
 
 class PortMirroringPorts:
@@ -240,7 +248,12 @@ class PortMirroringTrial:
         self._solutions             = optimal_solutions
         self._solution_type         = "optimal"
         self._mirroring_ports       = mirroring_ports
-    
+        self._solution_types        = [ "det"
+                                      , "df"
+                                      , "greedy"
+                                      , "optimal"
+                                      ]
+
     @property
     def topology(self):
         return self._topology
@@ -297,6 +310,40 @@ class PortMirroringTrial:
     def solution_type(self, new_solution_type):
         self._solution_type = new_solution_type
 
+    @property
+    def solution_types(self):
+        return self._solution_types
+
+    @solution_types.setter
+    def solution_types(self, new_solution_types):
+        self._solution_types = new_solution_types
+
+    def get_solution_of_type(self, solution_type):
+        if solution_type == "df":
+            return self._df_solutions
+        elif solution_type == "optimal":
+            return self._optimal_solutions
+        elif solution_type == "det":
+            return self._det_solutions
+        elif solution_type == "greedy":
+            return self._greedy_solutions
+
+    def verify_trial_state(self):
+        flows = self.flows
+        switches = self.switches
+        for solution_type in self.get_solution_types():
+            mirrored_flows = set()
+            solution = self.get_solution_of_type(solution_type) 
+            for _, solution_list in solution.items():
+                for solution in solution_list:
+                    switch_id       = solution.mirror_switch_id
+                    port_id         = solution.mirror_switch_port
+                    port            = switches[switch_id].get_port(port_id)
+                    print(port.flow_list)
+                    for flow_id in port.flow_list:
+                        mirrored_flows.add(flow_id)
+        return len(mirrored_flows) == len(flows)
+
     def add_flows(self):
         flow_tokens = onos_rest_helpers.add_port_mirroring_flows(self.topology, self.flows, self.switches,
                 self.solutions, self.mirroring_ports)
@@ -307,12 +354,7 @@ class PortMirroringTrial:
         return self._mirroring_ports
 
     def get_solution_types(self):
-        solution_types = [ "det"
-                         , "df"
-                         , "greedy"
-                         , "optimal"
-                         ]
-        return solution_types
+        return self.solution_types
 
     def set_solution_type(self, type_name):
         lower_type_name = type_name.lower()
@@ -359,6 +401,46 @@ class PortMirroringTrial:
         return trial
 
     @staticmethod
+    def from_repository_files(results_repository, schema_variables, duration, name):
+        files = [ "flows"
+                , "switches"
+                , "solutions"
+                , "ports"
+                , "topo"
+                ]
+        results             = results_repository.read_trial_results(schema_variables, files)
+        flows               = PortMirroringFlow.deserialize(results["flows"])
+        solutions           = PortMirroringSolution.deserialize(results["solutions"])
+        switches            = PortMirroringSwitch.deserialize(results["switches"])
+        mirroring_ports     = PortMirroringPorts.deserialize(results["ports"])
+        topology            = results["topo"]
+
+        det_solutions       = None 
+        df_solutions        = None
+        greedy_solutions    = None
+        optimal_solutions   = None
+        rnd_solutions       = None
+        solution_type = schema_variables["solution-type"]
+        if solution_type == "det":
+            det_solutions = solutions
+        elif solution_type == "df":
+            df_solutions = solutions
+        elif solution_type == "greedy":
+            greedy_solutions = solutions
+        elif solution_type == "optimal":
+            optimal_solutions = solutions
+        elif solution_type == "rnd":
+            rnd_solutions = solutions
+        else:
+            raise ValueError("Unrecognized solution type %s" % solution_type)
+
+        trial = PortMirroringTrial(topology, flows, switches, det_solutions, df_solutions,
+                greedy_solutions, optimal_solutions, rnd_solutions, duration, name,
+                mirroring_ports)
+        trial.solution_types = [solution_type]
+        return trial
+
+    @staticmethod
     def invoke_solver_with_params(topology, minimum_flow_rate, maximum_flow_rate, num_flows):
         def create_solver_cmd(topology, minimum_flow_rate, maximum_flow_rate, num_flows):
             PortMirroringTrial.TOPOLOGY_FILE.write_text(topology)
@@ -373,6 +455,49 @@ class PortMirroringTrial:
         
         cmd = create_solver_cmd(topology, minimum_flow_rate, maximum_flow_rate, num_flows)
         subprocess.run(cmd)
+
+    @staticmethod
+    def map_to_physical_network(trial):
+        id_to_dpid = topo_mapper.get_and_validate_onos_topo(trial.topology)
+        port_ids_to_port_numbers = onos_rest_helpers.map_port_ids_to_nw_ports(
+                trial.mirroring_ports, id_to_dpid)
+
+        new_flows = {}
+        for flow_id, flow in trial.flows.items():
+            new_path = [id_to_dpid[node] for node in flow.path]
+            new_ports = [port_ids_to_port_numbers[switch_id][port] 
+                    for switch_id, port in zip(flow.path[:-1], flow.ports[:-1])]
+            zipped_path = list(zip(new_path, new_ports))
+            
+            last_hop_switch_dpid    = id_to_dpid[flow.path[-1]]
+            last_hop_egress_port    = topo_mapper.get_host_port(last_hop_switch_dpid)
+            zipped_path.append((last_hop_switch_dpid, last_hop_egress_port))
+            new_flow = PortMirroringFlow(flow_id, flow.traffic_rate, zipped_path)
+            new_flows[flow_id] = new_flow
+
+        new_solutions = defaultdict(list)
+        for switch_id, solution_list in trial.solutions.items():
+            for solution in solution_list:
+                new_mirror_switch_id = id_to_dpid[solution.mirror_switch_id]
+                new_mirror_switch_port = port_ids_to_port_numbers[solution.mirror_switch_id][solution.mirror_switch_port]
+                new_solution = PortMirroringSolution(new_mirror_switch_id, new_mirror_switch_port,
+                        solution.objective_value)
+                new_solutions[switch_id].append(new_solution)
+
+        solutions = {}
+        solutions[trial.solution_type] = new_solutions
+        det_solutions = solutions.get("det", None)
+        df_solutions = solutions.get("df", None)
+        greedy_solutions = solutions.get("greedy", None)
+        optimal_solutions = solutions.get("optimal", None)
+        rnd_solutions = solutions.get("rnd", None)
+        new_trial = PortMirroringTrial(trial.topology, new_flows, trial.switches, det_solutions,
+                df_solutions, greedy_solutions, optimal_solutions, rnd_solutions,
+                trial.duration, trial.name, trial.mirroring_ports)
+        print("solution_type %s" % trial.solution_type)
+        pp.pprint(solutions)
+        new_trial.set_solution_type(trial.solution_type)
+        return new_trial
 
     def build_results_files(self, utilization_results):
         utilization_text    = json.dumps(utilization_results)
@@ -396,6 +521,6 @@ class PortMirroringTrial:
             s += "\t%s\n" % str(flow)
         s += "\nSolutions:\n"
         for solution in self.solutions.values():
-            s += "\t%s\n" % str(solution)
+            s += "\t%s\n" % str([str(s) for s in solution])
         return s
 

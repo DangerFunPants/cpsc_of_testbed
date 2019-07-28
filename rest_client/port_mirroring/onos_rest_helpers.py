@@ -9,6 +9,40 @@ import nw_control.topo_mapper       as topo_mapper
 
 from collections import defaultdict
 
+def verify_that_all_flows_are_mirrored(flows, switches, solutions, port_ids_to_port_numbers,
+        id_to_dpid):
+    mirrored_flow_ids = set()
+    for solution_id, solution_list in solutions.items():
+        for solution in solution_list:
+            switch_id                   = solution.mirror_switch_id
+            port_id                     = solution.mirror_switch_port
+            mirrored_dpid               = id_to_dpid[switch_id]
+            mirrored_port_number        = port_ids_to_port_numbers[port_id]
+            for flow_id, flow in flows.items():
+                for flow_switch_id, flow_port_id in zip(flow.path, flow.ports):
+                    flow_dpid           = id_to_dpid[flow_switch_id]
+                    actual_port_number  = port_ids_to_port_numbers[flow_port_id]
+                    if (actual_port_number == mirrored_port_number
+                            and flow_dpid == mirrored_dpid):
+                        mirrored_flow_ids.add(flow_id)
+
+    if len(mirrored_flow_ids) != len(flows):
+        print("*************ERROR: All flows have not been mirrored*****************")
+    else:
+        print("All flows have been mirrored.")
+
+def verify_path_ports(flows_mapped_to_nw):
+    for flow_id, flow_mapped_to_nw in flows_mapped_to_nw.items():
+        dpid_to_port = {dpid: port_num 
+                for dpid, port_num in zip(flow_mapped_to_nw.path, flow_mapped_to_nw.ports)}
+        for switch_id, next_hop_id in zip(flow_mapped_to_nw.path, flow_mapped_to_nw.path[1:]):
+            source_port, dest_port = topo_mapper.get_ports_that_connect(switch_id, next_hop_id)
+            if source_port != dpid_to_port[switch_id]:
+                print("WEIRDNESS WITH MAPPING BETWEEN PORT IDS AND PORT NUMBERS.")
+                print("Expected dpid %s to have port %s connecting to %s. Found port %s" %
+                        (switch_id, dpid_to_port[switch_id], next_hop_id, source_port))
+
+
 def create_add_flow_mirroring_rules_request_json(flow_def, switches, solution_def, id_to_dpid, tag_value):
     def create_path_json(flow_def):
         path_json_dict = {"nodes": [id_to_dpid[node_id] for node_id in flow_def.path]}
@@ -30,9 +64,16 @@ def create_add_port_mirroring_rules_request_json( flow_def
         path_json_dict = {"nodes": [id_to_dpid[node_id] for node_id in flow_def.path]}
         return path_json_dict
 
-    def create_port_numbers_json(flow_def):
-        port_numbers_dict = [port_id for port_id in flow_def.ports]
-        return port_numbers_dict
+    def create_port_numbers_json(flow_def, port_ids_to_port_numbers, id_to_dpid):
+        port_numbers = []
+        for switch_id, port_id in zip(flow_def.path[:-1], flow_def.ports[:-1]):
+            actual_port_number = port_ids_to_port_numbers[switch_id][port_id]
+            port_numbers.append(actual_port_number)
+        
+        last_hop_switch_dpid = id_to_dpid[flow_def.path[-1]]
+        last_hop_egress_port = topo_mapper.get_host_port(last_hop_switch_dpid)
+        port_numbers.append(last_hop_egress_port)
+        return port_numbers
 
     def create_mirrored_ports_json(solutions, id_to_dpid, port_ids_to_port_numbers):
         mirrored_switch_ports = defaultdict(list)
@@ -42,11 +83,14 @@ def create_add_port_mirroring_rules_request_json( flow_def
                 mirror_switch_dpid = id_to_dpid[solution.mirror_switch_id]
                 mirrored_switch_ports[mirror_switch_dpid].append(actual_port_number)
         return dict(mirrored_switch_ports)
-
+    
     mirrored_ports_json = create_mirrored_ports_json(solutions, id_to_dpid,
             port_ids_to_port_numbers)
-    json_dict = { "flowRoute"       : create_path_json(flow_def)
-                , "portNumbers"     : create_port_numbers_json(flow_def)
+    pp.pprint(mirrored_ports_json)
+    flow_path_json      = create_path_json(flow_def)
+    port_number_json    = create_port_numbers_json(flow_def, port_ids_to_port_numbers, id_to_dpid)
+    json_dict = { "flowRoute"       : flow_path_json
+                , "portNumbers"     : port_number_json
                 , "tagValue"        : tag_value
                 , "mirroredPorts"   : mirrored_ports_json
                 }
@@ -126,6 +170,10 @@ def add_port_mirroring_flows(topology, flows, switches, solutions, mirroring_por
     id_to_dpid = topo_mapper.get_and_validate_onos_topo(topology)
     port_ids_to_port_numbers = map_port_ids_to_nw_ports(mirroring_ports, id_to_dpid)
     flow_tokens = {}
+
+    verify_that_all_flows_are_mirrored(flows, switches, solutions, port_ids_to_port_numbers,
+            id_to_dpid)
+
     for flow_id in flow_ids_to_add:
         flow_tokens[flow_id] = request_port_mirroring(flows[flow_id], switches, solutions,
                 id_to_dpid, flow_id, port_ids_to_port_numbers)

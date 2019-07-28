@@ -16,7 +16,7 @@ def build_graph_from_topo_string(topo_str):
     for node_idx in range(1, num_nodes + 1):
         graph.add_node(node_idx)
     
-    for edge_entry in lines[1:]:
+    for edge_entry in lines[2:]:
         [source_node, destination_node] = edge_entry.split(" ")
         graph.add_edge(int(source_node), int(destination_node))
 
@@ -29,12 +29,13 @@ def generate_graph_isomorphism(g1, g2):
     return graph_matcher.mapping
 
 def get_collector_switch_dpid():
-    request_url = url.urljoin(cfg.onos_url.geturl(), "v1/hosts")
-    hosts_request = req.get(request_url, auth=cfg.ONOS_API_CREDENTIALS)
-    if hosts_request.status_code != 200:
-        raise ValueError("Failed to get hosts from ONOS controller. Stats %d %s." %
-                (hosts_request.status_code, hosts_request.reason))
-    hosts = json.loads(hosts_request.text)["hosts"]
+    # request_url = url.urljoin(cfg.onos_url.geturl(), "v1/hosts")
+    # hosts_request = req.get(request_url, auth=cfg.ONOS_API_CREDENTIALS)
+    # if hosts_request.status_code != 200:
+    #     raise ValueError("Failed to get hosts from ONOS controller. Stats %d %s." %
+    #             (hosts_request.status_code, hosts_request.reason))
+    # hosts = json.loads(hosts_request.text)["hosts"]
+    hosts = get_nw_hosts()
     collector_host = next(host for host in hosts if cfg.collector_host_ip in host["ipAddresses"])
     return collector_host["locations"][0]["elementId"]
 
@@ -46,6 +47,15 @@ def get_nw_links():
                 (links_request.status_code, links_request.reason))
     links = json.loads(links_request.text)
     return links["links"]
+
+def get_nw_hosts():
+    requests_url = url.urljoin(cfg.onos_url.geturl(), "v1/hosts")
+    hosts_request = req.get(requests_url, auth=cfg.ONOS_API_CREDENTIALS)
+    if hosts_request.status_code != 200:
+        raise ValueError("Failed to get hosts from ONOS controller. Status %d %s." %
+                (links_request.status_code, links_request.reason))
+    hosts = json.loads(hosts_request.text)
+    return hosts["hosts"]
 
 def build_onos_topo_graph():
     links = get_nw_links()
@@ -74,6 +84,16 @@ def get_ports_that_connect(source_dpid, destination_dpid):
         if link["src"]["device"] == source_dpid and link["dst"]["device"] == destination_dpid:
             return (int(link["src"]["port"]), int(link["dst"]["port"]))
     raise ValueError("Could not find link connecting %s and %s" % (source_dpid, destination_dpid))
+
+def get_host_port(switch_dpid):
+    hosts = get_nw_hosts()
+    for host in hosts:
+        host_locations = host["locations"]
+        for host_location in host_locations:
+            if host_location["elementId"] == switch_dpid:
+                return int(host_location["port"])
+    raise ValueError("Could not find host connected to switch with DPID %s" %
+            switch_dpid)
 
 def get_and_validate_onos_topo(target_topo_string):
     def find_where_graphs_differ(target_graph, actual_graph):

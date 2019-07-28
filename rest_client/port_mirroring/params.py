@@ -2,7 +2,7 @@
 import pathlib      as path
 
 # Root directory for solver inputs and outputs.
-INPUT_FILE_DIR          = path.Path("/home/cpsc-net-user/repos/flow-mirroring-scheme/")
+INPUT_FILE_DIR          = path.Path("/home/cpsc-net-user/repos/port-mirroring-scheme/")
 
 # Path to the file containing the topology given to the solver.
 target_topo_path        = INPUT_FILE_DIR.joinpath("network/topo")
@@ -23,7 +23,7 @@ solution_file_path      = INPUT_FILE_DIR.joinpath("solutions/opt")
 collector_ip_addr       = "10.10.0.18"
 
 # Root directory of the results repository
-base_repository_path    = path.Path("/home/cpsc-net-user/repos/port-mirroring-results-test/")
+base_repository_path    = path.Path("/home/cpsc-net-user/repos/port-mirroring-results-5/")
 
 # Schema string for the repository
 repository_schema       = "/provider-name/solution-type/trial-name/"

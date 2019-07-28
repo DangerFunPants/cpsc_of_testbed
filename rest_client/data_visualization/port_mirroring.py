@@ -80,7 +80,7 @@ def compute_theoretical_and_actual_utilization(results_repository):
 
     for run in ["run-%d" % run_idx for run_idx in range(0, 1)]:
         for solution_name in ["det", "df", "greedy", "optimal"]:
-            for trial_name in ["sub-trial-%d" % trial_idx for trial_idx in range(1)]:
+            for trial_name in ["sub-trial-%d" % trial_idx for trial_idx in range(5)]:
                 topo, flows, switches, solutions, net_utilization, ports = read_results(
                         results_repository, run, solution_name, trial_name)
 
@@ -140,6 +140,7 @@ def generate_max_mirror_port_utilization_bar_plot(results_repository):
     ind = np.arange(1, 6)
     fig, ax = plt.subplots()
     labels          = ["det", "df", "greedy", "optimal"]
+    legend_labels   = ["LPR", "DuFi", "Greedy", "Optimal"]
     half            = len(labels) // 2
     bar_locations   = [w for w in np.arange((width/2), len(labels)*width, width)]
     print(bar_locations)
@@ -153,7 +154,7 @@ def generate_max_mirror_port_utilization_bar_plot(results_repository):
         ys = [util.bytes_per_second_to_mbps(data) 
                 for _, data in data_tuples]
         ax.bar(ind+bar_locations[bar_idx], ys, width, color=colors[bar_idx], hatch=hatch[bar_idx],
-                label=labels[bar_idx], yerr=yerr_values, align="center",
+                label=legend_labels[bar_idx], yerr=yerr_values, align="center",
                 ecolor="black")
     
     plt.rc('text', usetex=True)
@@ -173,13 +174,14 @@ def generate_theoretical_vs_actual_utilization_bar_plot(results_repository):
 
     width           = 0.35
     labels          = ["det", "df", "greedy", "optimal"]
+    legend_labels   = ["LPR", "DuFi", "Greedy", "Optimal"]
     half            = len(labels) // 2
     bar_locations   = [w for w in np.arange((width/2), len(labels)*width, width)]
     colors          = ["green", "skyblue", "purple", "yellow"]
     hatch           = ["\\", "//", "\\", "//"]
 
     for solution_name in labels:
-        ind = np.arange(1, 2)
+        ind = np.arange(1, 6)
         fig, ax = plt.subplots()
         data_tuples = sorted([(k, v) for k, v in utilization_data[solution_name].items()],
                 key=lambda kvp: kvp[0])
@@ -207,6 +209,7 @@ def generate_theoretical_vs_actual_utilization_bar_plot(results_repository):
 
 def generate_mirroring_port_utilization_bar_plot(results_repository):
     labels          = ["det", "df", "greedy", "optimal"]
+    legend_labels   = ["LPR", "DuFi", "Greedy", "Optimal"]
     trial_name      = "sub-trial-4"
     run_name        = "run-0"
     for solution_name in labels:
@@ -292,10 +295,4 @@ def generate_theoretical_util_graph(results_repository):
             shadow=True, ncol=len(labels))
 
     helpers.save_figure("pm-plot-four.pdf")
-
-
-
-
-
-
 

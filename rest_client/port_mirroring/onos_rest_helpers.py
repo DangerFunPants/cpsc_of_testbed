@@ -86,7 +86,6 @@ def create_add_port_mirroring_rules_request_json( flow_def
     
     mirrored_ports_json = create_mirrored_ports_json(solutions, id_to_dpid,
             port_ids_to_port_numbers)
-    pp.pprint(mirrored_ports_json)
     flow_path_json      = create_path_json(flow_def)
     port_number_json    = create_port_numbers_json(flow_def, port_ids_to_port_numbers, id_to_dpid)
     json_dict = { "flowRoute"       : flow_path_json

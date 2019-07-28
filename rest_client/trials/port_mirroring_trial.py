@@ -199,6 +199,67 @@ class PortMirroringSolution:
         s = ("PortMirroringSolution { mirror_switch_id: %s, mirror_switch_port: %s, objective_value: %f" % (self.mirror_switch_id, self.mirror_switch_port, self.objective_value))
         return s
 
+class RndPortMirroringSolution:
+    def __init__( self
+                , mirror_switch_id
+                , mirror_switch_port
+                , objective_value
+                , coverage):
+        self._mirror_switch_id      = mirror_switch_id
+        self._mirror_switch_port    = mirror_switch_port
+        self._objective_value       = objective_value
+        self._coverage              = coverage
+
+    @property
+    def mirror_switch_id(self):
+        return self._mirror_switch_id
+
+    @property
+    def mirror_switch_port(self):
+        return self._mirror_switch_port
+
+    @property
+    def objective_value(self):
+        return self._objective_value
+
+    @property
+    def coverage(self):
+        return self._coverage
+
+    @staticmethod
+    def serialize(rnd_solutions):
+        s = ""
+        objective       = None
+        coverage        = None
+        for solution_id, solution_list in rnd_solutions.items():
+            for solution in solutions_list:
+                objective   = solution.objective_value
+                coverage    = solution.coverage
+                s += "%d %d\n" % (solution.mirror_switch_id, solution.mirror_switch_port)
+        s += "%f\n" % objective
+        s += "%f\n" % coverage
+        return s
+
+    @staticmethod
+    def deserialize(text):
+        solutions = defaultdict(list)
+        lines = text.splitlines()
+        objective_value = float(lines[-2])
+        coverage        = float(lines[-1])
+        for line in lines[:-2]:
+            [switch_id, port_id]        = line.split(" ")
+            mirror_switch_id            = int(switch_id)
+            mirror_port_id              = int(port_id)
+            solutions[mirror_switch_id].append(RndPortMirroringSolution(mirror_switch_id,
+                mirror_port_id, objective_value, coverage))
+        return solutions
+
+    def __str__(self):
+        s = ("RndPortMirroringSolution { mirror_switch_id: %s, mirror_switch_port: %s, objective_value: %s, coverage: %s" %
+                (self.mirror_switch_id, self.mirror_switch_port, 
+                    self.objective_value, self.coverage))
+        return s
+
 class PortMirroringPorts:
     def __init__(self, port_map):
         self._port_map = port_map

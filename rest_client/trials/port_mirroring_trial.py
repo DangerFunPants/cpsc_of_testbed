@@ -444,7 +444,7 @@ class PortMirroringTrial:
         df_solutions_file       = PortMirroringTrial.SOLVER_PATH.joinpath("solutions/df")
         greedy_solutions_file   = PortMirroringTrial.SOLVER_PATH.joinpath("solutions/greedy_port")
         optimal_solutions_file  = PortMirroringTrial.SOLVER_PATH.joinpath("solutions/opt")
-        # rnd_solutions_file      = PortMirroringTrial.SOLVER_PATH.joinpath("solutions/rnd")
+        rnd_solutions_file      = PortMirroringTrial.SOLVER_PATH.joinpath("solutions/rnd")
 
         flows               = PortMirroringFlow.deserialize(flows_file.read_text())
         switches            = PortMirroringSwitch.deserialize(switches_file.read_text())
@@ -453,8 +453,7 @@ class PortMirroringTrial:
         df_solutions        = PortMirroringSolution.deserialize(df_solutions_file.read_text())
         greedy_solutions    = PortMirroringSolution.deserialize(greedy_solutions_file.read_text())
         optimal_solutions   = PortMirroringSolution.deserialize(optimal_solutions_file.read_text())
-        # rnd_solutions       = PortMirroringSolution.deserialize(rnd_solutions_file.read_text())
-        rnd_solutions       = None
+        rnd_solutions       = RndPortMirroringSolution.deserialize(rnd_solutions_file.read_text())
 
         trial = PortMirroringTrial(topology, flows, switches, det_solutions, df_solutions,
                     greedy_solutions, optimal_solutions, rnd_solutions, duration, name,

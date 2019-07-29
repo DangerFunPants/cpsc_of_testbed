@@ -37,6 +37,17 @@ def test_trial():
     
     return provider
 
+def rnd_port_mirroring_trials():
+    topology = pm_cfg.target_topo_path.read_text()
+    provider = trial_provider.TrialProvider.create_provider("run-0")
+    for trial_idx, flow_count in enumerate([idx*10 for idx in range(1, 6)]):
+        trial = port_mirroring_trial.PortMirroringTrial.create_trial(topology, 0.1, 0.5,
+                flow_count, 300, "sub-trial-%d" % trial_idx)
+        trial.solution_types = ["rnd"]
+        provider.add_trial(trial)
+
+    return provider
+
 def port_mirroring_test():
     topology = pm_cfg.target_topo_path.read_text()
     provider = trial_provider.TrialProvider.create_provider("run-0")

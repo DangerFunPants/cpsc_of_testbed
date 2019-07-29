@@ -79,7 +79,7 @@ def compute_theoretical_and_actual_utilization(results_repository):
     theoretical_data = defaultdict(dict)
 
     for run in ["run-%d" % run_idx for run_idx in range(0, 1)]:
-        for solution_name in ["det", "df", "greedy", "optimal"]:
+        for solution_name in ["rnd", "det", "df", "greedy", "optimal"]:
             for trial_name in ["sub-trial-%d" % trial_idx for trial_idx in range(5)]:
                 topo, flows, switches, solutions, net_utilization, ports = read_results(
                         results_repository, run, solution_name, trial_name)
@@ -136,16 +136,16 @@ def generate_max_mirror_port_utilization_bar_plot(results_repository):
     utilization_data, _     = compute_theoretical_and_actual_mean_utilization(results_repository)
     actual_std_deviation    = compute_actual_std_deviation(results_repository)
 
-    width = 0.2
+    width = 0.15
     ind = np.arange(1, 6)
     fig, ax = plt.subplots()
-    labels          = ["det", "df", "greedy", "optimal"]
-    legend_labels   = ["LPR", "DuFi", "Greedy", "Optimal"]
+    labels          = ["rnd", "det", "df", "greedy", "optimal"]
+    legend_labels   = ["$\\epsilon$-LPR", "LPR", "DuFi", "Greedy", "Optimal"]
     half            = len(labels) // 2
     bar_locations   = [w for w in np.arange((width/2), len(labels)*width, width)]
     print(bar_locations)
-    colors          = ["green", "skyblue", "purple", "yellow"]
-    hatch           = ["\\", "//", "\\", "//"]
+    colors          = ["red", "green", "blue", "orange", "purple"]
+    hatch           = ["//", "\\", "//", "\\", "//"]
     for bar_idx, solution_name in enumerate(labels):
         data_tuples = sorted([(k, v) for k, v in utilization_data[solution_name].items()],
                 key=lambda kvp: kvp[0])
@@ -161,7 +161,7 @@ def generate_max_mirror_port_utilization_bar_plot(results_repository):
     plt.rc('font', family='serif')
     plt.xlabel("Number of Flows")
     plt.ylabel("Maximum mirroring port rate ($\\frac{Mb}{s}$)")
-    plt.xticks(ind+0.4, ind*10)
+    plt.xticks(ind+(width*len(labels))/2, ind*10)
     plt.legend(loc="upper center", bbox_to_anchor=(0.5, cfg.LEGEND_HEIGHT), 
             shadow=True, ncol=len(labels))
 
@@ -173,12 +173,12 @@ def generate_theoretical_vs_actual_utilization_bar_plot(results_repository):
     actual_std_deviation = compute_actual_std_deviation(results_repository)
 
     width           = 0.35
-    labels          = ["det", "df", "greedy", "optimal"]
-    legend_labels   = ["LPR", "DuFi", "Greedy", "Optimal"]
+    labels          = ["rnd", "det", "df", "greedy", "optimal"]
+    legend_labels   = ["\\epsilon-LPR", "LPR", "DuFi", "Greedy", "Optimal"]
     half            = len(labels) // 2
     bar_locations   = [w for w in np.arange((width/2), len(labels)*width, width)]
-    colors          = ["green", "skyblue", "purple", "yellow"]
-    hatch           = ["\\", "//", "\\", "//"]
+    colors          = ["orange", "green", "skyblue", "purple", "yellow"]
+    hatch           = ["//", "\\", "//", "\\", "//"]
 
     for solution_name in labels:
         ind = np.arange(1, 6)
@@ -208,8 +208,8 @@ def generate_theoretical_vs_actual_utilization_bar_plot(results_repository):
         save_figure("plot-two-%s.pdf" % solution_name)
 
 def generate_mirroring_port_utilization_bar_plot(results_repository):
-    labels          = ["det", "df", "greedy", "optimal"]
-    legend_labels   = ["LPR", "DuFi", "Greedy", "Optimal"]
+    labels          = ["rnd", "det", "df", "greedy", "optimal"]
+    legend_labels   = ["\\epsilon-LPR", "LPR", "DuFi", "Greedy", "Optimal"]
     trial_name      = "sub-trial-4"
     run_name        = "run-0"
     for solution_name in labels:
@@ -264,6 +264,56 @@ def generate_mirroring_port_utilization_bar_plot(results_repository):
         save_figure("plot-three-%s.pdf" % solution_name)
         plt.clf()
 
+def generate_port_mirroring_port_utilization_cdf(results_repository):
+    labels          = ["rnd", "det", "df", "greedy", "optimal"]
+    legend_labels   = ["$\\epsilon$-LPR", "LPR", "DuFi", "Greedy", "Optimal"]
+    markers         = ["^", "*", "^", "o", "x"]
+    colors          = ["red", "green", "blue", "orange", "purple"]
+    trial_name      = "sub-trial-4"
+    run_name        = "run-0"
+    for solution_idx, solution_name in enumerate(labels):
+        topo, flows, switches, solutions, link_utilization_data, ports = read_results(
+                results_repository, run_name, solution_name, trial_name)
+        link_ids = [(s, d) for s, t in link_utilization_data[0].items() for d in t.keys()]
+        mean_utils      = []
+        labels          = []
+        errors          = []
+        collector_switch_dpid = topo_mapper.get_collector_switch_dpid()
+        id_to_dpid = topo_mapper.get_and_validate_onos_topo(topo)
+        dpid_to_id = {v: k for k, v in id_to_dpid.items()}
+        for s, d in [(s, d) for s, d in link_ids if d == collector_switch_dpid]:
+            link_utils_over_time = []
+            for time_idx, net_snapshot in enumerate(link_utilization_data):
+                try:
+                    link_utils_over_time.append(net_snapshot[s][d])
+                except KeyError:
+                    print("net_snapshot at time %d did not contain link %s -> %s" % 
+                            (time_idx, s, d))
+            mean_utils.append(util.bytes_per_second_to_mbps(mean(link_utils_over_time)))
+            errors.append(util.bytes_per_second_to_mbps(np.std(link_utils_over_time)))
+            labels.append(dpid_to_id[s])
+    
+        cdf_data = sorted(mean_utils)
+        xs = [0.0]
+        ys = [0.0]
+        for idx, d in enumerate(cdf_data):
+            xs.append(d)
+            ys.append((1 + idx) / len(cdf_data))
+        
+        pp.pprint(list(zip(xs, ys)))
+
+        plt.plot(xs, ys, label=legend_labels[solution_idx], marker=markers[solution_idx],
+                color=colors[solution_idx])
+        plt.legend(loc="upper center", bbox_to_anchor=(0.5, cfg.LEGEND_HEIGHT), 
+                shadow=True, ncol=len(labels))
+        plt.rc('text', usetex=True)
+        plt.rc('font', family='serif')
+        plt.grid()
+        plt.xlabel("Mirroring Port Rate $\\frac{Mb}{s}$")
+        plt.ylabel("$\\mathbb{P}\\{x < \\mathcal{X}\\}$")
+
+    save_figure("pm-plot-three-cdf.pdf")
+
 def generate_theoretical_util_graph(results_repository):
     utilization_data, theoretical_data = compute_theoretical_and_actual_mean_utilization(
             results_repository)
@@ -271,7 +321,7 @@ def generate_theoretical_util_graph(results_repository):
     width = 0.2
     ind = np.arange(1, 6)
     fig, ax = plt.subplots()
-    labels          = ["det", "df", "greedy", "optimal"]
+    labels          = ["det", "df", "greedy", "optimal", "rnd"]
     half            = len(labels) // 2
     bar_locations   = [w for w in np.arange((width/2), len(labels)*width, width)]
     colors          = ["green", "skyblue", "purple", "yellow"]

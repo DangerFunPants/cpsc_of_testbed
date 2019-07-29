@@ -313,6 +313,7 @@ class PortMirroringTrial:
                                       , "df"
                                       , "greedy"
                                       , "optimal"
+                                      , "rnd"
                                       ]
 
     @property
@@ -388,6 +389,8 @@ class PortMirroringTrial:
             return self._det_solutions
         elif solution_type == "greedy":
             return self._greedy_solutions
+        elif solution_type == "rnd":
+            return self._rnd_solutions
 
     def verify_trial_state(self):
         flows = self.flows

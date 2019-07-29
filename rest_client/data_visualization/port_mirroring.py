@@ -139,8 +139,10 @@ def generate_max_mirror_port_utilization_bar_plot(results_repository):
     width = 0.15
     ind = np.arange(1, 6)
     fig, ax = plt.subplots()
-    labels          = ["rnd", "det", "df", "greedy", "optimal"]
-    legend_labels   = ["$\\epsilon$-LPR", "LPR", "DuFi", "Greedy", "Optimal"]
+    # labels          = ["rnd", "det", "df", "greedy", "optimal"]
+    labels          = ["rnd", "det", "df", "optimal"]
+    legend_labels   = ["$\\epsilon$-LPR", "LPR", "DuFi", "Optimal"]
+    # legend_labels   = ["$\\epsilon$-LPR", "LPR", "DuFi", "Greedy", "Optimal"]
     half            = len(labels) // 2
     bar_locations   = [w for w in np.arange((width/2), len(labels)*width, width)]
     print(bar_locations)
@@ -217,9 +219,11 @@ def generate_theoretical_vs_actual_compact_bar_plot(results_repository):
     width           = 0.15
     ind             = np.arange(1, 6)
     fig, ax         = plt.subplots()
-    labels          = ["rnd", "det", "df", "greedy", "optimal"]
+    # labels          = ["rnd", "det", "df", "greedy", "optimal"]
+    labels          = ["rnd", "det", "df", "optimal"]
     half            = len(labels)//2
-    legend_labels   = ["$\\epsilon$-LPR", "LPR", "DuFi", "Greedy", "Optimal"]
+    # legend_labels   = ["$\\epsilon$-LPR", "LPR", "DuFi", "Greedy", "Optimal"]
+    legend_labels   = ["$\\epsilon$-LPR", "LPR", "DuFi", "Optimal"]
     colors          = ["red", "green", "blue", "orange", "purple"]
     alt_colors      = ["blue", "red", "purple", "green", "orange"]
     hatch           = ["//", "\\", "//", "\\", "//"]
@@ -410,14 +414,14 @@ def generate_mirror_port_rate_difference_file(results_repository):
     pp.pprint(dict(difference_map))
 
 def generate_port_mirroring_port_utilization_compact_bar_plot(results_repository):
-    solution_labels     = ["rnd", "det", "df", "greedy", "optimal"]
-    legend_labels       = ["$\\epsilon$-LPR", "LPR", "DuFi", "Greedy", "Optimal"]
-    markers             = ["^", "*", "^", "o", "x"]
+    # solution_labels     = ["rnd", "det", "df", "greedy", "optimal"]
+    solution_labels     = ["rnd", "det", "df", "optimal"]
+    # legend_labels       = ["$\\epsilon$-LPR", "LPR", "DuFi", "Greedy", "Optimal"]
+    legend_labels       = ["$\\epsilon$-LPR", "LPR", "DuFi", "Optimal"]
     colors              = ["red", "green", "blue", "orange", "purple"]
     trial_name          = "sub-trial-4"
     run_name            = "run-0"
     width               = 0.15
-    legend_labels       = ["$\\epsilon$-LPR", "LPR", "DuFi", "Greedy", "Optimal"]
     hatch               = ["//", "\\", "//", "\\", "//"]
     bar_locations       = [w for w in np.arange((width/2), len(solution_labels)*width, width)]
     ind                 = np.arange(11)
@@ -447,9 +451,11 @@ def generate_port_mirroring_port_utilization_compact_bar_plot(results_repository
         
         ys = sorted(zip(labels, mean_utils), key=lambda kvp: kvp[0])
         ys = [y_i[1] for y_i in ys]
+        yerr_values = sorted(zip(labels, errors), key=lambda kvp: kvp[0])
+        yerr_values = [e_i[1] for e_i in yerr_values]
         ax.bar(ind+bar_locations[bar_idx], ys, width, color=colors[bar_idx], hatch=hatch[bar_idx],
-                label=legend_labels[bar_idx], align="center")
-                # ecolor="black", yerr=yerr_values)
+                label=legend_labels[bar_idx], align="center",
+                ecolor="black", yerr=yerr_values)
 
     plt.rc('text', usetex=True)
     plt.rc('font', family='serif')

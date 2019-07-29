@@ -119,14 +119,17 @@ def run_provider_trials(provider):
         conduct_port_mirroring_trial(provider.name, trial, results_repository) 
 
 def main():
-    provider = trials.flow_mirroring_trials()
+    # provider = trials.flow_mirroring_trials()
     # provider = trials.flow_mirroring_test()
     # provider = trials.port_mirroring_trials()
     # provider = trials.port_mirroring_test()
     # provider = trials.re_run_trials()
     # provider = trials.rnd_port_mirroring_trials()
 
-    run_provider_trials(provider)
+    providers = trials.multi_provider_port_mirroring()
+
+    for provider in providers:
+        run_provider_trials(provider)
 
 if __name__ == "__main__":
     main()

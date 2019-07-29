@@ -77,9 +77,9 @@ def compute_most_used_mirroring_port_rate(switches, solutions):
 
 def compute_theoretical_and_actual_utilization(results_repository):
     utilization_data = defaultdict(lambda: defaultdict(list))
-    theoretical_data = defaultdict(dict)
+    theoretical_data = defaultdict(lambda: defaultdict(list))
 
-    for run in ["run-%d" % run_idx for run_idx in range(0, 1)]:
+    for run in ["run-%d" % run_idx for run_idx in range(3)]:
         for solution_name in ["rnd", "det", "df", "greedy", "optimal"]:
             for trial_name in ["sub-trial-%d" % trial_idx for trial_idx in range(5)]:
                 topo, flows, switches, solutions, net_utilization, ports = read_results(
@@ -101,7 +101,47 @@ def compute_theoretical_and_actual_utilization(results_repository):
 
                 theoretical_util = compute_most_used_mirroring_port_rate(switches, solutions)
                 utilization_data[solution_name][len(flows)].extend(mirror_port_utils)
-                theoretical_data[solution_name][len(flows)] = theoretical_util
+                theoretical_data[solution_name][len(flows)].append(theoretical_util)
+
+    return utilization_data, theoretical_data
+
+def compute_theoretical_and_actual_utilization_by_run(results_repository):
+    utilization_data = {}
+    theoretical_data = {}
+    
+    for run in ["run-%d" % run_idx for run_idx in range(3)]:
+        solution_results                = {}
+        theoretical_solution_results    = {}
+        for solution_name in ["rnd", "det", "df", "greedy", "optimal"]:
+            trial_results                   = {}
+            theoretical_trial_results       = {}
+            for trial_name in ["sub-trial-%d" % trial_idx for trial_idx in range(5)]:
+                topo, flows, switches, solutions, net_utilization, ports = read_results(
+                        results_repository, run, solution_name, trial_name)
+
+                most_used_mirroring_port = compute_most_used_mirroring_port(switches, solutions)
+
+                id_to_dpid = topo_mapper.get_and_validate_onos_topo(topo)
+                mirror_port_dpid = id_to_dpid[most_used_mirroring_port]
+                collector_switch_dpid = topo_mapper.get_collector_switch_dpid()
+
+                mirror_port_utils = []
+                for util_at_time_t in net_utilization:
+                    try:
+                        mirror_port_utils.append(
+                                util_at_time_t[mirror_port_dpid][collector_switch_dpid])
+                    except KeyError as ke:
+                        print("KEY ERROR KE %s" % ke)
+
+                theoretical_util = compute_most_used_mirroring_port_rate(switches, solutions)
+                trial_results[len(flows)] = mirror_port_utils
+                theoretical_trial_results[len(flows)] = theoretical_util
+
+            solution_results[solution_name]                 = trial_results
+            theoretical_solution_results[solution_name]     = theoretical_trial_results
+
+        utilization_data[run] = solution_results
+        theoretical_data[run] = theoretical_solution_results
 
     return utilization_data, theoretical_data
 
@@ -115,7 +155,7 @@ def compute_theoretical_and_actual_mean_utilization(results_repository):
 
     utilization_data, theoretical_data = compute_theoretical_and_actual_utilization(
             results_repository)
-    return reduce_to_mean(utilization_data), theoretical_data
+    return reduce_to_mean(utilization_data), reduce_to_mean(theoretical_data)
 
 def compute_actual_std_deviation(results_repository):
     utilization_data, _ = compute_theoretical_and_actual_utilization(results_repository)
@@ -139,15 +179,13 @@ def generate_max_mirror_port_utilization_bar_plot(results_repository):
     width = 0.15
     ind = np.arange(1, 6)
     fig, ax = plt.subplots()
-    # labels          = ["rnd", "det", "df", "greedy", "optimal"]
-    labels          = ["rnd", "det", "df", "optimal"]
-    legend_labels   = ["$\\epsilon$-LPR", "LPR", "DuFi", "Optimal"]
-    # legend_labels   = ["$\\epsilon$-LPR", "LPR", "DuFi", "Greedy", "Optimal"]
+    labels          = cfg.SOLUTION_LABELS
+    legend_labels   = cfg.LEGEND_LABELS
     half            = len(labels) // 2
     bar_locations   = [w for w in np.arange((width/2), len(labels)*width, width)]
     print(bar_locations)
-    colors          = ["red", "green", "blue", "orange", "purple"]
-    hatch           = ["//", "\\", "//", "\\", "//"]
+    colors          = cfg.BAR_PLOT_COLORS
+    hatch           = cfg.BAR_PLOT_TEXTURES
     for bar_idx, solution_name in enumerate(labels):
         data_tuples = sorted([(k, v) for k, v in utilization_data[solution_name].items()],
                 key=lambda kvp: kvp[0])
@@ -208,45 +246,64 @@ def generate_theoretical_vs_actual_utilization_bar_plot(results_repository):
         save_figure("plot-two-%s.pdf" % solution_name)
 
 def generate_theoretical_vs_actual_compact_bar_plot(results_repository):
-    utilization_data, theoretical_data = compute_theoretical_and_actual_mean_utilization(
+    utilization_data, theoretical_data = compute_theoretical_and_actual_utilization_by_run(
             results_repository)
-    # utilization_data, theoretical_data = compute_theoretical_and_actual_utilization(
-    #         results_repository)
-        
 
-    actual_std_deviation = compute_actual_std_deviation(results_repository)
+    # pp.pprint(utilization_data)
+    # pp.pprint(theoretical_data)
+    # actual_std_deviation = compute_actual_std_deviation(results_repository)
 
     width           = 0.15
     ind             = np.arange(1, 6)
     fig, ax         = plt.subplots()
-    # labels          = ["rnd", "det", "df", "greedy", "optimal"]
-    labels          = ["rnd", "det", "df", "optimal"]
+    labels          = cfg.SOLUTION_LABELS
     half            = len(labels)//2
-    # legend_labels   = ["$\\epsilon$-LPR", "LPR", "DuFi", "Greedy", "Optimal"]
-    legend_labels   = ["$\\epsilon$-LPR", "LPR", "DuFi", "Optimal"]
-    colors          = ["red", "green", "blue", "orange", "purple"]
+    legend_labels   = cfg.LEGEND_LABELS
+    colors          = cfg.BAR_PLOT_COLORS
     alt_colors      = ["blue", "red", "purple", "green", "orange"]
-    hatch           = ["//", "\\", "//", "\\", "//"]
+    hatch           = cfg.BAR_PLOT_TEXTURES
     bar_locations   = [w for w in np.arange((width/2), len(labels)*width, width)]
 
-    for bar_idx, solution_name in enumerate(labels):
-        data_tuples = sorted([(k, v) for k, v in utilization_data[solution_name].items()],
-                key=lambda kvp: kvp[0])
-        theoretical_tuples = sorted([(k, v) for k, v in theoretical_data[solution_name].items()],
-                key=lambda kvp: kvp[0])
+    # solution_name -> flow_count -> [diff_for_run]
+    solution_name_to_flow_count = defaultdict(lambda: defaultdict(list))
+    for run, solution_name_to_trial_name in utilization_data.items():
+        for solution_name, trial_name_to_data in solution_name_to_trial_name.items():
+            flow_count_to_list = solution_name_to_flow_count[solution_name]
+            for flow_count, utilization_data in trial_name_to_data.items():
+                theoretical_usage   = theoretical_data[run][solution_name][flow_count] * pm_cfg.rate_factor
+                mean_actual_usage   = util.bytes_per_second_to_mbps(mean(utilization_data))
+                difference          = abs(theoretical_usage - mean_actual_usage)
+                flow_count_to_list[flow_count].append(difference)
+            solution_name_to_flow_count[solution_name] = flow_count_to_list
+    
+    # solution_name -> flow_count -> diff_for_run
+    solution_name_to_flow_count_to_avg_diff     = {}
+    # solution_name -> flow_count -> std_dev_for_run
+    solution_name_to_flow_count_to_std_dev      = {}
+    for solution_name, flow_count_to_diff_data in solution_name_to_flow_count.items():
+        flow_count_to_avg_diff  = {}
+        flow_count_to_std_dev   = {}
+        for flow_count, diff_data in flow_count_to_diff_data.items():
+            flow_count_to_avg_diff[flow_count]  = mean(diff_data)
+            flow_count_to_std_dev[flow_count]   = np.std(diff_data)
+        solution_name_to_flow_count_to_avg_diff[solution_name]      = flow_count_to_avg_diff
+        solution_name_to_flow_count_to_std_dev[solution_name]       = flow_count_to_std_dev
 
-        yerr_values = actual_std_deviation[solution_name]
-        xs = [flow_count for flow_count, _ in data_tuples]
-        measured_ys = [util.bytes_per_second_to_mbps(data)
-                for _, data in data_tuples]
-        theoretical_ys = [util_val * pm_cfg.rate_factor
-                for _, util_val in theoretical_tuples]
-        theoretical_ys = [abs(theoretical_ys[idx] - measured_ys[idx])
-                for idx in range(len(theoretical_ys))]
+    for bar_idx, kvp in enumerate(solution_name_to_flow_count_to_avg_diff.items()):
+        solution_name, flow_count_to_avg_diff = kvp
+        ys = sorted([(flow_count, avg_diff) 
+            for flow_count, avg_diff in flow_count_to_avg_diff.items()],
+            key=lambda kvp: kvp[0])
+        ys = [y_i[1] for y_i in ys]
 
-        ax.bar(ind+bar_locations[bar_idx], theoretical_ys, width, color=colors[bar_idx], 
+        std_dev = sorted([(flow_count, std_dev)
+            for flow_count, std_dev 
+            in solution_name_to_flow_count_to_std_dev[solution_name].items()],
+            key=lambda kvp: kvp[1])
+        std_dev = [s_i[1] for s_i in std_dev]
+        ax.bar(ind+bar_locations[bar_idx], ys, width, color=colors[bar_idx], 
                 hatch=hatch[bar_idx], label=legend_labels[bar_idx],
-                align="center", ecolor="black")
+                align="center", ecolor="black", yerr=std_dev)
     
     plt.rc('text', usetex=True)
     plt.rc('font', family='serif')

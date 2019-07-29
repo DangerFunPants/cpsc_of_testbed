@@ -175,8 +175,6 @@ def generate_theoretical_vs_actual_utilization_bar_plot(results_repository):
     width           = 0.35
     labels          = ["rnd", "det", "df", "greedy", "optimal"]
     legend_labels   = ["\\epsilon-LPR", "LPR", "DuFi", "Greedy", "Optimal"]
-    half            = len(labels) // 2
-    bar_locations   = [w for w in np.arange((width/2), len(labels)*width, width)]
     colors          = ["orange", "green", "skyblue", "purple", "yellow"]
     hatch           = ["//", "\\", "//", "\\", "//"]
 
@@ -206,6 +204,67 @@ def generate_theoretical_vs_actual_utilization_bar_plot(results_repository):
         plt.legend(loc="upper center", bbox_to_anchor=(0.5, cfg.LEGEND_HEIGHT), 
                 shadow=True, ncol=len(labels))
         save_figure("plot-two-%s.pdf" % solution_name)
+
+def generate_theoretical_vs_actual_compact_bar_plot(results_repository):
+    utilization_data, theoretical_data = compute_theoretical_and_actual_mean_utilization(
+            results_repository)
+    # utilization_data, theoretical_data = compute_theoretical_and_actual_utilization(
+    #         results_repository)
+        
+
+    actual_std_deviation = compute_actual_std_deviation(results_repository)
+
+    width           = 0.15
+    ind             = np.arange(1, 6)
+    fig, ax         = plt.subplots()
+    labels          = ["rnd", "det", "df", "greedy", "optimal"]
+    half            = len(labels)//2
+    legend_labels   = ["$\\epsilon$-LPR", "LPR", "DuFi", "Greedy", "Optimal"]
+    colors          = ["red", "green", "blue", "orange", "purple"]
+    alt_colors      = ["blue", "red", "purple", "green", "orange"]
+    hatch           = ["//", "\\", "//", "\\", "//"]
+    bar_locations   = [w for w in np.arange((width/2), len(labels)*width, width)]
+
+    for bar_idx, solution_name in enumerate(labels):
+        data_tuples = sorted([(k, v) for k, v in utilization_data[solution_name].items()],
+                key=lambda kvp: kvp[0])
+        theoretical_tuples = sorted([(k, v) for k, v in theoretical_data[solution_name].items()],
+                key=lambda kvp: kvp[0])
+
+        yerr_values = actual_std_deviation[solution_name]
+        xs = [flow_count for flow_count, _ in data_tuples]
+        measured_ys = [util.bytes_per_second_to_mbps(data)
+                for _, data in data_tuples]
+        theoretical_ys = [util_val * pm_cfg.rate_factor
+                for _, util_val in theoretical_tuples]
+        theoretical_ys = [abs(theoretical_ys[idx] - measured_ys[idx])
+                for idx in range(len(theoretical_ys))]
+
+        # measured_ys = [[util.bytes_per_second_to_mbps(util_val) for util_val in data]
+        #         for _, data in data_tuples]
+        # theoretical_ys = [util_val * pm_cfg.rate_factor
+        #         for _, util_val in theoretical_tuples]
+
+        # ys = [[abs(util_val - theoretical_ys[idx]) for util_val in measured_data] 
+        #         for idx, measured_data in enumerate(measured_ys)]
+        # ys = [[abs(util_val- theoretical_tuples[idx][1]) 
+        #     for util_val in util_tuple[1]]
+        #         for idx, util_tuple in enumerate(data_tuples)]
+        # errors  = [np.std(util_val_list) for util_val_list in ys]
+        # means   = [mean(util_val_list) for util_val_list in ys]
+        ax.bar(ind+bar_locations[bar_idx], theoretical_ys, width, color=colors[bar_idx], 
+                hatch=hatch[bar_idx], label=legend_labels[bar_idx],
+                align="center", ecolor="black")
+    
+    plt.rc('text', usetex=True)
+    plt.rc('font', family='serif')
+    plt.xlabel("Number of Flows")
+    plt.ylabel("Maximum mirroring port rate ($\\frac{Mb}{s}$)")
+    plt.xticks(ind+(width*len(labels))/2, ind*10)
+    plt.legend(loc="upper center", bbox_to_anchor=(0.5, cfg.LEGEND_HEIGHT), 
+            shadow=True, ncol=len(labels))
+
+    helpers.save_figure("pm-plot-two.pdf")
 
 def generate_mirroring_port_utilization_bar_plot(results_repository):
     labels          = ["rnd", "det", "df", "greedy", "optimal"]

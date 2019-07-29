@@ -50,8 +50,6 @@ def conduct_port_mirroring_trial(provider_name, trial, results_repository):
     switches        = trial.switches
     solutions       = trial.solutions
 
-    # flow_tokens = add_port_mirroring_flows(pm_cfg.target_topo_path, flows, switches, solutions)
-    # flow_tokens = trial.add_flows(trial.topology, flows, switches, solutions)
     flow_tokens = trial.add_flows()
 
     hosts = create_and_initialize_host_connections(flows)
@@ -84,6 +82,7 @@ def conduct_port_mirroring_trial(provider_name, trial, results_repository):
     for source_node in {flow.path[0] for flow in flows.values()}:
         hosts[source_node].start_clients()
 
+    print("Conducting trial %s/%s/%s" % (provider_name, trial.solution_type, trial.name))
     time.sleep(trial.duration)
 
     traffic_monitor.stop_monitor()
@@ -120,18 +119,13 @@ def run_provider_trials(provider):
         conduct_port_mirroring_trial(provider.name, trial, results_repository) 
 
 def main():
-    # provider = trials.flow_mirroring_trials()
-    provider = trials.port_mirroring_trials()
+    provider = trials.flow_mirroring_trials()
+    # provider = trials.flow_mirroring_test()
+    # provider = trials.port_mirroring_trials()
     # provider = trials.port_mirroring_test()
     # provider = trials.re_run_trials()
     # provider = trials.rnd_port_mirroring_trials()
-    
-    # for trial in provider:
-    #     print(trial)
-    #     # if not trial.verify_trial_state():
-    #     #     print("Not all flows in trial were mirrored.")
-    #     # else:
-    #     #     print("All flows were mirrored successfully.")
+
     run_provider_trials(provider)
 
 if __name__ == "__main__":

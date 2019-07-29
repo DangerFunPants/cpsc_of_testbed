@@ -211,7 +211,6 @@ class FlowMirroringTrial:
     def solution_type(self, new_solution_type):
         self._solution_type = new_solution_type
 
-    @property
     def add_flows(self):
         flow_tokens = onos_rest_helpers.add_flow_mirroring_flows(self.topology, self.flows, self.switches,
                 self.solutions)

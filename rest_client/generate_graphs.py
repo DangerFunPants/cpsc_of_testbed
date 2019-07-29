@@ -10,7 +10,7 @@ import port_mirroring.params                    as pm_cfg
 def flow_mirroring_plots():
     repo_path = path.Path("/home/cpsc-net-user/repos/flow-mirroring-results-4/")
     results_repository = rr.ResultsRepository.create_repository(repo_path,
-            pm_cfg.repository_schema, pm_cfg.repository_name)
+            pm_cfg.repository_schema, "flow-mirroring")
 
     link_utilization.generate_max_mirror_port_utilization_bar_plot(results_repository)
     link_utilization.generate_theoretical_vs_actual_utilization_bar_plot(results_repository)
@@ -27,8 +27,9 @@ def port_mirroring_plots():
     # port_mirroring.generate_theoretical_vs_actual_utilization_bar_plot(results_repository)
     # port_mirroring.generate_mirroring_port_utilization_bar_plot(results_repository)
     # port_mirroring.generate_theoretical_util_graph(results_repository)
-    port_mirroring.generate_theoretical_vs_actual_compact_bar_plot(results_repository)
+    # port_mirroring.generate_theoretical_vs_actual_compact_bar_plot(results_repository)
     # port_mirroring.generate_port_mirroring_port_utilization_cdf(results_repository)
+    port_mirroring.generate_mirror_port_rate_difference_file(results_repository)
 
 def main():
     port_mirroring_plots()

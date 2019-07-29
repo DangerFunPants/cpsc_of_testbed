@@ -240,18 +240,6 @@ def generate_theoretical_vs_actual_compact_bar_plot(results_repository):
         theoretical_ys = [abs(theoretical_ys[idx] - measured_ys[idx])
                 for idx in range(len(theoretical_ys))]
 
-        # measured_ys = [[util.bytes_per_second_to_mbps(util_val) for util_val in data]
-        #         for _, data in data_tuples]
-        # theoretical_ys = [util_val * pm_cfg.rate_factor
-        #         for _, util_val in theoretical_tuples]
-
-        # ys = [[abs(util_val - theoretical_ys[idx]) for util_val in measured_data] 
-        #         for idx, measured_data in enumerate(measured_ys)]
-        # ys = [[abs(util_val- theoretical_tuples[idx][1]) 
-        #     for util_val in util_tuple[1]]
-        #         for idx, util_tuple in enumerate(data_tuples)]
-        # errors  = [np.std(util_val_list) for util_val_list in ys]
-        # means   = [mean(util_val_list) for util_val_list in ys]
         ax.bar(ind+bar_locations[bar_idx], theoretical_ys, width, color=colors[bar_idx], 
                 hatch=hatch[bar_idx], label=legend_labels[bar_idx],
                 align="center", ecolor="black")
@@ -421,8 +409,59 @@ def generate_mirror_port_rate_difference_file(results_repository):
 
     pp.pprint(dict(difference_map))
 
+def generate_port_mirroring_port_utilization_compact_bar_plot(results_repository):
+    solution_labels     = ["rnd", "det", "df", "greedy", "optimal"]
+    legend_labels       = ["$\\epsilon$-LPR", "LPR", "DuFi", "Greedy", "Optimal"]
+    markers             = ["^", "*", "^", "o", "x"]
+    colors              = ["red", "green", "blue", "orange", "purple"]
+    trial_name          = "sub-trial-4"
+    run_name            = "run-0"
+    width               = 0.15
+    legend_labels       = ["$\\epsilon$-LPR", "LPR", "DuFi", "Greedy", "Optimal"]
+    hatch               = ["//", "\\", "//", "\\", "//"]
+    bar_locations       = [w for w in np.arange((width/2), len(solution_labels)*width, width)]
+    ind                 = np.arange(11)
+    fig, ax             = plt.subplots()
 
+    for bar_idx, solution_name in enumerate(solution_labels):
+        topo, flows, switches, solutions, link_utilization_data, ports = read_results(
+                results_repository, run_name, solution_name, trial_name)
+        link_ids = [(s, d) for s, t in link_utilization_data[0].items() for d in t.keys()]
+        mean_utils      = []
+        labels          = []
+        errors          = []
+        collector_switch_dpid = topo_mapper.get_collector_switch_dpid()
+        id_to_dpid = topo_mapper.get_and_validate_onos_topo(topo)
+        dpid_to_id = {v: k for k, v in id_to_dpid.items()}
+        for s, d in [(s, d) for s, d in link_ids if d == collector_switch_dpid]:
+            link_utils_over_time = []
+            for time_idx, net_snapshot in enumerate(link_utilization_data):
+                try:
+                    link_utils_over_time.append(net_snapshot[s][d])
+                except KeyError:
+                    print("net_snapshot at time %d did not contain link %s -> %s" % 
+                            (time_idx, s, d))
+            mean_utils.append(util.bytes_per_second_to_mbps(mean(link_utils_over_time)))
+            errors.append(util.bytes_per_second_to_mbps(np.std(link_utils_over_time)))
+            labels.append(dpid_to_id[s])
+        
+        ys = sorted(zip(labels, mean_utils), key=lambda kvp: kvp[0])
+        ys = [y_i[1] for y_i in ys]
+        ax.bar(ind+bar_locations[bar_idx], ys, width, color=colors[bar_idx], hatch=hatch[bar_idx],
+                label=legend_labels[bar_idx], align="center")
+                # ecolor="black", yerr=yerr_values)
 
+    plt.rc('text', usetex=True)
+    plt.rc('font', family='serif')
+    plt.xlabel("Switch ID")
+    plt.ylabel("Maximum mirroring port rate ($\\frac{Mb}{s}$)")
+    plt.xticks(ind+((width*len(solution_labels))/2), ind+1)
+    plt.grid()
+    plt.xlim(0, 10+(width*len(solution_labels)))
+    plt.legend(loc="upper center", bbox_to_anchor=(0.5, cfg.LEGEND_HEIGHT), 
+            shadow=True, ncol=len(solution_labels))
+
+    helpers.save_figure("pm-plot-three-compact-bar.pdf")
 
 
 

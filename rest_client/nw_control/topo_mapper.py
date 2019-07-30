@@ -10,6 +10,19 @@ def build_graph_from_topo_file(topo_file):
     text = topo_file.read_text()
     return build_graph_from_topo_string(text)
 
+# def build_graph_from_topo_string(topo_str):
+#     lines = topo_str.splitlines()
+#     graph = nx.Graph()
+#     num_nodes = int(lines[0])
+#     for node_idx in range(1, num_nodes + 1):
+#         graph.add_node(node_idx)
+#     
+#     for edge_entry in lines[2:]:
+#         [source_node, destination_node] = edge_entry.split(" ")
+#         graph.add_edge(int(source_node), int(destination_node))
+# 
+#     return graph
+
 def build_graph_from_topo_string(topo_str):
     lines = topo_str.splitlines()
     graph = nx.Graph()
@@ -22,19 +35,6 @@ def build_graph_from_topo_string(topo_str):
         graph.add_edge(int(source_node), int(destination_node))
 
     return graph
-
-# def build_graph_from_topo_string(topo_str):
-#     lines = topo_str.splitlines()
-#     graph = nx.Graph()
-#     num_nodes = int(lines[0])
-#     for node_idx in range(1, num_nodes + 1):
-#         graph.add_node(node_idx)
-#     
-#     for edge_entry in lines[1:]:
-#         [source_node, destination_node] = edge_entry.split(" ")
-#         graph.add_edge(int(source_node), int(destination_node))
-# 
-#     return graph
 
 def generate_graph_isomorphism(g1, g2):
     graph_matcher = nx.algorithms.isomorphism.GraphMatcher(g1, g2)

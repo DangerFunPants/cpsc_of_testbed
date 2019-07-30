@@ -266,6 +266,14 @@ class FlowMirroringTrial:
         cmd = create_solver_cmd(topology, minimum_flow_rate, maximum_flow_rate, num_flows)
         subprocess.run(cmd)
 
+    def verify_trial(self):
+        for flow_id, flow in self.flows.items():
+            if flow_id not in self.approx_solutions:
+                return False
+            if flow_id not in self.optimal_solutions:
+                return False
+        return True
+
     def build_results_files(self, utilization_results):
         results_files = { "utilization-results.txt" : json.dumps(utilization_results)
                         , "topo"                    : self.topology

@@ -126,9 +126,14 @@ def main():
     # provider = trials.re_run_trials()
     # provider = trials.rnd_port_mirroring_trials()
 
-    providers = trials.multi_provider_port_mirroring()
+    # providers = trials.multi_provider_port_mirroring()
+    providers = trials.multi_provider_flow_mirroring()
 
     for provider in providers:
+        # for trial in provider:
+        #     print(trial)
+        # for trial in provider:
+        #     trial.verify_trial()
         run_provider_trials(provider)
 
 if __name__ == "__main__":

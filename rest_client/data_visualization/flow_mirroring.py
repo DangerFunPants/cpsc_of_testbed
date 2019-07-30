@@ -2,24 +2,28 @@
 import matplotlib
 matplotlib.use("Agg")
 
-import matplotlib.pyplot            as plt
-import networkx                     as nx
-import numpy                        as np
-import json                         as json 
-import pprint                       as pp
-import pathlib                      as path
-import pygraphviz                   as pgv
+import matplotlib.pyplot                as plt
+import networkx                         as nx
+import numpy                            as np
+import json                             as json 
+import pprint                           as pp
+import pathlib                          as path
+import pygraphviz                       as pgv
 
-import nw_control.topo_mapper       as topo_mapper
-import nw_control.util              as util
-import data_visualization.params    as cfg
-import port_mirroring.params        as pm_cfg
+import nw_control.topo_mapper           as topo_mapper
+import nw_control.util                  as util
+import data_visualization.params        as cfg
+import data_visualization.helpers       as helpers
+import port_mirroring.params            as pm_cfg
 
 from collections                    import defaultdict
 from statistics                     import mean
 
-from trials.flow_mirroring_trial    import FlowDefinition, SolutionDefinition
-from data_visualization.helpers     import save_figure, read_json_response_from_file, compute_initial_byte_counts, subtract_counts, compute_utilization_from_byte_counts, compute_network_util_over_time, read_json_response
+from trials.flow_mirroring_trial    import FlowDefinition, SolutionDefinition, SwitchDefinition
+from data_visualization.helpers     import read_json_response_from_file, compute_initial_byte_counts, subtract_counts, compute_utilization_from_byte_counts, compute_network_util_over_time, read_json_response
+
+SOLUTION_LABELS     = ["approx", "optimal"]
+LEGEND_LABELS       = ["BiSec", "Optimal"]
 
 def compute_most_used_mirroring_port(flows, solutions):
     mirroring_utils = defaultdict(float)
@@ -29,7 +33,7 @@ def compute_most_used_mirroring_port(flows, solutions):
 
     return max(mirroring_utils.items(), key=lambda t: t[1])[0]
 
-def compute_theoretical_util(flows, solutions):
+def compute_most_used_mirroring_port_rate(flows, solutions):
     mirroring_utils = defaultdict(float)
     for flow in flows.values():
         mirroring_switch_for_flow = solutions[flow.flow_id].mirror_switch_id
@@ -37,54 +41,190 @@ def compute_theoretical_util(flows, solutions):
 
     return max(mirroring_utils.items(), key=lambda t: t[1])[1] 
 
-def read_results(results_repository, provider_name, trial_name):
+def read_results(results_repository, provider_name, solution_type, trial_name):
     schema_variables = { "provider-name"        : provider_name
+                       , "solution-type"        : solution_type
                        , "trial-name"           : trial_name    
                        }
     files = [ "utilization-results.txt"
-            , "topo"
             , "flows"
             , "switches"
             , "solutions"
+            , "topo"
             ]
     results = results_repository.read_trial_results(schema_variables, files)
     topo                = results["topo"]
     flows               = FlowDefinition.deserialize(results["flows"])
+    switches            = SwitchDefinition.deserialize(results["switches"])
     solutions           = SolutionDefinition.deserialize(results["solutions"])
     utilization_json    = read_json_response(results["utilization-results.txt"])
     net_utilization     = compute_network_util_over_time(utilization_json)
-    return topo, flows, solutions, net_utilization
+    return topo, flows, switches, solutions, net_utilization
+
+# compute_theoretical_and_actual_utilization :: 
+#     results_repository ->
+#     run_count ->
+#     solution_names ->
+#     trial_count ->
+#     (solution_name -> flow_count -> util_list)
+def compute_theoretical_and_actual_utilization( results_repository
+                                              , run_count
+                                              , solution_names
+                                              , trial_count):
+    utilization_data = defaultdict(lambda: defaultdict(list))
+    theoretical_data = defaultdict(lambda: defaultdict(list))
+
+    for run in ["run-%d" % run_idx for run_idx in range(run_count)]:
+        for solution_name in solution_name:
+            for trial_name in ["sub-trial-%d" % trial_idx for trial_idx in range(trial_count)]:
+                topo, flows, switches, solutions, net_utilization = read_results(
+                        results_repository, run, solution_name, trial_name)
+
+                most_used_mirroring_port = compute_most_used_mirroring_port(flows, solutions)
+
+                id_to_dpid = topo_mapper.get_and_validate_onos_topo(topo)
+                mirror_port_dpid = id_to_dpid[most_used_mirroring_port]
+                collector_switch_dpid = topo_mapper.get_collector_switch_dpid()
+
+                mirror_port_utils = []
+                for util_at_time_t in net_utilization:
+                    try:
+                        mirror_port_utils.append(
+                                util_at_time_t[mirror_port_dpid][collector_switch_dpid])
+                    except KeyError as ke:
+                        print("KEY ERROR KE %s" % ke)
+
+                theoretical_util = compute_most_used_mirroring_port_rate(switches, solutions)
+                utilization_data[solution_name][len(flows)].extend(mirror_port_utils)
+                theoretical_data[solution_name][len(flows)].append(theoretical_util)
+
+    return utilization_data, theoretical_data
+
+def compute_theoretical_and_actual_mean_utilization( results_repository
+                                                   , run_count
+                                                   , solution_names
+                                                   , trial_count):
+    def reduce_to_mean(results_dict):
+        mean_dict = defaultdict(dict)
+        for solution_name, flow_count_to_util_list in results_dict.items():
+            for flow_count, util_list in flow_count_to_util_list.items():
+                mean_dict[solution_name][flow_count] = mean(util_list)
+        return mean_dict
+
+    utilization_data, theoretical_data = compute_theoretical_and_actual_utilization(
+            results_repository, run_count, solution_names, trial_count)
+    return reduce_to_mean(utilization_data), reduce_to_mean(theoretical_data)
+
+# compute_theoretical_and_actual_utilization_by_run ::
+#     results_repository  ->
+#     run_count           ->
+#     solution_names      ->
+#     trial_count         ->
+#     (run_name -> solution_name -> flow_count -> util_list)
+def compute_theoretical_and_actual_utilization_by_run( results_repository
+                                                     , run_count
+                                                     , solution_names
+                                                     , trial_count):
+    utilization_data = {}
+    theoretical_data = {}
+    
+    for run in ["run-%d" % run_idx for run_idx in range(run_count)]:
+        solution_results                = {}
+        theoretical_solution_results    = {}
+        for solution_name in solution_names:
+            trial_results                   = {}
+            theoretical_trial_results       = {}
+            for trial_name in ["sub-trial-%d" % trial_idx for trial_idx in range(trial_count)]:
+                topo, flows, switches, solutions, net_utilization = read_results(
+                        results_repository, run, solution_name, trial_name)
+
+                most_used_mirroring_port = compute_most_used_mirroring_port(flows, solutions)
+
+                id_to_dpid = topo_mapper.get_and_validate_onos_topo(topo)
+                mirror_port_dpid = id_to_dpid[most_used_mirroring_port]
+                collector_switch_dpid = topo_mapper.get_collector_switch_dpid()
+
+                mirror_port_utils = []
+                for util_at_time_t in net_utilization:
+                    try:
+                        mirror_port_utils.append(
+                                util_at_time_t[mirror_port_dpid][collector_switch_dpid])
+                    except KeyError as ke:
+                        print("KEY ERROR KE %s" % ke)
+
+                theoretical_util = compute_most_used_mirroring_port_rate(flows, solutions)
+                trial_results[len(flows)] = mirror_port_utils
+                theoretical_trial_results[len(flows)] = theoretical_util
+
+            solution_results[solution_name]                 = trial_results
+            theoretical_solution_results[solution_name]     = theoretical_trial_results
+
+        utilization_data[run] = solution_results
+        theoretical_data[run] = theoretical_solution_results
+
+    return utilization_data, theoretical_data
 
 def generate_max_mirror_port_utilization_bar_plot(results_repository):
-    utilization_data, _     = compute_theoretical_and_actual_mean_utilization(results_repository)
-    actual_error            = compute_theoretical_and_actual_error(results_repository)
+    # utilization_data, _     = compute_theoretical_and_actual_mean_utilization(results_repository)
+    # actual_error            = compute_theoretical_and_actual_error(results_repository)
 
-    std_deviations = defaultdict(list)
-    for provider_name, data_list in actual_error.items():
-        for flow_count, data in data_list:
-            std_deviations[provider_name].append(np.std(
-                [util.bytes_per_second_to_mbps(d_i) for d_i in data]))
+    run_count           = 3
+    solution_names      = ["approx", "optimal"]
+    trial_count         = 5
+    utilization_data, _ = compute_theoretical_and_actual_utilization_by_run(
+            results_repository, run_count, solution_names, trial_count)
 
-    width = 0.35
-    ind = np.arange(1, 6) 
-    fig, ax = plt.subplots()
-    xs = [t[0] for t in utilization_data["approx"]]
-    ys = [util.bytes_per_second_to_mbps(t[1]) for t in utilization_data["approx"]]
-    ax.bar(ind-(width/2), ys, width, color="purple", hatch=".", tick_label=xs, label="BiSec",
-            yerr=std_deviations["approx"], ecolor="black")
+    # mean_util_lists :: solution_name -> flow_count -> [util_vals]
+    mean_util_lists = defaultdict(lambda: defaultdict(list))
+    for run_name, solution_name_to_flow_count in utilization_data.items():
+        for solution_name, flow_count_to_util_list in solution_name_to_flow_count.items():
+            for flow_count, util_list in flow_count_to_util_list.items():
+                mean_util_value = util.bytes_per_second_to_mbps(mean(util_list[1:]))
+                mean_util_lists[solution_name][flow_count].append(mean_util_value)
 
-    xs = [t[0] for t in utilization_data["optimal"]]
-    ys = [util.bytes_per_second_to_mbps(t[1]) for t in utilization_data["optimal"]]
-    ax.bar(ind+(width/2), ys, width, color="orange", hatch="\\", tick_label=xs, label="Optimal",
-            yerr=std_deviations["optimal"], ecolor="black")
+    # std_deviations :: solution_name -> flow_count -> std_dev
+    std_deviations      = defaultdict(dict)
+    # mean_utils :: solution_name -> flow_count -> mean_util
+    mean_utils          = defaultdict(dict)
+    for solution_name, flow_count_to_util_list in mean_util_lists.items():
+        for flow_count, util_list in flow_count_to_util_list.items():
+            std_deviations[solution_name][flow_count] = np.std(util_list)
+            mean_utils[solution_name][flow_count] = mean(util_list)
+
+    pp.pprint(mean_utils)
+    width           = 0.35
+    ind             = np.arange(1, 6)
+    fig, ax         = plt.subplots()
+    labels          = SOLUTION_LABELS
+    legend_labels   = LEGEND_LABELS
+    half            = len(labels) // 2
+    bar_locations   = [w for w in np.arange((width/2), len(labels)*width, width)]
+    colors          = cfg.BAR_PLOT_COLORS
+    hatch           = cfg.BAR_PLOT_TEXTURES
+    for bar_idx, solution_name_to_flow_count in enumerate(mean_utils.items()):
+        solution_name, flow_count_to_mean_util = solution_name_to_flow_count
+        data_tuples = sorted([(flow_count, util_val)
+            for flow_count, util_val in flow_count_to_mean_util.items()],
+            key=lambda kvp: kvp[0])
+        yerr_tuples = sorted([(flow_count, std_dev)
+            for flow_count, std_dev in std_deviations[solution_name].items()],
+            key=lambda kvp: kvp[0])
+
+        xs = [d_i[0] for d_i in data_tuples]
+        ys = [d_i[1] for d_i in data_tuples]
+        yerr_values = [s_i[1] for s_i in yerr_tuples]
+        ax.bar(ind+bar_locations[bar_idx], ys, width, color=colors[bar_idx], hatch=hatch[bar_idx],
+                label=legend_labels[bar_idx], yerr=yerr_values, align="center",
+                ecolor="black")
 
     plt.rc('text', usetex=True)
     plt.rc('font', family='serif')
+    plt.grid()
     plt.xlabel("Number of Flows")
-    plt.ylabel("Maximum mirroring port rate ($\\frac{Mb}{s}$)")
+    plt.ylabel("Maximum switch load (Mbps)")
     plt.legend(loc="upper center", bbox_to_anchor=(0.5, cfg.LEGEND_HEIGHT), shadow=True, ncol=2)
 
-    save_figure("fm-plot-one.pdf")
+    helpers.save_figure("sfm-objective.pdf")
 
 def compute_theoretical_and_actual_error(results_repository):
     utilization_data = defaultdict(list)
@@ -92,7 +232,7 @@ def compute_theoretical_and_actual_error(results_repository):
     for provider_name in ["optimal", "approx"]:
         for trial_idx in range(5):
             trial_name = "sub-trial-%d" % trial_idx
-            topo, flows, solutions, net_utilization = read_results(results_repository,
+            topo, flows, switches, solutions, net_utilization = read_results(results_repository,
                     provider_name, trial_name)
 
             most_used_mirroring_port = compute_most_used_mirroring_port(flows, solutions)
@@ -106,31 +246,8 @@ def compute_theoretical_and_actual_error(results_repository):
 
     return utilization_data
 
-def compute_theoretical_and_actual_mean_utilization(results_repository):
-    utilization_data = defaultdict(list)
-    theoretical_data = defaultdict(list)
-
-    for provider_name in ["optimal", "approx"]:
-        for trial_idx in range(5):
-            trial_name = "sub-trial-%d" % trial_idx
-            topo, flows, solutions, net_utilization = read_results(results_repository, 
-                    provider_name, trial_name)
-
-            most_used_mirroring_port = compute_most_used_mirroring_port(flows, solutions)
-            id_to_dpid = topo_mapper.get_and_validate_onos_topo(topo)
-            mirror_port_dpid = id_to_dpid[most_used_mirroring_port]
-            collector_switch_dpid = topo_mapper.get_collector_switch_dpid()
-            
-            utilization = mean([util_at_time_t[mirror_port_dpid][collector_switch_dpid]
-                for util_at_time_t in net_utilization])
-            theoretical_utilization = compute_theoretical_util(flows, solutions)
-            utilization_data[provider_name].append((len(flows), utilization))
-            theoretical_data[provider_name].append((len(flows), theoretical_utilization))
-
-    return utilization_data, theoretical_data
-
 def generate_mirroring_port_utilization_bar_plot(results_repository):
-    topo, flows, solutions, link_utilization_data = read_results(results_repository, "approx", "sub-trial-4")
+    topo, flows, switches, solutions, link_utilization_data = read_results(results_repository, "approx", "sub-trial-4")
     link_ids = [(s, d) for s, t in link_utilization_data[0].items() for d in t.keys()]
     mean_utils  = []
     labels      = []
@@ -179,7 +296,7 @@ def generate_mirroring_port_utilization_bar_plot(results_repository):
     plt.rc('font', family='serif')
     plt.xlabel("Switch ID")
     plt.ylabel("Mean Mirroring Port Rate ($\\frac{Mb}{s}$)")
-    save_figure("plot-three.pdf")
+    helpers.save_figure("plot-three.pdf")
     plt.clf()
 
 
@@ -211,7 +328,7 @@ def generate_theoretical_vs_actual_utilization_bar_plot(results_repository):
     plt.ylabel("Maximum mirroring port rate ($\\frac{Mb}{s}$)")
     plt.legend(loc="upper center", bbox_to_anchor=(0.5, cfg.LEGEND_HEIGHT), shadow=True, ncol=2)
 
-    save_figure("fm-plot-two.pdf")
+    helpers.save_figure("sfm-theorypractice.pdf")
 
 def generate_approx_vs_optimal_theoretical_utilization_bar_plot(results_repository):
     utilization_data, theoretical_data = compute_theoretical_and_actual_mean_utilization(results_repository)
@@ -234,7 +351,7 @@ def generate_approx_vs_optimal_theoretical_utilization_bar_plot(results_reposito
     plt.ylabel("Maximum mirroring rate ($\\frac{Mb}{s}$)")
     plt.legend(loc="upper center", bbox_to_anchor=(0.5, cfg.LEGEND_HEIGHT), shadow=True, ncol=2)
 
-    save_figure("approx-vs-optimal-theoretical.pdf")
+    helpers.save_figure("approx-vs-optimal-theoretical.pdf")
 
 def generate_theoretical_vs_actual_compact_bar_plot(results_repository):
     utilization_data, theoretical_data = compute_theoretical_and_actual_mean_utilization(results_repository)
@@ -251,7 +368,7 @@ def generate_theoretical_vs_actual_compact_bar_plot(results_repository):
     labels          = ["optimal", "approx"]
     half            = len(labels)//2
     legend_labels   = ["Optimal", "BiSec"]
-    colors          = ["orange", "purple"]
+    colors          = cfg.BAR_PLOT_COLORS
     hatch           = [".", "\\"]
     bar_locations   = [w for w in np.arange((width/2), len(labels)*width, width)]
 
@@ -278,14 +395,14 @@ def generate_theoretical_vs_actual_compact_bar_plot(results_repository):
     plt.rc('text', usetex=True)
     plt.rc('font', family='serif')
     plt.xlabel("Number of Flows")
-    plt.ylabel("Maximum mirroring port rate ($\\frac{Mb}{s}$)")
+    plt.ylabel("Maximum switch load (Mbps)")
     plt.xticks(ind+(width*len(labels))/2, (ind+1)*10)
     plt.grid()
     plt.xlim(0, max(ind) + (width*len(labels)))
     plt.legend(loc="upper center", bbox_to_anchor=(0.5, cfg.LEGEND_HEIGHT), 
             shadow=True, ncol=len(labels))
 
-    save_figure("fm-plot-two-compact-bar.pdf")
+    helpers.save_figure("sfm-theorypractice.pdf")
 
 def generate_mirroring_port_utilization_compact_bar_plot(results_repository):
     width               = 0.25
@@ -293,12 +410,12 @@ def generate_mirroring_port_utilization_compact_bar_plot(results_repository):
     fig, ax             = plt.subplots()
     solution_labels     = ["optimal", "approx"]
     legend_labels       = ["Optimal", "BiSec"]
-    colors              = ["orange", "purple"]
+    colors              = cfg.BAR_PLOT_COLORS
     hatch               = [".", "\\"]
     bar_locations       = [w for w in np.arange((width/2), len(solution_labels)*width, width)]
 
     for bar_idx, solution_name in enumerate(solution_labels):
-        topo, flows, solutions, link_utilization_data = read_results(results_repository, 
+        topo, flows, switches, solutions, link_utilization_data = read_results(results_repository, 
                 solution_name, "sub-trial-4")
 
         link_ids = [(s, d) for s, t in link_utilization_data[0].items() for d in t.keys()]
@@ -330,14 +447,14 @@ def generate_mirroring_port_utilization_compact_bar_plot(results_repository):
     plt.rc('text', usetex=True)
     plt.rc('font', family='serif')
     plt.xlabel("Switch ID")
-    plt.ylabel("Maximum mirroring port rate ($\\frac{Mb}{s}$)")
+    plt.ylabel("Switch load (Mbps)")
     plt.xticks(ind+(width*len(solution_labels))/2, (ind+1))
     plt.grid()
     plt.xlim(0, max(ind) + (width*len(solution_labels)))
     plt.legend(loc="upper center", bbox_to_anchor=(0.5, cfg.LEGEND_HEIGHT), 
             shadow=True, ncol=len(labels))
 
-    save_figure("fm-plot-three-compact-bar.pdf")
+    helpers.save_figure("sfm-plotthree.pdf")
 
 
 

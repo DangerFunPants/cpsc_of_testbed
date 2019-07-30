@@ -10,7 +10,8 @@ from collections import defaultdict
 
 def save_figure(figure_name, **kwargs):
     p = cfg.FIGURE_OUTPUT_PATH.joinpath(figure_name)
-    plt.savefig(str(p), **kwargs)
+    kwargs["bbox_inches"] = "tight"
+    plt.savefig(str(p), **kwargs) 
     plt.clf()
 
 def read_json_response_from_file(file_path):
@@ -60,3 +61,5 @@ def compute_network_util_over_time(util_results):
         util_in_time_period.append(link_utilization_snapshot)
 
     return util_in_time_period
+
+

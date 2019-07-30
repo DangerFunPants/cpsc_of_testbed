@@ -193,7 +193,7 @@ def generate_max_mirror_port_utilization_bar_plot(results_repository):
                 ecolor="black")
     
     plt.rc('text', usetex=True)
-    plt.rc('font', family='serif')
+    plt.rc('font', **cfg.FONT)
     plt.xlabel("Number of Flows")
     plt.ylabel("Maximum switch load (Mbps)")
     plt.xticks(ind+(width*len(labels))/2, ind*10)
@@ -232,7 +232,7 @@ def generate_theoretical_vs_actual_utilization_bar_plot(results_repository):
         ax.bar(ind+(width/2), ys, width, color="skyblue", hatch=".", 
                 tick_label=xs, label="Expected")
         plt.rc('text', usetex=True)
-        plt.rc('font', family='serif')
+        plt.rc('font', **cfg.FONT)
         plt.xlabel("Number of Flows")
         plt.ylabel("Maximum mirroring port rate ($\\frac{Mb}{s}$)")
         plt.grid()
@@ -311,7 +311,7 @@ def generate_theoretical_vs_actual_compact_bar_plot(results_repository):
                 align="center", ecolor="black", yerr=std_dev)
     
     plt.rc('text', usetex=True)
-    plt.rc('font', family='serif')
+    plt.rc('font', **cfg.FONT)
     plt.xlabel("Number of Flows")
     plt.ylabel("Maximum switch load (Mbps)")
     plt.xticks(ind+(width*len(labels))/2, ind*10)
@@ -372,7 +372,7 @@ def generate_mirroring_port_utilization_bar_plot(results_repository):
         plt.legend(loc="upper center", bbox_to_anchor=(0.5, cfg.LEGEND_HEIGHT), 
                 shadow=True, ncol=2)
         plt.rc('text', usetex=True)
-        plt.rc('font', family='serif')
+        plt.rc('font', **cfg.FONT)
         plt.xlabel("Switch ID")
         plt.ylabel("Mean Mirroring Port Rate ($\\frac{Mb}{s}$)")
         plt.grid()
@@ -420,7 +420,7 @@ def generate_port_mirroring_port_utilization_cdf(results_repository):
         plt.legend(loc="upper center", bbox_to_anchor=(0.5, cfg.LEGEND_HEIGHT), 
                 shadow=True, ncol=len(labels))
         plt.rc('text', usetex=True)
-        plt.rc('font', family='serif')
+        plt.rc('font', **cfg.FONT)
         plt.grid()
         plt.xlabel("Mirroring Port Rate $\\frac{Mb}{s}$")
         plt.ylabel("$\\mathbb{P}\\{x < \\mathcal{X}\\}$")
@@ -450,7 +450,7 @@ def generate_theoretical_util_graph(results_repository):
 
     
     plt.rc('text', usetex=True)
-    plt.rc('font', family='serif')
+    plt.rc('font', **cfg.FONT)
     plt.xlabel("Number of Flows")
     plt.ylabel("Maximum mirroring port rate ($\\frac{Mb}{s}$)")
     plt.grid()
@@ -528,7 +528,7 @@ def generate_port_mirroring_port_utilization_compact_bar_plot(results_repository
                 ecolor="black", yerr=y_err)
 
     plt.rc('text', usetex=True)
-    plt.rc('font', family='serif')
+    plt.rc('font', **cfg.FONT)
     plt.xlabel("Switch ID")
     plt.ylabel("Switch load (Mbps)")
     plt.xticks(ind+((width*len(solution_labels))/2), ind+1)

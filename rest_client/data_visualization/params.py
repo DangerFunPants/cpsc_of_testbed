@@ -13,5 +13,9 @@ LEGEND_HEIGHT = 1.125
 SOLUTION_LABELS         = ["rnd", "det", "df", "optimal"]
 LEGEND_LABELS           = ["$\\epsilon$-LPR", "LPR", "DuFi", "Optimal"]
 # BAR_PLOT_COLORS         = ["red", "green", "royalblue", "orange", "purple"]
-BAR_PLOT_COLORS         = ["white", "white", "white", "white", "white"]
+# BAR_PLOT_COLORS         = ["white", "white", "white", "white", "white"]
+BAR_PLOT_COLORS         = ["palegreen", "skyblue", "lightpink", "silver"]
 BAR_PLOT_TEXTURES       = ["//", "O", "x", "*", "|"]
+FONT                    = { "family"        : "serif"
+                          , "size"          : 16
+                          }

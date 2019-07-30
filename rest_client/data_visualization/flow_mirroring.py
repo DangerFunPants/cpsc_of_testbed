@@ -217,7 +217,7 @@ def generate_max_mirror_port_utilization_bar_plot(results_repository):
                 ecolor="black")
 
     plt.rc('text', usetex=True)
-    plt.rc('font', family='serif')
+    plt.rc('font', **cfg.FONT)
     plt.grid()
     plt.xlabel("Number of Flows")
     plt.ylabel("Maximum switch load (Mbps)")
@@ -292,7 +292,7 @@ def generate_mirroring_port_utilization_bar_plot(results_repository):
     ax.bar(ind+(width/2), ys, width, color="green", hatch="\\", label="Expected") 
     plt.legend(loc="upper center", bbox_to_anchor=(0.5, cfg.LEGEND_HEIGHT), shadow=True, ncol=2)
     plt.rc('text', usetex=True)
-    plt.rc('font', family='serif')
+    plt.rc('font', **cfg.FONT)
     plt.xlabel("Switch ID")
     plt.ylabel("Mean Mirroring Port Rate ($\\frac{Mb}{s}$)")
     helpers.save_figure("plot-three.pdf")
@@ -322,7 +322,7 @@ def generate_theoretical_vs_actual_utilization_bar_plot(results_repository):
     ax.bar(ind+(width/2), ys, width, color="green", hatch="\\", tick_label=xs, label="Expected")
 
     plt.rc('text', usetex=True)
-    plt.rc('font', family='serif')
+    plt.rc('font', **cfg.FONT)
     plt.xlabel("Number of Flows")
     plt.ylabel("Maximum mirroring port rate ($\\frac{Mb}{s}$)")
     plt.legend(loc="upper center", bbox_to_anchor=(0.5, cfg.LEGEND_HEIGHT), shadow=True, ncol=2)
@@ -345,7 +345,7 @@ def generate_approx_vs_optimal_theoretical_utilization_bar_plot(results_reposito
     ax.bar(ind+(width/2), ys, width, color="green", hatch="\\", tick_label=xs, label="optimal")
 
     plt.rc('text', usetex=True)
-    plt.rc('font', family='serif')
+    plt.rc('font', **cfg.FONT)
     plt.xlabel("Number of Flows")
     plt.ylabel("Maximum mirroring rate ($\\frac{Mb}{s}$)")
     plt.legend(loc="upper center", bbox_to_anchor=(0.5, cfg.LEGEND_HEIGHT), shadow=True, ncol=2)
@@ -392,7 +392,7 @@ def generate_theoretical_vs_actual_compact_bar_plot(results_repository):
                 align="center", ecolor="black")
 
     plt.rc('text', usetex=True)
-    plt.rc('font', family='serif')
+    plt.rc('font', **cfg.FONT)
     plt.xlabel("Number of Flows")
     plt.ylabel("Maximum switch load (Mbps)")
     plt.xticks(ind+(width*len(labels))/2, (ind+1)*10)
@@ -413,35 +413,6 @@ def generate_mirroring_port_utilization_compact_bar_plot(results_repository):
     hatch               = cfg.BAR_PLOT_TEXTURES
     bar_locations       = [w for w in np.arange((width/2), len(solution_labels)*width, width)]
 
-    # for bar_idx, solution_name in enumerate(solution_labels):
-    #     topo, flows, switches, solutions, link_utilization_data = read_results(results_repository, 
-    #             solution_name, "sub-trial-4")
-
-    #     link_ids = [(s, d) for s, t in link_utilization_data[0].items() for d in t.keys()]
-    #     mean_utils  = []
-    #     labels      = []
-    #     errors      = []
-    #     collector_switch_dpid = topo_mapper.get_collector_switch_dpid()
-    #     id_to_dpid = topo_mapper.get_and_validate_onos_topo(topo)
-    #     dpid_to_id = {v: k for k, v in id_to_dpid.items()}
-    #     for s, d in [(s, d) for s, d in link_ids if d == collector_switch_dpid]:
-    #         link_utils_over_time = []
-    #         for time_idx, net_snapshot in enumerate(link_utilization_data):
-    #             try:
-    #                 link_utils_over_time.append(net_snapshot[s][d])
-    #             except KeyError:
-    #                 print("net_snapshot at time %d did not contain link %s -> %s" % (time_idx, s, d))
-    #         mean_utils.append(util.bytes_per_second_to_mbps(mean(link_utils_over_time)))
-    #         errors.append(util.bytes_per_second_to_mbps(np.std(link_utils_over_time)))
-    #         labels.append(dpid_to_id[s])
-
-    #     ys = [mu for mu, l in sorted(zip(mean_utils, labels), key=lambda t: t[1])]
-    #     xs = labels
-    #     errors = [e for e, l in sorted(zip(errors, labels), key=lambda t: t[1])]
-
-    #     ax.bar(ind+bar_locations[bar_idx], ys, width, color=colors[bar_idx], 
-    #             hatch=hatch[bar_idx], label=legend_labels[bar_idx],
-    #             align="center", ecolor="black", yerr=errors)
     # mean_utils :: solution_type -> switch_id -> util_list
     trial_name = "sub-trial-4"
     mean_utils = defaultdict(lambda: defaultdict(list))
@@ -484,7 +455,7 @@ def generate_mirroring_port_utilization_compact_bar_plot(results_repository):
 
 
     plt.rc('text', usetex=True)
-    plt.rc('font', family='serif')
+    plt.rc('font', **cfg.FONT)
     plt.xlabel("Switch ID")
     plt.ylabel("Switch load (Mbps)")
     plt.xticks(ind+(width*len(solution_labels))/2, (ind+1))

@@ -10,8 +10,13 @@ LEGEND_HEIGHT = 1.125
 # Various parameters to control the look of generated plots
 # SOLUTION_LABELS         = ["rnd", "det", "df", "greedy", "optimal"]
 # LEGEND_LABELS           = ["$\\epsilon$-LPR", "LPR", "DuFi", "Greedy", "Optimal"]
-SOLUTION_LABELS         = ["rnd", "det", "df", "optimal"]
-LEGEND_LABELS           = ["$\\epsilon$-LPR", "LPR", "DuFi", "Optimal"]
+SOLUTION_LABELS         = { "rnd"       : "$\\epsilon-LPR"
+                          , "det"       : "LPR"
+                          , "df"        : "DuFi"
+                          , "optimal"   : "Optimal"
+                          }
+
+LEGEND_LABELS           = ["$\\epsilon$-LPR$", "LPR", "DuFi", "Optimal"]
 # BAR_PLOT_COLORS         = ["red", "green", "royalblue", "orange", "purple"]
 # BAR_PLOT_COLORS         = ["white", "white", "white", "white", "white"]
 BAR_PLOT_COLORS         = ["palegreen", "skyblue", "lightpink", "silver"]

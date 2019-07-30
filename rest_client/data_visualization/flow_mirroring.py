@@ -22,7 +22,9 @@ from statistics                     import mean
 from trials.flow_mirroring_trial    import FlowDefinition, SolutionDefinition, SwitchDefinition
 from data_visualization.helpers     import read_json_response_from_file, compute_initial_byte_counts, subtract_counts, compute_utilization_from_byte_counts, compute_network_util_over_time, read_json_response
 
-SOLUTION_LABELS     = ["approx", "optimal"]
+SOLUTION_LABELS     = { "approx": "BiSec"
+                      , "optimal": "Optimal"
+                      }
 LEGEND_LABELS       = ["BiSec", "Optimal"]
 
 def compute_most_used_mirroring_port(flows, solutions):
@@ -213,7 +215,7 @@ def generate_max_mirror_port_utilization_bar_plot(results_repository):
         ys = [d_i[1] for d_i in data_tuples]
         yerr_values = [s_i[1] for s_i in yerr_tuples]
         ax.bar(ind+bar_locations[bar_idx], ys, width, color=colors[bar_idx], hatch=hatch[bar_idx],
-                label=legend_labels[bar_idx], yerr=yerr_values, align="center",
+                label=labels[solution_name], yerr=yerr_values, align="center",
                 ecolor="black")
 
     plt.rc('text', usetex=True)
@@ -450,7 +452,7 @@ def generate_mirroring_port_utilization_compact_bar_plot(results_repository):
         y_err = [s_i[1] for s_i in std_dev_tuples]
 
         ax.bar(ind+bar_locations[bar_idx], ys, width, color=colors[bar_idx], hatch=hatch[bar_idx],
-                label=legend_labels[bar_idx], align="center",
+                label=solution_labels[solution_name], align="center",
                 ecolor="black", yerr=y_err)
 
 

@@ -12,12 +12,12 @@ def flow_mirroring_plots():
     results_repository = rr.ResultsRepository.create_repository(repo_path,
             "/provider-name/solution-type/trial-name/", "flow-mirroring")
 
-    flow_mirroring.generate_max_mirror_port_utilization_bar_plot(results_repository)
+    # flow_mirroring.generate_max_mirror_port_utilization_bar_plot(results_repository)
     # flow_mirroring.generate_theoretical_vs_actual_utilization_bar_plot(results_repository)
     # flow_mirroring.generate_approx_vs_optimal_theoretical_utilization_bar_plot(results_repository)
     # flow_mirroring.generate_mirroring_port_utilization_bar_plot(results_repository)
     # flow_mirroring.generate_theoretical_vs_actual_compact_bar_plot(results_repository)
-    # flow_mirroring.generate_mirroring_port_utilization_compact_bar_plot(results_repository)
+    flow_mirroring.generate_mirroring_port_utilization_compact_bar_plot(results_repository)
 
 def port_mirroring_plots():
     # repo_path = pm_cfg.base_repository_path

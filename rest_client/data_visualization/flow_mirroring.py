@@ -191,7 +191,6 @@ def generate_max_mirror_port_utilization_bar_plot(results_repository):
             std_deviations[solution_name][flow_count] = np.std(util_list)
             mean_utils[solution_name][flow_count] = mean(util_list)
 
-    pp.pprint(mean_utils)
     width           = 0.35
     ind             = np.arange(1, 6)
     fig, ax         = plt.subplots()
@@ -408,41 +407,81 @@ def generate_mirroring_port_utilization_compact_bar_plot(results_repository):
     width               = 0.25
     ind                 = np.arange(11)
     fig, ax             = plt.subplots()
-    solution_labels     = ["optimal", "approx"]
-    legend_labels       = ["Optimal", "BiSec"]
+    solution_labels     = SOLUTION_LABELS
+    legend_labels       = LEGEND_LABELS
     colors              = cfg.BAR_PLOT_COLORS
-    hatch               = [".", "\\"]
+    hatch               = cfg.BAR_PLOT_TEXTURES
     bar_locations       = [w for w in np.arange((width/2), len(solution_labels)*width, width)]
 
-    for bar_idx, solution_name in enumerate(solution_labels):
-        topo, flows, switches, solutions, link_utilization_data = read_results(results_repository, 
-                solution_name, "sub-trial-4")
+    # for bar_idx, solution_name in enumerate(solution_labels):
+    #     topo, flows, switches, solutions, link_utilization_data = read_results(results_repository, 
+    #             solution_name, "sub-trial-4")
 
-        link_ids = [(s, d) for s, t in link_utilization_data[0].items() for d in t.keys()]
-        mean_utils  = []
-        labels      = []
-        errors      = []
-        collector_switch_dpid = topo_mapper.get_collector_switch_dpid()
-        id_to_dpid = topo_mapper.get_and_validate_onos_topo(topo)
-        dpid_to_id = {v: k for k, v in id_to_dpid.items()}
-        for s, d in [(s, d) for s, d in link_ids if d == collector_switch_dpid]:
-            link_utils_over_time = []
-            for time_idx, net_snapshot in enumerate(link_utilization_data):
-                try:
-                    link_utils_over_time.append(net_snapshot[s][d])
-                except KeyError:
-                    print("net_snapshot at time %d did not contain link %s -> %s" % (time_idx, s, d))
-            mean_utils.append(util.bytes_per_second_to_mbps(mean(link_utils_over_time)))
-            errors.append(util.bytes_per_second_to_mbps(np.std(link_utils_over_time)))
-            labels.append(dpid_to_id[s])
+    #     link_ids = [(s, d) for s, t in link_utilization_data[0].items() for d in t.keys()]
+    #     mean_utils  = []
+    #     labels      = []
+    #     errors      = []
+    #     collector_switch_dpid = topo_mapper.get_collector_switch_dpid()
+    #     id_to_dpid = topo_mapper.get_and_validate_onos_topo(topo)
+    #     dpid_to_id = {v: k for k, v in id_to_dpid.items()}
+    #     for s, d in [(s, d) for s, d in link_ids if d == collector_switch_dpid]:
+    #         link_utils_over_time = []
+    #         for time_idx, net_snapshot in enumerate(link_utilization_data):
+    #             try:
+    #                 link_utils_over_time.append(net_snapshot[s][d])
+    #             except KeyError:
+    #                 print("net_snapshot at time %d did not contain link %s -> %s" % (time_idx, s, d))
+    #         mean_utils.append(util.bytes_per_second_to_mbps(mean(link_utils_over_time)))
+    #         errors.append(util.bytes_per_second_to_mbps(np.std(link_utils_over_time)))
+    #         labels.append(dpid_to_id[s])
 
-        ys = [mu for mu, l in sorted(zip(mean_utils, labels), key=lambda t: t[1])]
-        xs = labels
-        errors = [e for e, l in sorted(zip(errors, labels), key=lambda t: t[1])]
+    #     ys = [mu for mu, l in sorted(zip(mean_utils, labels), key=lambda t: t[1])]
+    #     xs = labels
+    #     errors = [e for e, l in sorted(zip(errors, labels), key=lambda t: t[1])]
 
-        ax.bar(ind+bar_locations[bar_idx], ys, width, color=colors[bar_idx], 
-                hatch=hatch[bar_idx], label=legend_labels[bar_idx],
-                align="center", ecolor="black", yerr=errors)
+    #     ax.bar(ind+bar_locations[bar_idx], ys, width, color=colors[bar_idx], 
+    #             hatch=hatch[bar_idx], label=legend_labels[bar_idx],
+    #             align="center", ecolor="black", yerr=errors)
+    # mean_utils :: solution_type -> switch_id -> util_list
+    trial_name = "sub-trial-4"
+    mean_utils = defaultdict(lambda: defaultdict(list))
+    for run_name in ["run-%d" % run_idx for run_idx in range(3)]:
+        for solution_name in solution_labels:
+            topo, flows, switches, solutions, link_utilization_data = read_results(
+                    results_repository, run_name, solution_name, trial_name)
+            link_ids = [(s, d) for s, t in link_utilization_data[0].items() for d in t.keys()]
+            collector_switch_dpid   = topo_mapper.get_collector_switch_dpid()
+            id_to_dpid              = topo_mapper.get_and_validate_onos_topo(topo)
+            dpid_to_id              = {v: k for k, v in id_to_dpid.items()}
+            for s, d in [(s, d) for s, d in link_ids if d == collector_switch_dpid]:
+                link_utils_over_time = []
+                for time_idx, net_snapshot in enumerate(link_utilization_data):
+                    try:
+                        link_utils_over_time.append(net_snapshot[s][d])
+                    except KeyError:
+                        print("net_snapshot at time %d did not contain link %s -> %s" % 
+                                (time_idx, s, d))
+
+                source_switch_id = dpid_to_id[s]
+                mean_utils[solution_name][source_switch_id].append(
+                        util.bytes_per_second_to_mbps(mean(link_utils_over_time[1:])))
+    
+    for bar_idx, solution_name_to_switch_id in enumerate(mean_utils.items()):
+        solution_name, switch_id_to_util_list = solution_name_to_switch_id
+        data_tuples = sorted([(switch_id, mean(util_list))
+            for switch_id, util_list in switch_id_to_util_list.items()],
+            key=lambda kvp: kvp[0])
+        std_dev_tuples = sorted([(switch_id, np.std(util_list))
+            for switch_id, util_list in switch_id_to_util_list.items()],
+            key=lambda kvp: kvp[0])
+
+        ys = [d_i[1] for d_i in data_tuples]
+        y_err = [s_i[1] for s_i in std_dev_tuples]
+
+        ax.bar(ind+bar_locations[bar_idx], ys, width, color=colors[bar_idx], hatch=hatch[bar_idx],
+                label=legend_labels[bar_idx], align="center",
+                ecolor="black", yerr=y_err)
+
 
     plt.rc('text', usetex=True)
     plt.rc('font', family='serif')
@@ -452,7 +491,7 @@ def generate_mirroring_port_utilization_compact_bar_plot(results_repository):
     plt.grid()
     plt.xlim(0, max(ind) + (width*len(solution_labels)))
     plt.legend(loc="upper center", bbox_to_anchor=(0.5, cfg.LEGEND_HEIGHT), 
-            shadow=True, ncol=len(labels))
+            shadow=True, ncol=len(solution_labels))
 
     helpers.save_figure("sfm-plotthree.pdf")
 

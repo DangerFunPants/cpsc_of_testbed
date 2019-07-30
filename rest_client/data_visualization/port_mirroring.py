@@ -494,8 +494,6 @@ def generate_port_mirroring_port_utilization_compact_bar_plot(results_repository
             topo, flows, switches, solutions, link_utilization_data, ports = read_results(
                     results_repository, run_name, solution_name, trial_name)
             link_ids = [(s, d) for s, t in link_utilization_data[0].items() for d in t.keys()]
-            labels          = []
-            errors          = []
             collector_switch_dpid = topo_mapper.get_collector_switch_dpid()
             id_to_dpid = topo_mapper.get_and_validate_onos_topo(topo)
             dpid_to_id = {v: k for k, v in id_to_dpid.items()}
@@ -507,11 +505,9 @@ def generate_port_mirroring_port_utilization_compact_bar_plot(results_repository
                     except KeyError:
                         print("net_snapshot at time %d did not contain link %s -> %s" % 
                                 (time_idx, s, d))
-                # mean_utils.append(util.bytes_per_second_to_mbps(mean(link_utils_over_time)))
                 source_switch_id = dpid_to_id[s]
                 mean_utils[solution_name][source_switch_id].append(
                         util.bytes_per_second_to_mbps(mean(link_utils_over_time[1:])))
-                # errors.append(util.bytes_per_second_to_mbps(np.std(link_utils_over_time)))
         
 
     for bar_idx, solution_name_to_switch_id in enumerate(mean_utils.items()):

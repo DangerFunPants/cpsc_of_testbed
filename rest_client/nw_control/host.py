@@ -18,6 +18,7 @@ class Host:
                 , host_name
                 , rem_uname
                 , rem_pw
+                , host_id
                 , ssh_port=22 ):
         self.host_name = host_name
         self.ssh_port = ssh_port
@@ -171,6 +172,6 @@ class TrafficGenHost(Host):
         return self.exec_command(comm_str)
 
     @staticmethod
-    def create_host(hostname):
-        default_host = TrafficGenHost(hostname, "alexj", "cpsc")
+    def create_host(hostname, host_id):
+        default_host = TrafficGenHost(hostname, "alexj", "cpsc", host_id)
         return default_host

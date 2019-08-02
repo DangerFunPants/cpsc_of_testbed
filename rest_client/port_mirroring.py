@@ -33,7 +33,7 @@ def create_and_initialize_host_connections(flows):
     hosts = {}
     for host_id in host_ids:
         hostname = mapper.map_sw_to_host(host_id)
-        hosts[host_id] = host.TrafficGenHost.create_host(hostname)
+        hosts[host_id] = host.TrafficGenHost.create_host(hostname, host_id)
         hosts[host_id].connect()
 
     return hosts
@@ -56,9 +56,7 @@ def conduct_port_mirroring_trial(provider_name, trial, results_repository):
 
     destination_hosts = {flow.path[-1] for flow in flows.values()}
     for destination_host in destination_hosts:
-        # @TODO: Why do I need to pass the ID to this method. Shouldn't have to 
-        # tell the host about itself.
-        hosts[destination_host].start_server(destination_host)
+        hosts[destination_host].start_server()
 
     for flow_id, flow in flows.items():
         destination_hostname    = mapper.map_sw_to_host(flow.path[-1])

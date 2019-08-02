@@ -8,9 +8,14 @@ import json                             as json
 
 from collections import defaultdict
 
-def save_figure(figure_name, **kwargs):
+def save_figure(figure_name, num_cols=0, **kwargs):
     p = cfg.FIGURE_OUTPUT_PATH.joinpath(figure_name)
     kwargs["bbox_inches"] = "tight"
+    plt.tick_params(labelsize=15)
+    legend = plt.legend(ncol=num_cols, **cfg.LEGEND)
+    plt.gca().set_axisbelow(True)
+    if legend != None:
+        legend.get_frame().set_edgecolor("lightgray")
     plt.savefig(str(p), **kwargs) 
     plt.clf()
 

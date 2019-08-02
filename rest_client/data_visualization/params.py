@@ -10,7 +10,7 @@ LEGEND_HEIGHT = 1.125
 # Various parameters to control the look of generated plots
 # SOLUTION_LABELS         = ["rnd", "det", "df", "greedy", "optimal"]
 # LEGEND_LABELS           = ["$\\epsilon$-LPR", "LPR", "DuFi", "Greedy", "Optimal"]
-SOLUTION_LABELS         = { "rnd"       : "$\\epsilon-LPR"
+SOLUTION_LABELS         = { "rnd"       : "$\\epsilon$-LPR"
                           , "det"       : "LPR"
                           , "df"        : "DuFi"
                           , "optimal"   : "Optimal"
@@ -20,7 +20,29 @@ LEGEND_LABELS           = ["$\\epsilon$-LPR$", "LPR", "DuFi", "Optimal"]
 # BAR_PLOT_COLORS         = ["red", "green", "royalblue", "orange", "purple"]
 # BAR_PLOT_COLORS         = ["white", "white", "white", "white", "white"]
 BAR_PLOT_COLORS         = ["palegreen", "skyblue", "lightpink", "silver"]
-BAR_PLOT_TEXTURES       = ["//", "O", "x", "*", "|"]
+# BAR_PLOT_TEXTURES       = ["//", "O", "x", "*", "|"]
+BAR_PLOT_TEXTURES       = ["x", ".", "*", "\\", "|"]
 FONT                    = { "family"        : "serif"
                           , "size"          : 16
+                          }
+
+LEGEND                  = { "bbox_to_anchor": (0.5, LEGEND_HEIGHT)
+                          , "shadow"        : False
+                          , "fontsize"      : 16
+                          , "handletextpad" : 0.3
+                          , "columnspacing" : 1.0
+                          , "loc"           : "upper center"
+                          , "fancybox"      : True
+                          # , "edgecolor"     : "lightgray"
+                          }
+
+AXIS_LABELS             = { "fontsize": 24
+                          }
+
+BOX_WIDTH               = 0.75
+
+GRID                    = { "b"         : True
+                          , "which"     : "both"
+                          , "color"     : "lightgray"
+                          , "linestyle" : "--"
                           }

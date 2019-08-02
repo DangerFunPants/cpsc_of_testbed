@@ -21,6 +21,8 @@ import trials.port_mirroring_trial      as port_mirroring_trial
 from collections                    import defaultdict
 from statistics                     import mean
 
+SOLUTION_NAMES = ["det", "rnd", "df", "optimal"]
+
 def read_results(results_repository, provider_name, solution_name, trial_name):
     schema_variables = { "provider-name"        : provider_name
                        , "solution-type"        : solution_name
@@ -175,13 +177,12 @@ def generate_max_mirror_port_utilization_bar_plot(results_repository):
     ind = np.arange(1, 6)
     fig, ax = plt.subplots()
     labels          = cfg.SOLUTION_LABELS
-    legend_labels   = cfg.LEGEND_LABELS
     half            = len(labels) // 2
     bar_locations   = [w for w in np.arange((width/2), len(labels)*width, width)]
     print(bar_locations)
     colors          = cfg.BAR_PLOT_COLORS
     hatch           = cfg.BAR_PLOT_TEXTURES
-    for bar_idx, solution_name in enumerate(labels):
+    for bar_idx, solution_name in enumerate(SOLUTION_NAMES):
         data_tuples = sorted([(k, v) for k, v in utilization_data[solution_name].items()],
                 key=lambda kvp: kvp[0])
         yerr_values = actual_std_deviation[solution_name]
@@ -194,14 +195,13 @@ def generate_max_mirror_port_utilization_bar_plot(results_repository):
     
     plt.rc('text', usetex=True)
     plt.rc('font', **cfg.FONT)
-    plt.xlabel("Number of Flows")
-    plt.ylabel("Maximum switch load (Mbps)")
+    plt.xlabel("Number of Flows", **cfg.AXIS_LABELS)
+    plt.ylabel("Maximum switch load (Mbps)", **cfg.AXIS_LABELS)
     plt.xticks(ind+(width*len(labels))/2, ind*10)
-    plt.grid()
-    plt.legend(loc="upper center", bbox_to_anchor=(0.5, cfg.LEGEND_HEIGHT), 
-            shadow=True, ncol=len(labels))
+    plt.grid(**cfg.GRID)
+    # plt.legend(ncol=len(labels), **cfg.LEGEND)
 
-    helpers.save_figure("spm-compare-optimal.pdf")
+    helpers.save_figure("spm-compare-optimal.pdf", len(labels))
 
 def generate_theoretical_vs_actual_utilization_bar_plot(results_repository):
     utilization_data, theoretical_data = compute_theoretical_and_actual_mean_utilization(
@@ -236,8 +236,7 @@ def generate_theoretical_vs_actual_utilization_bar_plot(results_repository):
         plt.xlabel("Number of Flows")
         plt.ylabel("Maximum mirroring port rate ($\\frac{Mb}{s}$)")
         plt.grid()
-        plt.legend(loc="upper center", bbox_to_anchor=(0.5, cfg.LEGEND_HEIGHT), 
-                shadow=True, ncol=len(labels))
+        plt.legend(ncol=len(labels), **cfg.LEGEND)
         helpers.save_figure("plot-two-%s.pdf" % solution_name)
 
 def generate_theoretical_vs_actual_compact_bar_plot(results_repository):
@@ -307,7 +306,7 @@ def generate_theoretical_vs_actual_compact_bar_plot(results_repository):
         #     key=lambda kvp: kvp[1])
         std_dev = [s_i[1] for s_i in std_dev]
         ax.bar(ind+bar_locations[bar_idx], ys, width, color=colors[bar_idx], 
-                hatch=hatch[bar_idx], label=legend_labels[bar_idx],
+                hatch=hatch[bar_idx], label=labels[solution_name],
                 align="center", ecolor="black", yerr=std_dev)
     
     plt.rc('text', usetex=True)
@@ -475,9 +474,9 @@ def generate_mirror_port_rate_difference_file(results_repository):
 
 def generate_port_mirroring_port_utilization_compact_bar_plot(results_repository):
     # solution_labels     = ["rnd", "det", "df", "greedy", "optimal"]
-    solution_labels     = cfg.SOLUTION_LABELS
+    solution_labels     = SOLUTION_NAMES
     # legend_labels       = ["$\\epsilon$-LPR", "LPR", "DuFi", "Greedy", "Optimal"]
-    legend_labels       = cfg.LEGEND_LABELS
+    legend_labels       = cfg.SOLUTION_LABELS
     colors              = cfg.BAR_PLOT_COLORS
     trial_name          = "sub-trial-4"
     width               = 0.15
@@ -510,8 +509,8 @@ def generate_port_mirroring_port_utilization_compact_bar_plot(results_repository
                         util.bytes_per_second_to_mbps(mean(link_utils_over_time[1:])))
         
 
-    for bar_idx, solution_name_to_switch_id in enumerate(mean_utils.items()):
-        solution_name, switch_id_to_util_list = solution_name_to_switch_id
+    for bar_idx, solution_name in enumerate(solution_labels):
+        switch_id_to_util_list = mean_utils[solution_name]
         data_tuples = sorted([(switch_id, mean(util_list))
             for switch_id, util_list in switch_id_to_util_list.items()],
             key=lambda kvp: kvp[0])
@@ -524,37 +523,35 @@ def generate_port_mirroring_port_utilization_compact_bar_plot(results_repository
         print(ys)
 
         ax.bar(ind+bar_locations[bar_idx], ys, width, color=colors[bar_idx], hatch=hatch[bar_idx],
-                label=solution_labels[solution_name], align="center",
+                label=legend_labels[solution_name], align="center",
                 ecolor="black", yerr=y_err)
 
     plt.rc('text', usetex=True)
     plt.rc('font', **cfg.FONT)
-    plt.xlabel("Switch ID")
-    plt.ylabel("Switch load (Mbps)")
+    plt.xlabel("Switch ID", **cfg.AXIS_LABELS)
+    plt.ylabel("Switch load (Mbps)", **cfg.AXIS_LABELS)
     plt.xticks(ind+((width*len(solution_labels))/2), ind+1)
     plt.grid()
     plt.xlim(0, 10+(width*len(solution_labels)))
-    plt.legend(loc="upper center", bbox_to_anchor=(0.5, cfg.LEGEND_HEIGHT), 
-            shadow=True, ncol=len(solution_labels))
+    # plt.legend(ncol=len(solution_labels), **cfg.LEGEND)
 
-    helpers.save_figure("spm-plot-three-cdf.pdf")
+    helpers.save_figure("spm-plot-three-cdf.pdf", len(solution_labels))
 
 def generate_mirroring_port_utilization_box_plot(results_repository):
     width               = 0.25
     ind                 = np.arange(11)
     fig, ax             = plt.subplots()
-    solution_labels     = SOLUTION_LABELS
-    legend_labels       = LEGEND_LABELS
+    solution_labels     = cfg.SOLUTION_LABELS
     colors              = cfg.BAR_PLOT_COLORS
     hatch               = cfg.BAR_PLOT_TEXTURES
     bar_locations       = [w for w in np.arange((width/2), len(solution_labels)*width, width)]
 
-    # mean_utils :: solution_type -> switch_id -> util_list
+    # mean_util_lists :: solution_type -> switch_id -> util_list
     trial_name = "sub-trial-4"
-    mean_utils = defaultdict(lambda: defaultdict(list))
+    mean_util_lists = defaultdict(lambda: defaultdict(list))
     for run_name in ["run-%d" % run_idx for run_idx in range(3)]:
         for solution_name in solution_labels:
-            topo, flows, switches, solutions, link_utilization_data = read_results(
+            topo, flows, switches, solutions, link_utilization_data, ports = read_results(
                     results_repository, run_name, solution_name, trial_name)
             link_ids = [(s, d) for s, t in link_utilization_data[0].items() for d in t.keys()]
             collector_switch_dpid   = topo_mapper.get_collector_switch_dpid()
@@ -570,11 +567,34 @@ def generate_mirroring_port_utilization_box_plot(results_repository):
                                 (time_idx, s, d))
 
                 source_switch_id = dpid_to_id[s]
-                mean_utils[solution_name][source_switch_id].append(
+                mean_util_lists[solution_name][source_switch_id].append(
                         util.bytes_per_second_to_mbps(mean(link_utils_over_time[1:])))
     
-    
+    mean_utils = defaultdict(dict)
+    box_plot_lists = {}
+    for solution_type, switch_id_to_util_list in mean_util_lists.items():
+        list_for_solution_type = []
+        for switch_id, util_list in switch_id_to_util_list.items():
+            mean_value = mean(util_list)
+            list_for_solution_type.append(mean_value)
+            mean_utils[solution_type][switch_id] = mean_value
+        box_plot_lists[solution_type] = list_for_solution_type
 
+    box = plt.boxplot([box_plot_lists[solution_name] for solution_name in SOLUTION_NAMES],
+            labels=[solution_labels[solution_name] for solution_name in SOLUTION_NAMES],
+            patch_artist=True,
+            widths=[cfg.BOX_WIDTH]*len(SOLUTION_NAMES))
 
+    for element in ["boxes", "whiskers", "fliers", "means", "medians", "caps"]:
+        plt.setp(box[element], color="black")
 
+    for idx, patch in enumerate(box["boxes"]):
+        patch.set(facecolor=cfg.BAR_PLOT_COLORS[idx], hatch=cfg.BAR_PLOT_TEXTURES[idx])
 
+    plt.rc('text', usetex=True)
+    plt.rc('font', **cfg.FONT)
+    plt.xlabel("Algorithm", **cfg.AXIS_LABELS)
+    plt.ylabel("Switch load (Mbps)", **cfg.AXIS_LABELS)
+    plt.grid(**cfg.GRID)
+
+    helpers.save_figure("spm-boxplot.pdf")

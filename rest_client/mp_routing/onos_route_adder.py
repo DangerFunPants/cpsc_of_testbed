@@ -1,13 +1,14 @@
-import multipath_orchestrator   as mp
-import file_parsing             as fp
-import params                   as cfg
 import pathlib                  as path
 import pprint                   as pp
 import requests                 as req
 import json                     as json
 
-from . import HostMapper
-from . import OnMonitor
+import mp_routing.multipath_orchestrator        as mp
+import mp_routing.file_parsing                  as fp
+import nw_control.params                        as cfg
+
+from nw_control.host_mapper         import HostMapper
+from nw_control.stat_monitor        import OnMonitor
 
 class OnosRouteAdder:
 

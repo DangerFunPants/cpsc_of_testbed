@@ -1,18 +1,17 @@
-import file_parsing as fp
-import of_rest_client as of
-import flowmod as fm
-import host_mapper as hm
-import params as cfg
-import paramiko as ssh
-import util as util
-from functools import reduce
-from collections import defaultdict
-import threading as thread
 
-from rest_client import nw_control 
+import threading        as thread
+import paramiko         as ssh
+
+import mp_routing.file_parsing      as fp
+import nw_control.host_mapper       as hm
+import nw_control.util              as util
+import nw_control.of_rest_client    as of
+import nw_control.flowmod           as fm
+
+from functools      import reduce
+from collections    import defaultdict
 
 # Horrible debugging practice
-import pprint as p
 
 class MPRouteAdder:
     

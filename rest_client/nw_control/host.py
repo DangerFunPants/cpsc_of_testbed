@@ -1,11 +1,11 @@
+
 import paramiko as ssh
-from . import util
-from . import params
+
+import nw_control.util              as util
+import nw_control.params            as cfg
+import nw_control.host_mapper       as hm
 
 from functools import reduce
-
-from . import host_mapper       as hm
-from . import params            as cfg
 
 class Host:
     """
@@ -20,11 +20,12 @@ class Host:
                 , rem_pw
                 , host_id
                 , ssh_port=22 ):
-        self.host_name = host_name
-        self.ssh_port = ssh_port
-        self.rem_uname = rem_uname
-        self.rem_pw = rem_pw
-        self.ssh_tunnel = None
+        self.host_name      = host_name
+        self.ssh_port       = ssh_port
+        self.rem_uname      = rem_uname
+        self.rem_pw         = rem_pw
+        self.ssh_tunnel     = None
+        self.host_id        = host_id
 
         if util.is_ip_addr(host_name):
             self.host_ip = host_name
@@ -109,10 +110,10 @@ class TrafficGenHost(Host):
         )
         return self.exec_command(command_str)
     
-    def start_server(self, host_no):
+    def start_server(self):
         self.remove_all_files(TrafficGenHost.COUNT_DIR, 'p')
         start_comm = '%s/traffic_server.py' % TrafficGenHost.BIN_DIR
-        args = [ ('-host %s' % str(host_no))
+        args = [ ('-host %s' % str(self.host_id))
                ]
         comm_str = util.inject_arg_opts(start_comm, args)
         comm_str += ' &'

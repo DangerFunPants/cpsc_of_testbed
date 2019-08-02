@@ -10,19 +10,6 @@ def build_graph_from_topo_file(topo_file):
     text = topo_file.read_text()
     return build_graph_from_topo_string(text)
 
-# def build_graph_from_topo_string(topo_str):
-#     lines = topo_str.splitlines()
-#     graph = nx.Graph()
-#     num_nodes = int(lines[0])
-#     for node_idx in range(1, num_nodes + 1):
-#         graph.add_node(node_idx)
-#     
-#     for edge_entry in lines[2:]:
-#         [source_node, destination_node] = edge_entry.split(" ")
-#         graph.add_edge(int(source_node), int(destination_node))
-# 
-#     return graph
-
 def build_graph_from_topo_string(topo_str):
     lines = topo_str.splitlines()
     graph = nx.Graph()
@@ -75,7 +62,11 @@ def build_onos_topo_graph():
     links = get_nw_links()
     graph = nx.Graph()
     node_set = set()
-    collector_switch_dpid = get_collector_switch_dpid()
+    try:
+        collector_switch_dpid = get_collector_switch_dpid()
+    except StopIteration:
+        collector_switch_dpid = ""
+
     core_topo_links = [link for link in links if link["src"]["device"] != collector_switch_dpid 
             and link["dst"]["device"] != collector_switch_dpid]
 

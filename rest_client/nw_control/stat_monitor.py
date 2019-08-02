@@ -8,6 +8,7 @@ class OnMonitor:
         self._onos_controller_port      = onos_controller_port
         self._monitor_token             = None
         self._credentials               = ("onos", "rocks")
+        self._stop_monitor_response     = None
 
     def start_monitor(self):
         if self._monitor_token != None:
@@ -39,4 +40,6 @@ class OnMonitor:
                     (stop_monitor_request.status_code, stop_monitor_request.reason))
 
     def get_monitor_statistics(self):
+        if self._stop_monitor_response == None:
+            raise ValueError("No results have been collected yet! Did you remember to start/stop the monitor.")
         return self._stop_monitor_response

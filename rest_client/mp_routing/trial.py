@@ -95,3 +95,4 @@ class Trial(object):
         for flow_json in json_object["flows"]:
             flow = Flow.from_json(flow_json)
             trial.add_flow(flow)
+        return trial

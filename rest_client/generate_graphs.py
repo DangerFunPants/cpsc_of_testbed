@@ -4,6 +4,7 @@ import pathlib                                  as path
 
 import data_visualization.flow_mirroring        as flow_mirroring
 import data_visualization.port_mirroring        as port_mirroring
+import data_visualization.mp_routing            as mp_routing
 import nw_control.results_repository            as rr
 import port_mirroring.params                    as pm_cfg
 
@@ -40,9 +41,13 @@ def port_mirroring_plots():
     # port_mirroring.generate_port_mirroring_port_utilization_compact_bar_plot(results_repository)
     port_mirroring.generate_mirroring_port_utilization_box_plot(results_repository)
 
+def mp_routing_plots():
+    mp_routing.main()
+
 def main():
-    flow_mirroring_plots()
-    port_mirroring_plots()
+    # flow_mirroring_plots()
+    # port_mirroring_plots()
+    mp_routing_plots()
 
 if __name__ == "__main__":
     main()

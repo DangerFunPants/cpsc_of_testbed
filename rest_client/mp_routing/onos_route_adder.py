@@ -63,25 +63,6 @@ class OnosRouteAdder:
         path_ratios = self._route_provider.get_flow_defs()
         return path_ratios
 
-class OnosMapper(HostMapper):
-    def __init__(self, dns_server_ips, controller_ip, controller_port):
-        super().__init__(dns_server_ips, controller_ip, controller_port)
-        self._switch_to_dpid_map = { 1  : "of:00039cdc718a17c0"
-                                   , 2  : "of:00049cdc718a17c0"
-                                   , 3  : "of:00039cdc718ab520"
-                                   , 4  : "of:00049cdc718ab520"
-                                   , 5  : "of:000400fd457cab40"
-                                   , 6  : "of:00039cdc718ae5c0"
-                                   , 7  : "of:00049cdc718ae5c0"
-                                   , 8  : "of:000300fd457cab40"
-                                   , 9  : "of:000500fd457cab40"
-                                   , 10 : "of:00059cdc718ab520"
-                                   , 11 : "of:00059cdc718a17c0"
-                                   }
-    
-    def map_sw_to_dpid(self, sw_num):
-        return self._switch_to_dpid_map[sw_num]
-
 def build_file_path(route_files_dir, trial_name, seed_no):
     return route_files_dir.joinpath(trial_name).joinpath("seed_%s" % seed_no)
 

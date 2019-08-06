@@ -79,10 +79,11 @@ def main():
     def build_file_path(route_files_dir, trial_name, seed_no):
         return route_files_dir / trial_name / path.Path("seed_%s" % seed_no)
 
-    mapper = onos.OnosMapper([cfg.dns_server_ip], cfg.of_controller_ip, cfg.of_controller_port)
-    seed_no = "4065"
-    mu = mp_cfg.mu
-    sigma = mp_cfg.sigma
+    mapper = host_mapper.OnosMapper([cfg.dns_server_ip], cfg.of_controller_ip, 
+            cfg.of_controller_port, ABILENE_TOPO_FILE_PATH.read_text())
+    seed_no         = "4065"
+    mu              = mp_cfg.mu
+    sigma           = mp_cfg.sigma
     trial_path = build_file_path(path.Path(mp_cfg.var_rate_route_path),
             "prob_mean_1_sigma_1.0", seed_no)
     route_provider = fp.VariableRateFileParser(trial_path, seed_no, mu, sigma)

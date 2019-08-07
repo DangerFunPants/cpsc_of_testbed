@@ -48,7 +48,7 @@ def conduct_onos_trial(route_adder, trial_length):
         dst_ip          = mapper.resolve_hostname(dst_hostname)
         # mu              = (float(mu) / 8) * 10**6
         # sigma           = (sigma / 8) * 10**6
-        mu              = 10**6 / 8
+        mu              = 10**8 / 8
         sigma           = 0
         hosts[src_host].configure_client(mu, sigma, mp_cfg.traffic_model,
                 dst_ip, mp_cfg.dst_port, path_split, src_host, mp_cfg.time_slice,

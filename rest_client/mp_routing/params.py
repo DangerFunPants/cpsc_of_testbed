@@ -34,7 +34,7 @@ sigma = (100000000 / 8.0) ** 2
 # Traffic Model [ trunc_norm | uniform | trunc_norm_symmetric | random_sampling ]
 traffic_model = 'uniform' #'gamma'
 # Frequency of Tx Rate alteration (seconds)
-time_slice = 10
+time_slice = 100
 # Total number of seconds to run the trial for
 trial_length = 60
 # Destination UDP port for test traffic

@@ -41,6 +41,7 @@ def conduct_onos_trial(route_adder, trial_length):
     time.sleep(5)
 
     tag_values = route_adder.install_routes()
+    pp.pprint(tag_values)
     path_ratios = route_adder.get_path_ratios()
     for flow_id, (src_host, dst_host, path_split, (mu, sigma)) in enumerate(path_ratios):
         dst_hostname    = mapper.map_sw_to_host(dst_host)

@@ -1,22 +1,21 @@
 #!/usr/bin/python3
 
-import socket
-import time
-import random
-import argparse
-import os
-import signal
-from enum import Enum
-from functools import reduce
-from math import sqrt
-import logging as lg
-import sys as sys
-from collections import defaultdict
-import pprint as pp
-import pickle as pickle
+import socket               as socket                   
+import time                 as time
+import random               as random
+import argparse             as argparse
+import os                   as os
+import signal               as signal
+import logging              as lg
+import sys                  as sys
+import pprint               as pp
+import pickle               as pickle
+import scipy.stats          as stats
 
-import scipy.stats as stats
-
+from enum               import Enum
+from functools          import reduce
+from math               import sqrt
+from collections        import defaultdict
 
 class TrafficModels(Enum):
     UNIFORM = 0
@@ -78,7 +77,7 @@ class FlowParameters:
                   , 'Packet Length: %d'     % self.packet_len
                   , 'Source Host: %d'       % self.src_host
                   , 'Time Slice: %d'        % self.time_slice
-                  , "Tag Value: %d"         % self.tag_value
+                  , "Tag Value: %s"         % str(self.tag_value)
                   ]
         s = reduce(lambda s1, s2 : s1 + '\n' + s2, str_rep)
         return s

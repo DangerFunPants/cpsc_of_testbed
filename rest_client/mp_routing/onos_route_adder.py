@@ -29,7 +29,9 @@ class OnosRouteAdder:
         tag_counter     = 1
         tag_values      = {}
         for flow_id, flow in enumerate(routes):
-            self.install_route(flow.paths, tag_values, tag_counter)
+            pp.pprint(flow.paths)
+            self.install_route(flow_id, flow.paths, tag_values, tag_counter)
+            tag_counter += len(flow.paths)
         return tag_values
 
     def remove_route(self, route_token):
@@ -43,12 +45,14 @@ class OnosRouteAdder:
 
     def install_route(self, route_id, route, tag_values, tag_counter):
         tag_values[route_id] = []
+        paths_dicts = []
         for path in route:
-            d = { "nodes"       : [self._mapper.map_sw_to_dpid(p_i) for p_i in path]
-                , "tagValue"    : tag_counter
-                }
+            path_dict = { "nodes"       : [self._mapper.map_sw_to_dpid(p_i) for p_i in path.nodes]
+                        , "tagValue"    : tag_counter
+                        }
             tag_values[route_id].append(tag_counter)
             tag_counter += 1
+            paths_dicts.append(path_dict)
 
         route_json = json.dumps({ "paths": paths_dicts })
         print(route_json)
@@ -63,11 +67,8 @@ class OnosRouteAdder:
                     (route_add_request.status_code, route_add_request.reason))
 
     def get_src_dst_pairs(self):
-        routes = self._route_provider.get_routes()
-        pairs = set()
-        for _, path in routes:
-            pairs.add((path[0], path[-1]))
-        return pairs
+        return {(flow.source_node, flow.destination_node)
+                    for flow in self._route_provider.flows}
 
     def get_path_ratios(self):
         path_ratios = self._route_provider.get_flow_defs()

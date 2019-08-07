@@ -7,6 +7,8 @@ import mp_routing.multipath_orchestrator        as mp
 import mp_routing.file_parsing                  as fp
 import nw_control.params                        as cfg
 
+from collections                    import defaultdict
+
 from nw_control.host_mapper         import HostMapper
 from nw_control.stat_monitor        import OnMonitor
 
@@ -22,28 +24,36 @@ class OnosRouteAdder:
         self._installed_route_tokens    = set()
 
     def install_routes(self):
-        routes = self._route_provider.get_routes()
+        routes = self._route_provider.flows
         route_count = 0
-        
-        pp.pprint(routes)
-        for route_idx in range(0, len(routes), 3):
-            self.install_route(list(routes[route_idx:route_idx+3]))
-            route_count += 1
-        print("Installed %d routes on physical network." % route_count)
+        tag_counter     = 1
+        tag_values      = {}
+        for flow_id, flow in enumerate(routes):
+            self.install_route(flow.paths, tag_values, tag_counter)
+        return tag_values
 
     def remove_route(self, route_token):
-        route_remove_request = req.post("http://127.0.0.1:8181/onos/multipath-routing/v1/remove-route?route-id=%s" % route_token, auth=self._credentials)
+        route_remove_request = req.post(
+                "http://127.0.0.1:8181/onos/multipath-routing/v1/remove-route?route-id=%s" %
+                route_token, auth=self._credentials)
 
     def remove_routes(self):
         for route_token in self._installed_route_tokens:
             self.remove_route(route_token)
 
-    def install_route(self, route):
-        # paths = [{path_spec[1] for path_spec in route]
-        paths_dicts = [{"nodes": [self._mapper.map_sw_to_dpid(p_i) for p_i in path[1]], "tagValue": path[0] + 1} for path in route]
+    def install_route(self, route_id, route, tag_values, tag_counter):
+        tag_values[route_id] = []
+        for path in route:
+            d = { "nodes"       : [self._mapper.map_sw_to_dpid(p_i) for p_i in path]
+                , "tagValue"    : tag_counter
+                }
+            tag_values[route_id].append(tag_counter)
+            tag_counter += 1
+
         route_json = json.dumps({ "paths": paths_dicts })
         print(route_json)
-        route_add_request = req.post("http://127.0.0.1:8181/onos/multipath-routing/v1/add-route", data=route_json, auth=self._credentials)
+        route_add_request = req.post("http://127.0.0.1:8181/onos/multipath-routing/v1/add-route",
+                data=route_json, auth=self._credentials)
         if route_add_request.status_code == 200:
             add_response = json.loads(route_add_request.text)
             route_token = add_response["routeId"]

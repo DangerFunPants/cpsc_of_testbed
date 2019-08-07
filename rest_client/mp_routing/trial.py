@@ -75,8 +75,17 @@ class Flow(object):
         return pp.pformat(self.to_json())
 
 class Trial(object):
-    def __init__(self):
-        self._flows = []
+    def __init__(self, seed):
+        self._flows     = []
+        self._seed      = seed
+
+    @property
+    def seed(self):
+        return self._seed
+
+    @property
+    def flows(self):
+        return self._flows
 
     def add_flow(self, flow):
         if not flow.verify_flow():
@@ -84,14 +93,24 @@ class Trial(object):
                     (str(flow)))
         self._flows.append(flow)
 
+    def get_flow_defs(self):
+        path_splits = []
+        for flow in self.flows:
+            splits = [path.fraction for path in flow.paths]
+            path_splits.append((flow.source_node, flow.destination_node, splits, 
+                (flow.rate, flow.variance)))
+        return path_splits
+
     @staticmethod
     def to_json(trial_object):
-        trial_json = { "flows": [flow.to_json() for flow in trial_object._flows] }
-        return trial_json
+        trial_json = { "flows": [Flow.to_json(flow) for flow in trial_object.flows] 
+                     , "seed"   : trial_object.seed
+                     }
+        return json.dumps(trial_json)
 
     @staticmethod
     def from_json(json_object):
-        trial = Trial()
+        trial = Trial(json_object["seed"])
         for flow_json in json_object["flows"]:
             flow = Flow.from_json(flow_json)
             trial.add_flow(flow)

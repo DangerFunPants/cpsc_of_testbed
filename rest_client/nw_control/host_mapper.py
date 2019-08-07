@@ -23,12 +23,9 @@ class HostMapper:
         resolver.nameservers = self.nameservers
         
         query_str = self.qualify_host_domain(hostname)
-        print(query_str)
         try:
-            print(type(query_str))
             answers = resolver.query(query_str, 'A')
         except Exception as ex:
-            print(ex)
             raise IOError('Failed to resolve hostname: %s. Exception: %s' % 
                     (query_str, str(ex)))
 
@@ -83,7 +80,6 @@ class HostMapper:
     def get_switch_to_host_map(self):
         req = of.SwitchList(self.host, self.port_no)
         sw_list = req.get_response().get_sw_list()
-        print(sw_list)
         res = {}
         for sw_dpid in sw_list:
             # Find the friendly switch name

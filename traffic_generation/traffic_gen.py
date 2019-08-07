@@ -102,8 +102,8 @@ sock_dict = None
 
 # Considers the list of flows to be zero indexed and takes into account
 # that test flows use DSCP values in the range [1, 2**6)
-def calc_dscp_val(flow_num):
-    return (flow_num + 1) << 2
+def calc_dscp_val(flow_num, tag_values):
+    return (tag_values[flow_num]) << 2
 
 def create_distribution(mu, sigma, traffic_model):
     dist = None
@@ -163,14 +163,14 @@ def select_tx_rate(args, old_rate, distr):
 #       \sigma_i=0^k{prob_matrix_i} = 1
 #
 # should hold for all instances of prob_matrix
-def select_dscp(prob_matrix):
+def select_dscp(prob_matrix, tag_values):
     random_pick = random.uniform(0, 1)
     accumulator = 0.0
 
     for flow_num, proportion in enumerate(prob_matrix):
         accumulator = accumulator + proportion
         if (random_pick <= accumulator):
-            return calc_dscp_val(flow_num)
+            return calc_dscp_val(flow_num, tag_values)
 
 def set_dscp(sock, dscp):
     sock.setsockopt(socket.SOL_IP, socket.IP_TOS, dscp)
@@ -245,10 +245,7 @@ def transmit(sock_list, ipd_list, duration, flow_params):
         for i in expired:
             flow = ipds[i]
 
-            if flow_params[i].tag_value != None:
-                dscp_val = flow_params[i].tag_value << 2
-            else:
-                dscp_val = select_dscp(flow_params[i].prob_mat)
+            dscp_val = select_dscp(flow_params[i].prob_mat, flow_params[i].tag_value)
                 
             set_dscp(flow[0], dscp_val)
             for _ in range(10):

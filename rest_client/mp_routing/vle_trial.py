@@ -98,7 +98,7 @@ class VleTrial:
         tx_rates        = vle_trial_dict["mean-flow-tx-rates"]
         std_dev         = vle_trial_dict["std-dev-flow-tx-rates"]
         actual_rates    = vle_trial_dict["actual-flow-tx-rates"]
-        solver_results  = vle_trial_dict["solver-results"]
+        solver_results  = trial.Trial.from_dict(vle_trial_dict["solver-results"])
         seed_number     = vle_trial_dict["seed-number"]
 
         the_vle_trial = VleTrial(tx_rates, std_dev, actual_rates, solver_results, seed_number)
@@ -115,32 +115,4 @@ class VleTrial:
         vle_trial_dict = json.loads(vle_trial_json_str)
         the_vle_trial = VleTrial.from_dict(vle_trial_dict)
         return the_vle_trial
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 

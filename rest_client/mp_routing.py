@@ -128,15 +128,14 @@ def conduct_onos_trial(the_vle_trial, route_adder, trial_length, results_reposit
     traffic_monitor = stat_monitor.OnMonitor(cfg.of_controller_ip, cfg.of_controller_port)
     traffic_monitor.start_monitor()
 
-    # time.sleep(trial_length)
-    input("Press enter to continue...")
-    # time.sleep(120)
+    time.sleep(trial_length)
+    # input("Press enter to continue...")
     traffic_monitor.stop_monitor()
 
     for source_node in set((s for (s, _) in od_pairs)):
         hosts[source_node].stop_client()
 
-    # time.sleep(15)
+    time.sleep(15)
 
     for host_id in hosts:
         hosts[host_id].stop_server()
@@ -180,21 +179,22 @@ def main():
     tx_rate_list, mean_flow_tx_rates, std_dev_flow_tx_rates = core_taps.get_rates_for_flows()
     the_trial = vle_trial.VleTrial.create_trial(mean_flow_tx_rates, std_dev_flow_tx_rates,
             tx_rate_list, 4065)
+    print("Generated solution in: %s" % the_trial.solver_results.solution_time)
 
-    pp.pprint(the_trial.solver_results)
+    # pp.pprint(the_trial.solver_results)
 
-    route_provider          = the_trial.solver_results
-    route_adder             = onos.OnosRouteAdder(route_provider, mapper)
-    results_repository      = rr.ResultsRepository.create_repository(mp_cfg.base_repository_path, 
-            mp_cfg.repository_schema, mp_cfg.repository_name)
+    # route_provider          = the_trial.solver_results
+    # route_adder             = onos.OnosRouteAdder(route_provider, mapper)
+    # results_repository      = rr.ResultsRepository.create_repository(mp_cfg.base_repository_path, 
+    #         mp_cfg.repository_schema, mp_cfg.repository_name)
 
-    try:
-        conduct_onos_trial(the_trial, route_adder, 60, results_repository)
-    except Exception as ex:
-        print("Failed to conduct onos_trial")
-        print(ex)
-        route_adder.remove_routes()
-        raise ex
+    # try:
+    #     conduct_onos_trial(the_trial, route_adder, 600, results_repository)
+    # except Exception as ex:
+    #     print("Failed to conduct onos_trial")
+    #     print(ex)
+    #     route_adder.remove_routes()
+    #     raise ex
 
 if __name__ == "__main__":
     main()

@@ -114,13 +114,14 @@ class Flow(object):
     def __str__(self):
         return pp.pformat(Flow.to_json(self))
 
-    def repr(self):
+    def __repr__(self):
         return pp.pformat(Flow.to_json(self))
 
 class Trial(object):
-    def __init__(self, seed):
-        self._flows     = []
-        self._seed      = seed
+    def __init__(self, seed, solution_time):
+        self._flows             = []
+        self._seed              = seed
+        self._solution_time     = solution_time
 
     @property
     def seed(self):
@@ -129,6 +130,14 @@ class Trial(object):
     @property
     def flows(self):
         return self._flows
+
+    @property
+    def solution_time(self):
+        return self._solution_time
+
+    @solution_time.setter
+    def solution_time(self, the_time):
+        self._solution_time = the_time
 
     def add_flow(self, flow):
         if not flow.verify_flow():
@@ -146,14 +155,15 @@ class Trial(object):
 
     @staticmethod
     def to_dict(trial_object):
-        trial_dict = { "flows": [Flow.to_dict(flow) for flow in trial_object.flows] 
-                     , "seed"   : trial_object.seed
+        trial_dict = { "flows"          : [Flow.to_dict(flow) for flow in trial_object.flows] 
+                     , "seed"           : trial_object.seed
+                     , "solution-time"  : trial_object.solution_time
                      }
         return trial_dict
 
     @staticmethod
     def from_dict(trial_dict):
-        trial = Trial(trial_dict["seed"])
+        trial = Trial(trial_dict["seed"], trial_dict["solution-time"])
         for flow_json in trial_dict["flows"]:
             flow = Flow.from_json(flow_json)
             trial.add_flow(flow)

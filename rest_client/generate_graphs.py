@@ -43,12 +43,13 @@ def port_mirroring_plots():
     port_mirroring.generate_mirroring_port_utilization_box_plot(results_repository)
 
 def mp_routing_plots():
-    repo_path = path.Path("/home/cpsc-net-user/repos/mp-routing-results/")
+    repo_path = path.Path("/home/cpsc-net-user/repos/mp-routing-results-2/")
     results_repository = rr.ResultsRepository.create_repository(repo_path,
             mp_cfg.repository_schema, mp_cfg.repository_name)
 
     mp_routing.generate_link_utilization_bar_plot(results_repository)
-    mp_routing.generate_loss_rates(results_repository)
+    # mp_routing.generate_loss_rates(results_repository)
+    # mp_routing.expected_link_utilization(results_repository)
 
 def main():
     # flow_mirroring_plots()

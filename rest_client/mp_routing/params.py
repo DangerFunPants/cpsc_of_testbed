@@ -44,7 +44,7 @@ sigma = (100000000 / 8.0) ** 2
 traffic_model = 'uniform' #'gamma'
 
 # Frequency of Tx Rate alteration (seconds)
-time_slice = 1
+time_slice = 10
 
 # Total number of seconds to run the trial for
 trial_length = 60
@@ -61,7 +61,7 @@ sample_freq = 10.0
 # Link capacity value used by the solver
 link_capacity = 1000
 
-base_repository_path = path.Path("/home/cpsc-net-user/repos/mp-routing-results/")
+base_repository_path = path.Path("/home/cpsc-net-user/repos/mp-routing-results-2/")
 
 repository_name = "mp-routing"
 

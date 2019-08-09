@@ -132,6 +132,7 @@ def graph_link_utilization(link_utilization_data):
     # ys = [b for s, t in d.items() for d, b in t.items()]
     ys = mean_utils
     pp.pprint(ys)
+    print(mean(ys))
     xs = np.arange(len(ys))
     plt.bar(xs, ys)
     save_figure("link-util.pdf")
@@ -183,6 +184,21 @@ def generate_loss_rates(results_repository):
         all_loss_rates.extend(loss_rate_list)
     print(max(all_loss_rates))
 
+def expected_link_utilization(results_repository):
+    utilization_results, the_vle_trial, end_host_results = read_results(results_repository,
+            "link-embedding", "test-trial")
+    link_utilization = defaultdict(float)
+    for flow in the_vle_trial.solver_results.flows:
+        flow_rate = flow.rate
+        for path in flow.paths:
+            for u, v in zip(path.nodes, path.nodes[1:]):
+                fraction = path.fraction
+                # link_utilization[u, v] += flow_rate * fraction
+                [u, v] = sorted([u, v])
+                link_utilization[u, v] += flow_rate * fraction
+
+    pp.pprint(link_utilization)
+    print(mean(link_utilization.values()))
 
 
 

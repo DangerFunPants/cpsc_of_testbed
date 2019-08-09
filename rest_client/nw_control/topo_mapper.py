@@ -54,7 +54,7 @@ def get_nw_hosts():
     hosts_request = req.get(requests_url, auth=cfg.ONOS_API_CREDENTIALS)
     if hosts_request.status_code != 200:
         raise ValueError("Failed to get hosts from ONOS controller. Status %d %s." %
-                (links_request.status_code, links_request.reason))
+                (hosts_request.status_code, hosts_request.reason))
     hosts = json.loads(hosts_request.text)
     return hosts["hosts"]
 

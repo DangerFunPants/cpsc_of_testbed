@@ -26,12 +26,10 @@ class OnosRouteAdder:
     def install_routes(self):
         routes = self._route_provider.flows
         route_count = 0
-        tag_counter     = 1
+        tag_counters    = defaultdict(lambda: 1)
         tag_values      = {}
         for flow_id, flow in enumerate(routes):
-            pp.pprint(flow.paths)
-            self.install_route(flow_id, flow.paths, tag_values, tag_counter)
-            tag_counter += len(flow.paths)
+            self.install_route(flow_id, flow.paths, tag_values, tag_counters, flow)
         return tag_values
 
     def remove_route(self, route_token):
@@ -43,19 +41,18 @@ class OnosRouteAdder:
         for route_token in self._installed_route_tokens:
             self.remove_route(route_token)
 
-    def install_route(self, route_id, route, tag_values, tag_counter):
+    def install_route(self, route_id, route, tag_values, tag_counters, flow):
         tag_values[route_id] = []
         paths_dicts = []
         for path in route:
             path_dict = { "nodes"       : [self._mapper.map_sw_to_dpid(p_i) for p_i in path.nodes]
-                        , "tagValue"    : tag_counter
+                        , "tagValue"    : tag_counters[flow.source_node, flow.destination_node]
                         }
-            tag_values[route_id].append(tag_counter)
-            tag_counter += 1
+            tag_values[route_id].append(tag_counters[flow.source_node, flow.destination_node])
+            tag_counters[flow.source_node, flow.destination_node] += 1
             paths_dicts.append(path_dict)
 
         route_json = json.dumps({ "paths": paths_dicts })
-        print(route_json)
         route_add_request = req.post("http://127.0.0.1:8181/onos/multipath-routing/v1/add-route",
                 data=route_json, auth=self._credentials)
         if route_add_request.status_code == 200:
@@ -73,6 +70,9 @@ class OnosRouteAdder:
     def get_path_ratios(self):
         path_ratios = self._route_provider.get_flow_defs()
         return path_ratios
+
+    def get_flows(self):
+        return self._route_provider.flows
 
 def build_file_path(route_files_dir, trial_name, seed_no):
     return route_files_dir.joinpath(trial_name).joinpath("seed_%s" % seed_no)

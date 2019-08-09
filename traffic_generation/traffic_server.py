@@ -21,7 +21,8 @@ def handle_sig_int(signum, frame):
     global args
     pkts_recv = { s : (bc / 1024) for s, bc in byte_counts.iteritems() }
     print(pkts_recv)
-    pickle.dump(pkts_recv, open('/home/alexj/packet_counts/receiver_%d.p' % args, 'wb'))
+    with open("/home/alexj/packet_counts/receiver_%d.p" % args, "wb") as fd:
+        pickle.dump(pkts_recv, fd)
     exit()
 
 def inc_pkt_counts(src, bc):

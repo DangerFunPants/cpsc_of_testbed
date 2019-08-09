@@ -17,12 +17,23 @@ from functools          import reduce
 from math               import sqrt
 from collections        import defaultdict
 
+class PrecomputedTapDistribution:
+    def __init__(self, rates_list):
+        self._rates_list    = rates_list
+        self._rate_idx      = 0
+
+    def __next__(self):
+        rate_to_return = self._rates_list[self._rate_idx]
+        self._rate_idx = (self._rate_idx + 1) % len(self._rates_list)
+        return rate_to_return
+
 class TrafficModels(Enum):
-    UNIFORM = 0
-    TRUNC_NORM = 1
-    RANDOM_SAMPLING = 2
-    TRUNC_NORM_SYMMETRIC = 3
-    GAMMA = 4
+    UNIFORM                 = 0
+    TRUNC_NORM              = 1
+    RANDOM_SAMPLING         = 2
+    TRUNC_NORM_SYMMETRIC    = 3
+    GAMMA                   = 4
+    PRECOMPUTED             = 5
 
     @staticmethod
     def from_str(string_rep):
@@ -38,9 +49,11 @@ class TrafficModels(Enum):
             e_val = TrafficModels.TRUNC_NORM_SYMMETRIC
         elif string_rep == 'gamma':
             e_val = TrafficModels.GAMMA
-        
-        if e_val is None:
+        elif string_rep == "precomputed":
+            e_val = TrafficModels.PRECOMPUTED
+        else:
             raise ValueError('Could not parse string: %s' % string_rep)
+        
         return e_val
 
 class FlowParameters:
@@ -55,6 +68,7 @@ class FlowParameters:
                 , src_host          = 0
                 , time_slice        = 1 
                 , tag_value         = None
+                , transmit_rates    = None
                 ):
         self.dest_port          = dest_port
         self.dest_addr          = dest_addr
@@ -66,6 +80,7 @@ class FlowParameters:
         self.src_host           = src_host
         self.time_slice         = time_slice
         self.tag_value          = tag_value
+        self.transmit_rates     = transmit_rates
 
     def __str__(self):
         str_rep = [ 'Dest. Port: %d'        % self.dest_port
@@ -78,6 +93,7 @@ class FlowParameters:
                   , 'Source Host: %d'       % self.src_host
                   , 'Time Slice: %d'        % self.time_slice
                   , "Tag Value: %s"         % str(self.tag_value)
+                  , "Transmit Rates: %s"    % self.transmit_rates
                   ]
         s = reduce(lambda s1, s2 : s1 + '\n' + s2, str_rep)
         return s
@@ -104,7 +120,7 @@ sock_dict = None
 def calc_dscp_val(flow_num, tag_values):
     return (tag_values[flow_num]) << 2
 
-def create_distribution(mu, sigma, traffic_model):
+def create_distribution(mu, sigma, traffic_model, transmit_rates):
     dist = None
     if traffic_model == TrafficModels.TRUNC_NORM or traffic_model == TrafficModels.RANDOM_SAMPLING:
         min_dist_val = 0.0
@@ -125,7 +141,14 @@ def create_distribution(mu, sigma, traffic_model):
     elif traffic_model == TrafficModels.GAMMA:
         theta = (sigma / float(mu))
         dist = stats.gamma(a=(sigma / theta**2), scale=theta)
-        
+
+    elif traffic_model == TrafficModels.PRECOMPUTED:
+        if transmit_rates == None:
+            raise ValueError(
+                    "Cannot use PRECOMPUTED traffic model without supplying transmit rate list.")
+        rates_iter = PrecomputedTapDistribution(transmit_rates)
+        dist = rates_iter
+
     return dist
 
 def uniform_paramaters(mu, sigma2):
@@ -138,20 +161,23 @@ def sample_distr(distr):
 
 def select_tx_rate(args, old_rate, distr):
     tx_rate = 0
-    if args.traffic_model is TrafficModels.UNIFORM:
+    if args.traffic_model == TrafficModels.UNIFORM:
         tx_rate = sample_distr(distr)
-    elif args.traffic_model is TrafficModels.TRUNC_NORM:
+    elif args.traffic_model == TrafficModels.TRUNC_NORM:
         tx_rate = sample_distr(distr)
-    elif args.traffic_model is TrafficModels.RANDOM_SAMPLING:
+    elif args.traffic_model == TrafficModels.RANDOM_SAMPLING:
         if random.choice([0,1]) == 0:
             tx_rate = sample_distr(distr)
         else:
             tx_rate = old_rate
-    elif args.traffic_model is TrafficModels.TRUNC_NORM_SYMMETRIC:
+    elif args.traffic_model == TrafficModels.TRUNC_NORM_SYMMETRIC:
         tx_rate = sample_distr(distr)
-    elif args.traffic_model is TrafficModels.GAMMA:
+    elif args.traffic_model == TrafficModels.GAMMA:
         tx_rate = sample_distr(distr)
-    return (tx_rate)
+    elif args.traffic_model == TrafficModels.PRECOMPUTED:
+        tx_rate = next(distr)
+
+    return tx_rate
 
 # Takes a one dimensional matrix of length k as an argument and returns
 # the DSCP value that a packet should be tagged with. 
@@ -173,46 +199,6 @@ def select_dscp(prob_matrix, tag_values):
 
 def set_dscp(sock, dscp):
     sock.setsockopt(socket.SOL_IP, socket.IP_TOS, dscp)
-
-def build_arg_parser():
-    p = argparse.ArgumentParser('Generate traffic for multipath routing experminets.')
-    p.add_argument('-p', dest='dest_port', metavar='<port_num>', nargs=1, help='dest. port number', required=True)
-    p.add_argument('-a', dest='dest_ip', metavar='<ip_addr>', nargs=1, help='dest. IP address', required=True)
-    p.add_argument('-k', dest='prob', metavar='<probability_matrix', nargs='+', help='path probabilities')
-    p.add_argument('-t', dest='throughput', metavar='<throughput>', nargs=1, help='Mean Tx Rate',)
-    p.add_argument('-s', dest='variance', metavar='<variance>', nargs=1, help='Tx Rate Variance')
-    p.add_argument('-c', dest='constant', metavar='<traffic_model>', nargs=1, help='[ uniform | trunc_norm | random_sampling ]')
-    p.add_argument('-host', dest='src_host', metavar='<src_host>', nargs=1, help='src_host', required=True)
-    p.add_argument('-slice', dest='time_slice', metavar='<slice_len>', nargs=1, help='distribution sampling rate')
-    p.add_argument('-n', dest='flow_count', metavar='<flow_count>', nargs=1, help='Number of flows')
-    return p
-
-def build_flow_params(args):
-    dest_port = int(args.dest_port[0])
-    dest_addr = args.dest_ip[0]
-    prob_mat = []
-    if args.prob is not None:
-        prob_mat = list(map(float, args.prob))
-    if args.throughput is not None:
-        tx_rate = int(args.throughput[0])
-    if args.variance is not None:
-        variance = int(args.variance[0])
-    if args.constant is not None:
-        traffic_model = TrafficModels.from_str(args.constant[0])
-    if args.time_slice is not None:
-        time_slice = int(args.time_slice[0])
-    src_host = int(args.src_host[0])
-        
-    flow_params = FlowParameters( dest_port=dest_port
-                                , dest_addr=dest_addr
-                                , prob_mat=prob_mat
-                                , tx_rate=tx_rate
-                                , variance=variance
-                                , traffic_model=traffic_model
-                                , src_host=src_host
-                                , time_slice=time_slice
-                                )
-    return flow_params
 
 def get_args():
     arg_str = sys.argv[1]
@@ -258,10 +244,11 @@ def transmit(sock_list, ipd_list, duration, flow_params):
         ipds = { i: (s, t - actual_wait) for i, (s, t) in ipds.items() }
 
 def generate_traffic(flow_params):
-    socks = { i: socket.socket(type=socket.SOCK_DGRAM) for i in flow_params.keys() }
+    socks = {i: socket.socket(type=socket.SOCK_DGRAM) for i in flow_params.keys()}
     global sock_dict
     sock_dict = socks
-    rvs = { i: create_distribution(fp.tx_rate, fp.variance, fp.traffic_model) for i, fp in flow_params.items() }
+    rvs = {i: create_distribution(fp.tx_rate, fp.variance, fp.traffic_model, fp.transmit_rates) 
+            for i, fp in flow_params.items()}
     while True:
         ipd_list = []
         for i, fp in flow_params.items():

@@ -33,6 +33,10 @@ class HostMapper:
             return answers[0].address
         else: 
             return None 
+
+    def get_ip_address_for_host_number(self, host_number):
+        hostname = self.map_sw_to_host(host_number)
+        return self.resolve_hostname(hostname)
     
     def reverse_lookup(self, ip_addr):
         dns_resolver = dns.Resolver()

@@ -7,6 +7,7 @@ import data_visualization.port_mirroring        as port_mirroring
 import data_visualization.mp_routing            as mp_routing
 import nw_control.results_repository            as rr
 import port_mirroring.params                    as pm_cfg
+import mp_routing.params                        as mp_cfg
 
 def flow_mirroring_plots():
     # results-5 : Multi provider that ran for five minutes
@@ -42,7 +43,12 @@ def port_mirroring_plots():
     port_mirroring.generate_mirroring_port_utilization_box_plot(results_repository)
 
 def mp_routing_plots():
-    mp_routing.main()
+    repo_path = path.Path("/home/cpsc-net-user/repos/mp-routing-results/")
+    results_repository = rr.ResultsRepository.create_repository(repo_path,
+            mp_cfg.repository_schema, mp_cfg.repository_name)
+
+    mp_routing.generate_link_utilization_bar_plot(results_repository)
+    mp_routing.generate_loss_rates(results_repository)
 
 def main():
     # flow_mirroring_plots()

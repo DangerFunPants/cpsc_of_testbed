@@ -7,12 +7,13 @@ from collections    import namedtuple
 Path = namedtuple("Path", "nodes fraction")
 
 class Flow(object):
-    def __init__(self, source_node, destination_node, rate, variance):
+    def __init__(self, source_node, destination_node, rate, variance, actual_tx_rates):
         self._source_node       = source_node
         self._destination_node  = destination_node
         self._paths             = []
         self._rate              = rate
         self._variance          = variance
+        self._actual_tx_rates   = actual_tx_rates
 
     @property
     def source_node(self):
@@ -29,6 +30,10 @@ class Flow(object):
     @property
     def variance(self):
         return self._variance
+
+    @property
+    def actual_tx_rates(self):
+        return self._actual_tx_rates
 
     @property
     def paths(self):
@@ -54,17 +59,51 @@ class Flow(object):
                     , "paths"               : paths_json
                     , "rate"                : flow_object.rate
                     , "variance"            : flow_object.variance
+                    , "actual_tx_rates"     : flow_object.actual_tx_rates
                     }
         return flow_json
 
     @staticmethod
     def from_json(json_object):
-        source_node = json_object["source_node"]
-        destination_node = json_object["destination_node"]
-        rate = json_object["rate"]
-        variance = json_object["variance"]
-        flow = Flow(source_node, destination_node, rate, variance)
+        source_node         = json_object["source_node"]
+        destination_node    = json_object["destination_node"]
+        rate                = json_object["rate"]
+        variance            = json_object["variance"]
+        actual_tx_rates     = json_object["actual_tx_rates"]
+
+        flow = Flow(source_node, destination_node, rate, variance, actual_tx_rates)
         for path in json_object["paths"]:
+            flow.add_path(path["nodes"], path["fraction"])
+        return flow
+
+    @staticmethod
+    def to_dict(flow_object):
+        paths_dict = []
+        for path in flow_object.paths:
+            path_dict = { "nodes"       : path.nodes
+                        , "fraction"    : path.fraction
+                        }
+            paths_dict.append(path_dict)
+
+        flow_dict = { "source_node"         : flow_object.source_node
+                    , "destination_node"    : flow_object.destination_node
+                    , "paths"               : paths_dict
+                    , "rate"                : flow_object.rate
+                    , "variance"            : flow_object.variance
+                    , "actual_tx_rates"     : flow_object.actual_tx_rates
+                    }
+        return flow_dict
+
+    @staticmethod
+    def from_dict(flow_dict):
+        source_node         = flow_dict["source_node"]
+        destination_node    = flow_dict["destination_node"]
+        rate                = flow_dict["rate"]
+        variance            = flow_dict["variance"]
+        actual_tx_rates     = flow_dict["actual_tx_rates"]
+
+        flow = Flow(source_node, destination_node, rate, variance, actual_tx_rates)
+        for path in flow_dict["paths"]:
             flow.add_path(path["nodes"], path["fraction"])
         return flow
 
@@ -73,7 +112,10 @@ class Flow(object):
         return (total_rate_transported - 1.0) < 1**-10
 
     def __str__(self):
-        return pp.pformat(self.to_json())
+        return pp.pformat(Flow.to_json(self))
+
+    def repr(self):
+        return pp.pformat(Flow.to_json(self))
 
 class Trial(object):
     def __init__(self, seed):
@@ -103,16 +145,31 @@ class Trial(object):
         return path_splits
 
     @staticmethod
-    def to_json(trial_object):
-        trial_json = { "flows": [Flow.to_json(flow) for flow in trial_object.flows] 
+    def to_dict(trial_object):
+        trial_dict = { "flows": [Flow.to_dict(flow) for flow in trial_object.flows] 
                      , "seed"   : trial_object.seed
                      }
-        return json.dumps(trial_json)
+        return trial_dict
 
     @staticmethod
-    def from_json(json_object):
-        trial = Trial(json_object["seed"])
-        for flow_json in json_object["flows"]:
+    def from_dict(trial_dict):
+        trial = Trial(trial_dict["seed"])
+        for flow_json in trial_dict["flows"]:
             flow = Flow.from_json(flow_json)
             trial.add_flow(flow)
         return trial
+
+
+    @staticmethod
+    def to_json(trial_object):
+        trial_dict = Trial.to_dict(trial_object)
+        return json.dumps(trial_dict)
+
+    @staticmethod
+    def from_json(json_str):
+        json_object = json.loads(json_str)
+        trial = Trial.from_dict(json_object)
+        return trial
+
+    def __repr__(self):
+        return pp.pformat([Flow.to_json(flow_i) for flow_i in self.flows])

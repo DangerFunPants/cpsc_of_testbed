@@ -1,5 +1,8 @@
 
-import paramiko as ssh
+import paramiko                     as ssh
+import pathlib                      as path
+import subprocess                   as subprocess
+import pickle                       as pickle
 
 import nw_control.util              as util
 import nw_control.params            as cfg
@@ -59,8 +62,9 @@ class Host:
 
 class TrafficGenHost(Host):
 
-    BIN_DIR = '/home/alexj/traffic_generation/' 
-    COUNT_DIR = '/home/alexj/packet_counts/'
+    BIN_DIR                 = '/home/alexj/traffic_generation/' 
+    COUNT_DIR               = '/home/alexj/packet_counts/'
+    TMP_OUTPUT_DIRECTORY    = path.Path("/tmp/")
 
     def __init__( self
                 , host_name
@@ -135,6 +139,35 @@ class TrafficGenHost(Host):
         command = 'sshpass -pubuntu scp -o StrictHostKeyChecking=no -r %sreceiver_*.p ubuntu@%s:%s' % (self.COUNT_DIR, local_ip, dst_dir)
         self.exec_command(command)
 
+    def retrieve_end_host_results(self):
+        host_string = "alexj@%s:%s" % (self.host_ip, TrafficGenHost.COUNT_DIR)
+        sender_file = "sender_%d.p" % self.host_id
+        receiver_file = "receiver_%d.p" % self.host_id
+
+        for file_name in [sender_file, receiver_file]:
+            scp_cmd = "sshpass -pcpsc scp %s/%s %s" % (host_string, file_name,
+                    TrafficGenHost.TMP_OUTPUT_DIRECTORY)
+            subprocess.run(scp_cmd.split(" "))
+        
+        receiver_file_path = TrafficGenHost.TMP_OUTPUT_DIRECTORY / receiver_file
+        receiver_results = {}
+        if receiver_file_path.exists():
+            with receiver_file_path.open("rb") as fd:
+                receiver_results = pickle.load(fd)
+
+        modified_receiver_results = []
+        for (ip_address, port_number), packet_count in receiver_results.items():
+            modified_receiver_results.append([ip_address, port_number, packet_count])
+
+        
+        sender_file_path = TrafficGenHost.TMP_OUTPUT_DIRECTORY / sender_file
+        sender_results = {}
+        if sender_file_path.exists():
+            with sender_file_path.open("rb") as fd:
+                sender_results = pickle.load(fd)
+
+        return modified_receiver_results, dict(sender_results)
+
     def get_local_ip(self):
         mapper = hm.HostMapper([cfg.man_net_dns_ip], cfg.of_controller_ip,
             cfg.of_controller_port, domain='hosts.sdn.')
@@ -162,6 +195,27 @@ class TrafficGenHost(Host):
                       , "src_host"          : host_no
                       , "time_slice"        : slice
                       , "tag_value"         : tag_value
+                      }
+        self._add_client(client_args)
+
+    def configure_precomputed_client( self
+                                    , rate_list
+                                    , destination_ip
+                                    , destination_port_number
+                                    , k_mat
+                                    , host_number
+                                    , time_slice_duration
+                                    , tag_values
+                                    , packet_length=1066):
+        client_args = { "dest_port"         : destination_port_number
+                      , "dest_addr"         : destination_ip
+                      , "prob_mat"          : k_mat
+                      , "transmit_rates"    : rate_list
+                      , "traffic_model"     : "precomputed"
+                      , "packet_len"        : packet_length
+                      , "src_host"          : host_number
+                      , "time_slice"        : time_slice_duration
+                      , "tag_value"         : tag_values
                       }
         self._add_client(client_args)
 

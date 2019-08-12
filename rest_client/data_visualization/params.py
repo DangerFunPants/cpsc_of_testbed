@@ -22,26 +22,37 @@ LEGEND_LABELS           = ["$\\epsilon$-LPR$", "LPR", "DuFi", "Optimal"]
 BAR_PLOT_COLORS         = ["palegreen", "skyblue", "lightpink", "silver"]
 # BAR_PLOT_TEXTURES       = ["//", "O", "x", "*", "|"]
 BAR_PLOT_TEXTURES       = ["x", ".", "*", "\\", "|"]
+
+MARKER_STYLE            = ["^", "o", "+"]
+MARKER_COLOR            = ["red", "lime", "palegreen"]
+# LINE_STYLE              = ["--", "-", "-."]
+LINE_STYLE              = ["-"]
+LINE_COLOR              = ["red", "lime", "blue"]
 FONT                    = { "family"        : "serif"
                           , "size"          : 16
                           }
 
-LEGEND                  = { "bbox_to_anchor": (0.5, LEGEND_HEIGHT)
-                          , "shadow"        : False
-                          , "fontsize"      : 16
-                          , "handletextpad" : 0.3
-                          , "columnspacing" : 1.0
-                          , "loc"           : "upper center"
-                          , "fancybox"      : True
-                          # , "edgecolor"     : "lightgray"
+TICK_FONT               = { "family"        : "sans-serif"
+                          , "size"          : 10
                           }
 
-AXIS_LABELS             = { "fontsize": 24
+LEGEND                  = { "shadow"        : False
+                          , "fontsize"      : 10
+                          , "handletextpad" : 0.3
+                          , "columnspacing" : 1.0
+                          , "loc"           : "best"
+                          , "fancybox"      : False
+                          , "edgecolor"     : "black"
+                          # , "size"          : 10
+                          }
+
+AXIS_LABELS             = { "fontsize"  : 22
+                          , "family"    : "serif"
                           }
 
 BOX_WIDTH               = 0.75
 
-GRID                    = { "b"         : True
+GRID                    = { "b"         : False
                           , "which"     : "both"
                           , "color"     : "lightgray"
                           , "linestyle" : "--"

@@ -107,7 +107,7 @@ class SimulationTrial:
     def from_dict(sim_dict):
         the_sim = SimulationTrial(sim_dict["number-of-nodes"], sim_dict["number-of-flows"],
                 sim_dict["links-per-node"], sim_dict["number-of-links"], sim_dict["seed-number"],
-                sim_dict["solution-time"])
+                sim_dict["solution-time"], sim_dict["feasible"])
         return the_sim
 
     @staticmethod

@@ -3,6 +3,7 @@ import pathlib              as path
 import time                 as time
 import json                 as json
 import pprint               as pp
+import random               as rand
 
 import nw_control.host                  as host
 import nw_control.host_mapper           as host_mapper
@@ -91,7 +92,11 @@ def close_all_host_connections(hosts):
     for host in hosts.values():
         host.disconnect()
 
-def conduct_onos_trial(the_vle_trial, route_adder, trial_length, results_repository):
+def conduct_onos_trial( the_vle_trial
+                      , route_adder
+                      , trial_length
+                      , results_repository
+                      , trial_type):
     # remove_all_count_files(route_adder)
     mapper = host_mapper.OnosMapper(cfg.dns_server_ip, cfg.of_controller_ip, 
             cfg.of_controller_port, ABILENE_TOPO_FILE_PATH.read_text())
@@ -152,8 +157,8 @@ def conduct_onos_trial(the_vle_trial, route_adder, trial_length, results_reposit
     route_adder.remove_routes()
     close_all_host_connections(hosts)
 
-    schema_vars = { "trial-name"    : "test-trial"
-                  , "trial-type"     : "link-embedding"
+    schema_vars = { "seed-number"       : str(the_vle_trial.seed_number)
+                  , "trial-type"        : trial_type
                   }
 
     results_files = { "utilization-results.txt"     : utilization_json
@@ -170,31 +175,49 @@ def main():
 
     mapper = host_mapper.OnosMapper([cfg.dns_server_ip], cfg.of_controller_ip, 
             cfg.of_controller_port, ABILENE_TOPO_FILE_PATH.read_text())
-    seed_no         = "4065"
-    mu              = mp_cfg.mu
-    sigma           = mp_cfg.sigma
-    trial_path = build_file_path(path.Path(mp_cfg.var_rate_route_path),
-            "prob_mean_1_sigma_1.0", seed_no)
 
     tx_rate_list, mean_flow_tx_rates, std_dev_flow_tx_rates = core_taps.get_rates_for_flows()
-    the_trial = vle_trial.VleTrial.create_trial(mean_flow_tx_rates, std_dev_flow_tx_rates,
-            tx_rate_list, 4065)
-    print("Generated solution in: %s" % the_trial.solver_results.solution_time)
+    for idx in range(100):
+        tx_rate_list.append(tx_rate_list[idx])
+        mean_flow_tx_rates.append(mean_flow_tx_rates[idx])
+        std_dev_flow_tx_rates.append(std_dev_flow_tx_rates[idx])
 
-    # pp.pprint(the_trial.solver_results)
+    _, percentile_flow_tx_rates, _ = core_taps.get_95th_percentile_rates_for_flows()
+    
+    seed = rand.randint(0, 2**32)
+    seed_numbers = [830656277, 3654904804, 1736873850]
+    # seed = 830656277 
+    for seed in seed_numbers:
+        # ------------------------------- epVLE -----------------------------------
+        # trial_type = "link-embedding"
+        # the_trial = vle_trial.VleTrial.create_trial(mean_flow_tx_rates, 
+        #         [s_i**2 for s_i in std_dev_flow_tx_rates], tx_rate_list, seed)
 
-    # route_provider          = the_trial.solver_results
-    # route_adder             = onos.OnosRouteAdder(route_provider, mapper)
-    # results_repository      = rr.ResultsRepository.create_repository(mp_cfg.base_repository_path, 
-    #         mp_cfg.repository_schema, mp_cfg.repository_name)
+        # ------------------------------- AVERAGE ---------------------------------
+        # trial_type = "average"
+        # the_trial = vle_trial.VleTrial.create_trial(mean_flow_tx_rates, 
+        #         [0.0 for _ in range(len(mean_flow_tx_rates))], tx_rate_list, seed)
 
-    # try:
-    #     conduct_onos_trial(the_trial, route_adder, 600, results_repository)
-    # except Exception as ex:
-    #     print("Failed to conduct onos_trial")
-    #     print(ex)
-    #     route_adder.remove_routes()
-    #     raise ex
+        # ------------------------------- 95th PERCENTILE -------------------------
+        trial_type = "percentile"
+        the_trial = vle_trial.VleTrial.create_trial(percentile_flow_tx_rates,
+                [0.0 for _ in range(len(mean_flow_tx_rates))], tx_rate_list, seed)
+
+        print(len(the_trial.solver_results.flows))
+        print(seed)
+
+        route_provider          = the_trial.solver_results
+        route_adder             = onos.OnosRouteAdder(route_provider, mapper)
+        results_repository      = rr.ResultsRepository.create_repository(
+              mp_cfg.base_repository_path, mp_cfg.repository_schema, mp_cfg.repository_name)
+
+        try:
+            conduct_onos_trial(the_trial, route_adder, 600, results_repository, trial_type)
+        except Exception as ex:
+            print("Failed to conduct onos_trial")
+            print(ex)
+            route_adder.remove_routes()
+            raise ex
 
 if __name__ == "__main__":
     main()

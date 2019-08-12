@@ -5,9 +5,11 @@ import pathlib                                  as path
 import data_visualization.flow_mirroring        as flow_mirroring
 import data_visualization.port_mirroring        as port_mirroring
 import data_visualization.mp_routing            as mp_routing
+import data_visualization.simulations           as sim
 import nw_control.results_repository            as rr
 import port_mirroring.params                    as pm_cfg
 import mp_routing.params                        as mp_cfg
+import simulations.params                       as sim_cfg
 
 def flow_mirroring_plots():
     # results-5 : Multi provider that ran for five minutes
@@ -44,17 +46,43 @@ def port_mirroring_plots():
 
 def mp_routing_plots():
     repo_path = path.Path("/home/cpsc-net-user/repos/mp-routing-results-2/")
+    # trial_type = "link-embedding"
+    trial_type = "link-embedding"
+    trial_name = "test-trial-830656277" 
+    # trial_name = "test-trial"
     results_repository = rr.ResultsRepository.create_repository(repo_path,
-            mp_cfg.repository_schema, mp_cfg.repository_name)
+            "/trial-type/trial-name/", mp_cfg.repository_name)
+            # mp_cfg.repository_schema, mp_cfg.repository_name)
 
-    mp_routing.generate_link_utilization_bar_plot(results_repository)
-    # mp_routing.generate_loss_rates(results_repository)
-    # mp_routing.expected_link_utilization(results_repository)
+    throughput_file = path.Path("/home/cpsc-net-user/repos/tnsm-cap-file-analysis/graphing/throughput.txt")
+    path_data_file = path.Path("/home/cpsc-net-user/repos/tnsm-cap-file-analysis/graphing/path-data.txt")
+
+    # mp_routing.generate_link_utilization_bar_plot(results_repository, trial_type, trial_name)
+    # mp_routing.generate_loss_rates(results_repository, trial_type, trial_name)
+    # mp_routing.expected_link_utilization(results_repository, trial_type, trial_name)
+    # mp_routing.generate_link_utilization_box_plot(results_repository) 
+    # mp_routing.generate_flow_rate_plot(results_repository)
+    # mp_routing.generate_flow_means_plot()
+    # mp_routing.generate_loss_rate_cdf(results_repository)
+    # mp_routing.generate_topo_utilization_graph(results_repository, trial_type, trial_name)
+    # mp_routing.generate_throughput_over_time_plot(throughput_file)
+    # mp_routing.generate_traffic_on_path_bar_plot(path_data_file)
+    # mp_routing.generate_virtual_link_count_plot(results_repository)
+    mp_routing.generate_heterogeneous_links_instantaneous_rate_plot()
+    # mp_routing.print_mean_and_standard_deviation_of_trace_rates()
+    mp_routing.generate_heterogeneous_links_mean_rate_plot()
+
+def vle_simulation_plots():
+    repo_path = path.Path("/home/cpsc-net-user/repos/simulation-results-4/")
+    results_repository = rr.ResultsRepository.create_repository(repo_path,
+            sim_cfg.repository_schema, sim_cfg.repository_name)
+    sim.generate_simulation_run_time_plot(results_repository)
 
 def main():
     # flow_mirroring_plots()
     # port_mirroring_plots()
     mp_routing_plots()
+    # vle_simulation_plots()
 
 if __name__ == "__main__":
     main()

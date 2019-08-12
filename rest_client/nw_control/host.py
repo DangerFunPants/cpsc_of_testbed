@@ -223,6 +223,7 @@ class TrafficGenHost(Host):
         command_args = '\"%s\"' % str(self._clients)
         start_comm = '%s/traffic_gen.py' % TrafficGenHost.BIN_DIR
         comm_str = util.inject_arg_opts(start_comm, [command_args])
+        comm_str += "&>/home/alexj/traffic-gen-log.txt"
         comm_str += ' &'
         return self.exec_command(comm_str)
 

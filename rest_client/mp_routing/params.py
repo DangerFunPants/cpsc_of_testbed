@@ -61,8 +61,8 @@ sample_freq = 10.0
 # Link capacity value used by the solver
 link_capacity = 1000
 
-base_repository_path = path.Path("/home/cpsc-net-user/repos/mp-routing-results-2/")
+base_repository_path = path.Path("/home/cpsc-net-user/repos/mp-routing-results-3/")
 
 repository_name = "mp-routing"
 
-repository_schema = "/trial-type/trial-name/"
+repository_schema = "/trial-type/seed-number/"

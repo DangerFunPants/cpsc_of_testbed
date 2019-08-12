@@ -5,17 +5,42 @@ import data_visualization.params        as cfg
 
 import matplotlib.pyplot                as plt
 import json                             as json
+import numpy                            as np
 
 from collections import defaultdict
+
+def tick_font(tick_label, precision="%.2f"):
+    if type(tick_label) == type(np.float64(1.0)):
+        s = "\\text{\\LARGE{\\textsf{%s}}}" % precision
+        return s % tick_label
+    else:
+        return "\\text{\\LARGE{\\textsf{%s}}}" % tick_label
+
+def trial_name_font(phrase):
+    return "\\scalebox{0.7}[1.0]{\\textsf{%s}}" % phrase
+
+def idx_list_circular(idx, the_list):
+    return the_list[idx%len(the_list)]
+
+def marker_style(idx):
+    return idx_list_circular(idx, cfg.MARKER_STYLE)
+
+def line_style(idx):
+    return idx_list_circular(idx, cfg.LINE_STYLE)
+
+def line_color(idx):
+    return idx_list_circular(idx, cfg.LINE_COLOR)
+
+def marker_color(idx):
+    return idx_list_circular(idx, cfg.MARKER_COLOR)
 
 def save_figure(figure_name, num_cols=0, **kwargs):
     p = cfg.FIGURE_OUTPUT_PATH.joinpath(figure_name)
     kwargs["bbox_inches"] = "tight"
     plt.tick_params(labelsize=15)
-    legend = plt.legend(ncol=num_cols, **cfg.LEGEND)
+    if not ("no_legend" in kwargs and kwargs["no_legend"]):
+        legend = plt.legend(ncol=num_cols, **cfg.LEGEND)
     plt.gca().set_axisbelow(True)
-    if legend != None:
-        legend.get_frame().set_edgecolor("lightgray")
     plt.savefig(str(p), **kwargs) 
     plt.clf()
 

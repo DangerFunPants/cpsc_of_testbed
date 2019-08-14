@@ -230,10 +230,9 @@ def transmit(sock_list, ipd_list, duration, flow_params):
         for i in expired:
             flow = ipds[i]
 
-            dscp_val = select_dscp(flow_params[i].prob_mat, flow_params[i].tag_value)
-                
-            set_dscp(flow[0], dscp_val)
             for _ in range(10):
+                dscp_val = select_dscp(flow_params[i].prob_mat, flow_params[i].tag_value)
+                set_dscp(flow[0], dscp_val)
                 flow[0].sendto(DATA_STR, (flow_params[i].dest_addr, flow_params[i].dest_port))
             inc_pkt_count(i)
             ipds[i] = (ipds[i][0], ipd_list[i])

@@ -64,12 +64,27 @@ def scale_flow_tx_rate(normalized_flow_tx_rate):
     """
     return (normalized_flow_tx_rate * 10**7) / 8.0
 
+def simple_paths_to_flow_json(simple_paths, tag_values, id_to_dpid):
+    path_dicts = []
+    tag_values_for_flow = []
+    for path in simple_paths:
+        source_node         = path[0]
+        destination_node    = path[-1]
+        path_dict = { "nodes"           : [id_to_dpid[p_i] for p_i in path]
+                    , "tagValue"        : tag_values[source_node, destination_node]
+                    }
+        tag_values_for_flow.append(tag_values[source_node, destination_node])
+        tag_values[source_node, destination_node] += 1
+        path_dicts.append(path_dict)
+    flow_json = {"paths": path_dicts}
+    return flow_json, tag_values_for_flow
+
 def conduct_path_hopping_trial(results_repository):
     K = 3
     id_to_dpid = topo_mapper.get_and_validate_onos_topo_x(TARGET_GRAPH)
     pp.pprint(id_to_dpid)
     # flow_allocation_seed_number, flows = flow_allocation.compute_flow_allocations(TARGET_GRAPH)
-    flow_allocation_seed_number, flows = flow_allocation.compute_equal_flow_allocations(
+    flow_allocation_seed_number, flows = flow_allocation.compute_unequal_flow_allocations(
             TARGET_GRAPH)
     flow_tokens = set()
 
@@ -79,28 +94,16 @@ def conduct_path_hopping_trial(results_repository):
         for host in hosts.values():
             host.start_traffic_generation_server()
 
-        for source_node, destination_node, flow_tx_rate in flows:
-            # @TODO: The cutoff here is easy to select given the homogeneity of the 
-            # maximally connected graph. Need a better way of generating these paths 
-            # in arbitrary graphs.
-            k_shortest_paths = sorted(
-                    nx.all_simple_paths(TARGET_GRAPH, source_node, destination_node, cutoff=3),
-                    key=lambda p: len(p))[:K]
-            path_dicts = []
-            tag_values_for_flow = []
-            for path in k_shortest_paths:
-                path_dict = { "nodes"       : [id_to_dpid[p_i] for p_i in path]
-                            , "tagValue"    : tag_values[source_node, destination_node]
-                            }
-                tag_values_for_flow.append(tag_values[source_node, destination_node])
-                tag_values[source_node, destination_node] += 1
-                path_dicts.append(path_dict)
-            flow_json = {"paths": path_dicts}
+        for flow in flows:
+            source_node, destination_node, flow_tx_rate = flow.source_node, flow.destination_node, flow.flow_tx_rate
+
+            flow_json, tag_values_for_flow = simple_paths_to_flow_json(flow.paths, tag_values, 
+                    id_to_dpid)
             flow_token = onos_route_adder.install_flow(flow_json)
             flow_tokens.add(flow_token)
             scaled_flow_tx_rate = scale_flow_tx_rate(flow_tx_rate)
             hosts[source_node+1].configure_flow(scaled_flow_tx_rate, 0.0, "uniform",
-                    hosts[destination_node+1].virtual_host_ip, 50000, [1/K]*K, 10,
+                    hosts[destination_node+1].virtual_host_ip, 50000, [1.0], 10,
                     tag_values_for_flow)
 
         traffic_monitor = stat_monitor.OnMonitor(cfg.of_controller_ip, cfg.of_controller_port)
@@ -114,7 +117,7 @@ def conduct_path_hopping_trial(results_repository):
         flows_json          = flow_allocation.create_flow_json(flows)
 
         schema_vars = { "seed-number"       : str(flow_allocation_seed_number)
-                      , "trial-type"        : "path-hopping"
+                      , "trial-type"        : "single-path"
                       }
         results_files = { "utilization-results.txt"     : utilization_json
                         , "flows.json"                  : flows_json

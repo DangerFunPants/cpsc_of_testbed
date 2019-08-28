@@ -12,9 +12,51 @@ from collections                                    import namedtuple
 
 LINK_CAPACITY = 10
 
-Flow = namedtuple("Flow", "source_node destination_node, flow_tx_rate")
+"""
+Represents a flow with 
+    * Source node
+    * Destination node
+    * Transmission rate
+    * A set of paths through the substrate network. 
+"""
+# Flow = namedtuple("Flow", "source_node destination_node, flow_tx_rate")
+class Flow:
+    def __init__( self
+                , source_node       = None
+                , destination_node  = None
+                , flow_tx_rate      = None
+                , paths             = None):
+        self._source_node       = source_node
+        self._destination_node  = destination_node
+        self._flow_tx_rate      = flow_tx_rate
+        self._paths             = paths
+
+    @property
+    def source_node(self):
+        return self._source_node
+
+    @property
+    def destination_node(self):
+        return self._destination_node
+
+    @property
+    def flow_tx_rate(self):
+        return self._flow_tx_rate
+
+    @property
+    def paths(self):
+        return self._paths
+
+
 
 def compute_flow_allocations(target_graph, K=3):
+    """
+    Returns a list of flows with randomly selected sources and destinations that 
+    will saturate the network (i.e. a flow will be admitted provided that it would
+    not cause the utilization of any link in the network to exceed 1. Flows are
+    equally split across the three shortest paths connecting the source node to the 
+    destination node.
+    """
     id_to_dpid = topo_mapper.get_and_validate_onos_topo_x(target_graph)
     flow_allocation_seed_number = 0xCAFE_BABE
     np.random.seed(flow_allocation_seed_number)
@@ -41,6 +83,12 @@ def compute_flow_allocations(target_graph, K=3):
     return flow_allocation_seed_number, flows
 
 def compute_equal_flow_allocations(target_graph, K=3):
+    """
+    Returns a set of flows st. there will be a single flow sourced from each node in the
+    network with a destination randomly chosen from the set V / {s} where V is the set of
+    nodes in the graph and s is the source node of the flow. Flows are equally distributed
+    over the three shortest paths connecting the source node to the destination node.
+    """
     id_to_dpid = topo_mapper.get_and_validate_onos_topo_x(target_graph)
     flow_allocation_seed_number = 0xDEAD_BEEF
     np.random.seed(flow_allocation_seed_number)
@@ -51,6 +99,35 @@ def compute_equal_flow_allocations(target_graph, K=3):
         flows.append(Flow(node, destination_node.item(), 1.0))
     
     return flow_allocation_seed_number, flows
+
+def compute_unequal_flow_allocations(target_graph, K=3):
+    """
+    Returns a set of flows st. there will be a single flow sourced from each node in the 
+    network with a destination randomly chosen from the set V / {s} where V is the set of nodes 
+    in the graph and s is the source node of the flow. Flows are split over the three shortest
+    paths connecting the sender to the receiver in such a way as to minimize the utilization
+    of the most utilized link in the network.
+    """
+
+    id_to_dpid = topo_mapper.get_and_validate_onos_topo_x(target_graph)
+    flow_allocation_seed_number = 0xDEAD_BEEF
+    np.random.seed(flow_allocation_seed_number)
+    flows = []
+    link_utilization = {}
+    for node in target_graph.nodes:
+        possible_destination_nodes = set(target_graph.nodes) - {node}
+        destination_node = np.random.choice(list(possible_destination_nodes), 1, 
+                replace=False).item()
+        shortest_path = nx.shortest_path(target_graph, node, destination_node)
+        the_flow = Flow( source_node        = node
+                       , destination_node   = destination_node
+                       , flow_tx_rate       = 10.0
+                       , paths              = [shortest_path]
+                       )
+        flows.append(the_flow)
+
+    return flow_allocation_seed_number, flows 
+
 
 def create_flow_json(flows):
     def create_json_for_single_flow(flow):

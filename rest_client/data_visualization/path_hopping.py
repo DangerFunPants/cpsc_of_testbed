@@ -149,8 +149,12 @@ def read_results(results_repository, trial_type, seed_number):
 
     return utilization_results, flows
 
-def generate_link_utilization_cdf(results_repository):
-    utilization_results, flows = read_results(results_repository, "path-hopping",
+def generate_link_utilization_cdf(results_repository, trial_name):
+    """
+    Generate a CDF of mean link utilization
+    """
+    # utilization_results, flows = read_results(results_repository, "path-hopping",
+    utilization_results, flows = read_results(results_repository, trial_name,
             SEED_NUMBERS[1])
     
     byte_counts_per_time_period         = compute_byte_counts_per_time_period(utilization_results)
@@ -159,6 +163,8 @@ def generate_link_utilization_cdf(results_repository):
     mean_network_utilization            = compute_mean_network_utilization(
             network_utilization_per_time_period)
 
+    pp.pprint(mean_network_utilization)
+
     link_utilizations = sorted(mean_network_utilization.values())
     xs = [0.0]
     ys = [0.0]
@@ -166,9 +172,99 @@ def generate_link_utilization_cdf(results_repository):
         xs.append(link_utilization)
         ys.append(ctr / len(link_utilizations))
     
+    plt.xlabel("Link throughput (Mbps)")
+    plt.ylabel("P{x < X}")
     plt.plot(xs, ys, **cfg.BASIC_CDF_PARAMS)
-    helpers.save_figure("path-hopping-cdf.pdf", no_legend=True)
+    helpers.save_figure("%s-cdf.pdf" % trial_name, no_legend=True)
 
+def generate_topo_utilization_graph(results_repository, trial_name):
+    def get_node_set(util_results):
+        node_set = set()
+        for results_list in util_results:
+            for results_set in results_list:
+                node_set.add(results_set["sourceSwitchId"])
+                node_set.add(results_set["destinationSwitchId"])
+        return node_set
+
+    def get_link_set(util_results):
+        link_set = set()
+        for results_list in util_results:
+            for results_set in results_list:
+                link_set.add((results_set["sourceSwitchId"], results_set["destinationSwitchId"]))
+                link_set.add((results_set["destinationSwitchId"], results_set["sourceSwitchId"]))
+        return link_set
+
+    def generate_graph_from_utilization_results(util_results):
+        net_topo = nx.Graph()
+        for node_id in get_node_set(util_results):
+            net_topo.add_node(node_id)
+
+        for u, v in get_link_set(util_results):
+            net_topo.add_edge(u, v)
+
+        return net_topo
+
+    def sub_vectors(v1, v2):
+        return tuple([v1_i - v2_i for v1_i, v2_i in zip(v1, v2)])
+
+    def scale(v, u):
+        return tuple([v_i*u for v_i in v])
+
+    def add_vectors(v1, v2):
+        return tuple([v1_i + v2_i for v1_i, v2_i in zip(v1, v2)])
+            
+    def interp_for_gradient(init_pos, final_pos, u):
+        v_hat = sub_vectors(final_pos, init_pos) 
+        scaled = scale(v_hat, u)
+        c = add_vectors(init_pos, scaled)
+        return c
+
+    utilization_results, _ = read_results(results_repository, trial_name, SEED_NUMBERS[1])
+    net_topo = generate_graph_from_utilization_results(utilization_results)
+    # seed_number = rand.randint(0, 2**32)
+    seed_number = 1107035453
+    layout = lambda g: nx.circular_layout(g)
+    byte_counts_per_time_period         = compute_byte_counts_per_time_period(utilization_results)
+    network_utilization_per_time_period = compute_network_utilization_per_time_period(
+            byte_counts_per_time_period)
+    mean_utils                          = compute_mean_network_utilization(
+            network_utilization_per_time_period)
+
+    cs = []
+    max_utilization_value = 1000 # max(mean_utils.values())
+    color_map_name = "coolwarm"
+    cm = plt.get_cmap(color_map_name)
+    plt.set_cmap(color_map_name)
+    for (u, v) in net_topo.edges():
+        if (u, v) in mean_utils:
+            u_val = mean_utils[u, v]
+        else:
+            u_val = mean_utils[v, u]
+        # color_tuple = ((u_val / max_utilization_value), 0, 0)
+        # cs.append(color_tuple)
+        cs.append(cm(u_val))
+
+    node_colors = []
+    host_set = set()
+    for node_id in net_topo.nodes():
+        if node_id in host_set:
+            node_colors.append("r")
+        else:
+            node_colors.append("skyblue")
+
+    
+    pp.pprint(cs)
+    graph_pos = layout(net_topo)
+    nx.draw_networkx_edges(net_topo, pos=graph_pos, edge_color=cs, edge_cmap=cm)
+    nx.draw_networkx_nodes(net_topo, pos=graph_pos, node_color=node_colors, node_size=100)
+    plt.axis("off")
+    sm = plt.cm.ScalarMappable(cmap=cm, norm=plt.Normalize(vmin=0, vmax=1))
+    sm._A = []
+    plt.colorbar(sm)
+    helpers.save_figure("net-topo-link-util.pdf")
+    plt.clf()
+    pp.pprint(min(mean_utils.values()))
+    print(seed_number)
 
 
 

@@ -40,6 +40,18 @@ def compute_flow_allocations(target_graph, K=3):
         flows.append(Flow(source_node.item(), destination_node.item(), flow_tx_rate))
     return flow_allocation_seed_number, flows
 
+def compute_equal_flow_allocations(target_graph, K=3):
+    id_to_dpid = topo_mapper.get_and_validate_onos_topo_x(target_graph)
+    flow_allocation_seed_number = 0xDEAD_BEEF
+    np.random.seed(flow_allocation_seed_number)
+    flows = []
+    for node in target_graph.nodes:
+        possible_destination_nodes = set(target_graph.nodes) - set([node])
+        [destination_node] = np.random.choice(list(possible_destination_nodes), 1, replace=False)
+        flows.append(Flow(node, destination_node.item(), 1.0))
+    
+    return flow_allocation_seed_number, flows
+
 def create_flow_json(flows):
     def create_json_for_single_flow(flow):
         return { "source-node"          : flow.source_node

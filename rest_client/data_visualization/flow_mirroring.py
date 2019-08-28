@@ -8,7 +8,6 @@ import numpy                            as np
 import json                             as json 
 import pprint                           as pp
 import pathlib                          as path
-import pygraphviz                       as pgv
 
 import nw_control.topo_mapper           as topo_mapper
 import nw_control.util                  as util

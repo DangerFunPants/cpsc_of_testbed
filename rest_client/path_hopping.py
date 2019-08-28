@@ -68,8 +68,9 @@ def conduct_path_hopping_trial(results_repository):
     K = 3
     id_to_dpid = topo_mapper.get_and_validate_onos_topo_x(TARGET_GRAPH)
     pp.pprint(id_to_dpid)
-    flow_allocation_seed_number, flows = flow_allocation.compute_flow_allocations(TARGET_GRAPH)
-    flows = flows[:10]
+    # flow_allocation_seed_number, flows = flow_allocation.compute_flow_allocations(TARGET_GRAPH)
+    flow_allocation_seed_number, flows = flow_allocation.compute_equal_flow_allocations(
+            TARGET_GRAPH)
     flow_tokens = set()
 
     tag_values = defaultdict(int)

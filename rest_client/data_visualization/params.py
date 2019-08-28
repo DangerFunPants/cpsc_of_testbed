@@ -52,8 +52,13 @@ AXIS_LABELS             = { "fontsize"  : 22
 
 BOX_WIDTH               = 0.75
 
-GRID                    = { "b"         : False
+GRID                    = { "b"         : True
                           , "which"     : "both"
                           , "color"     : "lightgray"
                           , "linestyle" : "--"
+                          }
+
+BASIC_CDF_PARAMS        = { "marker"        : "x"
+                          , "color"         : "red"
+                          , "linestyle"     : "-."
                           }

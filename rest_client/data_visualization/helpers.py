@@ -38,6 +38,7 @@ def save_figure(figure_name, num_cols=0, **kwargs):
     p = cfg.FIGURE_OUTPUT_PATH.joinpath(figure_name)
     kwargs["bbox_inches"] = "tight"
     plt.tick_params(labelsize=15)
+    plt.grid(**cfg.GRID)
     if not ("no_legend" in kwargs and kwargs["no_legend"]):
         legend = plt.legend(ncol=num_cols, **cfg.LEGEND)
     plt.gca().set_axisbelow(True)

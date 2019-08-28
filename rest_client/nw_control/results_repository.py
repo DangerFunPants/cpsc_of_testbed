@@ -61,7 +61,7 @@ class ResultsRepository:
                 self.schema.split("/") if schema_label != ""]
         output_path = reduce(lambda acc, v: acc.joinpath(path.Path(v)), output_path_segments,
                 self.base_path)
-        output_path.mkdir(parents=True, exists_ok=overwrite)
+        output_path.mkdir(parents=True, exist_ok=overwrite)
         for file_name, results_data in results.items():
             output_file = output_path.joinpath(file_name)
             output_file.write_text(results_data)

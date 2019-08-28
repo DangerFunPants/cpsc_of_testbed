@@ -56,12 +56,12 @@ class ResultsRepository:
 
         return ResultsRepository(base_path, schema, repository_name)
 
-    def write_trial_results(self, schema_variables, results):
+    def write_trial_results(self, schema_variables, results, overwrite=False):
         output_path_segments = [schema_variables[schema_label] for schema_label in 
                 self.schema.split("/") if schema_label != ""]
         output_path = reduce(lambda acc, v: acc.joinpath(path.Path(v)), output_path_segments,
                 self.base_path)
-        output_path.mkdir(parents=True)
+        output_path.mkdir(parents=True, exists_ok=overwrite)
         for file_name, results_data in results.items():
             output_file = output_path.joinpath(file_name)
             output_file.write_text(results_data)

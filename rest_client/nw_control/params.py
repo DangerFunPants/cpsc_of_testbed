@@ -11,7 +11,7 @@ import urllib.parse as url
 dns_server_ip = '10.0.0.1'
 
 # Openflow Controller address 
-of_controller_ip = '127.0.0.1'
+of_controller_ip = '10.0.0.3'
 
 # Openflow Controller REST API Port Number
 of_controller_port = 8181

@@ -2,6 +2,7 @@ import pathlib                  as path
 import pprint                   as pp
 import requests                 as req
 import json                     as json
+import urllib.parse             as url
 
 import mp_routing.multipath_orchestrator        as mp
 import mp_routing.file_parsing                  as fp
@@ -60,7 +61,7 @@ class OnosRouteAdder:
             route_token = add_response["routeId"]
             self._installed_route_tokens.add(route_token)
         else:
-            raise ValueError("Failed to add route. Status code: %s. Reason: %s" % 
+            raise ValueError("Failed to add route. Status code: %s. Reason: %s %s" % 
                     (route_add_request.status_code, route_add_request.reason))
 
     def get_src_dst_pairs(self):
@@ -76,6 +77,27 @@ class OnosRouteAdder:
 
 def build_file_path(route_files_dir, trial_name, seed_no):
     return route_files_dir.joinpath(trial_name).joinpath("seed_%s" % seed_no)
+
+def install_flow(flow_json):
+    request_url = url.urljoin(cfg.onos_url.geturl(), "multipath-routing/v1/add-route")
+    route_add_request = req.post(request_url, json=flow_json, auth=cfg.ONOS_API_CREDENTIALS)
+    if not route_add_request:
+        raise ValueError("Failed to add route. %d %s %s" %
+                (route_add_request.status_code, route_add_request.reason,
+                    route_add_request.text))
+
+    json_response = json.loads(route_add_request.text)
+    route_token = json_response["routeId"]
+    return route_token
+
+def uninstall_flow(flow_token):
+    request_url = url.urljoin(cfg.onos_url.geturl(),
+            "multipath-routing/v1/remove-route?route-id=%s" % flow_token)
+    route_remove_request = req.post(request_url, auth=cfg.ONOS_API_CREDENTIALS)
+    if not route_remove_request:
+        raise ValueError("Failed to remove route. %d %s %s" %
+                (route_remove_request.status_code, route_remove_request.reason,
+                    route_remove_request.text))
 
 def main():
     seed_no = "4065"

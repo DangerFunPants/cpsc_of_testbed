@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!/usr/bin/env python3
 
 import socket
 import signal
@@ -13,9 +13,12 @@ args = None
 
 def get_args():
     p = argparse.ArgumentParser('Receive traffic for multipath routing experminets.')
-    p.add_argument('-host', dest='host_num', metavar='<host_num>', nargs=1, help='host number', required=True)
+    p.add_argument('-host', dest='host_num', metavar='<host_num>', nargs=1, 
+            help='host number', required=True)
+    p.add_argument("-source_addr", dest="source_addr", metavar="<source_addr>", nargs=1,
+            help="Source address to bind to.", required=True)
     args = p.parse_args()
-    return int(args.host_num[0])
+    return int(args.host_num[0]), args.source_addr[0]
 
 def handle_sig_int(signum, frame):
     global args
@@ -30,9 +33,9 @@ def inc_pkt_counts(src, bc):
 
 def main():
     global args
-    args = get_args()
+    args, source_addr = get_args()
     sock = socket.socket(type=socket.SOCK_DGRAM)
-    sock.bind(('0.0.0.0', 50000))
+    sock.bind((source_addr, 50000))
 
     while True:
         data, (addr, port_no) = sock.recvfrom(1048576)

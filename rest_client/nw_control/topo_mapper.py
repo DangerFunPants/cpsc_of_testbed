@@ -47,7 +47,7 @@ def get_nw_links():
         raise ValueError("Failed to get links from ONOS controller. Status %d %s." %
                 (links_request.status_code, links_request.reason))
     links = json.loads(links_request.text)
-    return links["links"]
+    return [link for link in links["links"] if link["type"] != "EDGE"]
 
 def get_nw_hosts():
     requests_url = url.urljoin(cfg.onos_url.geturl(), "v1/hosts")
@@ -130,7 +130,7 @@ def get_and_validate_onos_topo_x(target_topo):
         target_adj_list = target_graph.adj
         actual_adj_list = actual_graph.adj
         for actual_entry, target_entry in zip(actual_adj_list.items(), target_adj_list.items()):
-            if actual_entry !- target_entry:
+            if actual_entry != target_entry:
                 print("Expected node %s to have edges to %s links. Found edges to %s" %
                         (actual_entry[0], target_entry[1].keys(), actual_entry[1].keys()))
     current_topo = build_onos_topo_graph()

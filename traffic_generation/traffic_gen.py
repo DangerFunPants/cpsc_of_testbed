@@ -1,4 +1,4 @@
-#!/usr/bin/python3
+#!/usr/bin/env python3
 
 import socket               as socket                   
 import time                 as time
@@ -11,6 +11,7 @@ import sys                  as sys
 import pprint               as pp
 import pickle               as pickle
 import scipy.stats          as stats
+import json                 as json
 
 from enum               import Enum
 from functools          import reduce
@@ -94,7 +95,7 @@ class FlowParameters:
                   , "Packet Length: %d"     % self.packet_len
                   , "Source Host: %d"       % self.src_host
                   , "Time Slice: %d"        % self.time_slice
-                  , "Tag Value: %d"         % self.tag_value
+                  , "Tag Value: %s"         % str(self.tag_value)
                   , "Transmit Rates: %s"    % self.transmit_rates
                   , "Source Address: %s"    % self.source_addr
                   ]
@@ -205,7 +206,8 @@ def set_dscp(sock, dscp):
 
 def get_args():
     arg_str = sys.argv[1]
-    arg_dicts = eval(arg_str)
+    arg_dicts = json.loads(arg_str)
+    pp.pprint(arg_dicts)
     for d in arg_dicts:
         d['traffic_model'] = TrafficModels.from_str(d['traffic_model'])
     fp_list = { i: FlowParameters(**d) for i, d in enumerate(arg_dicts) }
@@ -248,7 +250,7 @@ def transmit(sock_list, ipd_list, duration, flow_params):
 def create_socket(source_address):
     the_socket = socket.socket(type=socket.SOCK_DGRAM)
     if source_address:
-        the_socket.bind(source_address)
+        the_socket.bind((source_address, 0))
     return the_socket
 
 def generate_traffic(flow_params):

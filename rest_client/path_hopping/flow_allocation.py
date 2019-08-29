@@ -25,11 +25,13 @@ class Flow:
                 , source_node       = None
                 , destination_node  = None
                 , flow_tx_rate      = None
-                , paths             = None):
+                , paths             = None
+                , splitting_ratio   = None):
         self._source_node       = source_node
         self._destination_node  = destination_node
         self._flow_tx_rate      = flow_tx_rate
         self._paths             = paths
+        self._splitting_ratio   = splitting_ratio
 
     @property
     def source_node(self):
@@ -47,7 +49,9 @@ class Flow:
     def paths(self):
         return self._paths
 
-
+    @property
+    def splitting_ratio(self):
+        return self._splitting_ratio
 
 def compute_flow_allocations(target_graph, K=3):
     """
@@ -123,6 +127,7 @@ def compute_unequal_flow_allocations(target_graph, K=3):
                        , destination_node   = destination_node
                        , flow_tx_rate       = 10.0
                        , paths              = [shortest_path]
+                       , splitting_ratio    = [1.0]
                        )
         flows.append(the_flow)
 

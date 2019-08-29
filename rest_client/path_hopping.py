@@ -95,7 +95,8 @@ def conduct_path_hopping_trial(results_repository):
             host.start_traffic_generation_server()
 
         for flow in flows:
-            source_node, destination_node, flow_tx_rate = flow.source_node, flow.destination_node, flow.flow_tx_rate
+            source_node, destination_node, flow_tx_rate = (flow.source_node, 
+                    flow.destination_node, flow.flow_tx_rate)
 
             flow_json, tag_values_for_flow = simple_paths_to_flow_json(flow.paths, tag_values, 
                     id_to_dpid)
@@ -103,7 +104,7 @@ def conduct_path_hopping_trial(results_repository):
             flow_tokens.add(flow_token)
             scaled_flow_tx_rate = scale_flow_tx_rate(flow_tx_rate)
             hosts[source_node+1].configure_flow(scaled_flow_tx_rate, 0.0, "uniform",
-                    hosts[destination_node+1].virtual_host_ip, 50000, [1.0], 10,
+                    hosts[destination_node+1].virtual_host_ip, 50000, flow.splitting_ratio, 10,
                     tag_values_for_flow)
 
         traffic_monitor = stat_monitor.OnMonitor(cfg.of_controller_ip, cfg.of_controller_port)
@@ -133,20 +134,10 @@ def conduct_path_hopping_trial(results_repository):
         destroy_all_hosts(hosts)
         remove_all_flows(flow_tokens)
 
-
 def main():
-    # virtual_host_one = virtual_host.VirtualHost.create_virtual_host("00:02:ca:fe:ba:be", 
-    #         "10.10.0.1", "192.168.1.1", "of:000200fd457cff60")
-    # virtual_host_two = virtual_host.VirtualHost.create_virtual_host("00:02:de:ad:be:ef", 
-    #         "10.10.0.2", "192.168.1.2", "of:00073821c720c240")
-    # input("Press enter to destroy virtual host...")
-    # virtual_host_two.destroy_virtual_host()
-    # virtual_host_one.destroy_virtual_host()
-    # flow_allocation.compute_flow_allocations()
     results_repository = ResultsRepository.create_repository(ph_cfg.base_repository_path,
             ph_cfg.repository_schema, ph_cfg.repository_name)
     conduct_path_hopping_trial(results_repository)
-    
 
 if __name__ == "__main__":
     main()

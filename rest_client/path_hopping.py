@@ -13,11 +13,12 @@ import nw_control.stat_monitor          as stat_monitor
 import nw_control.params                as cfg
 import mp_routing.onos_route_adder      as onos_route_adder
 import path_hopping.params              as ph_cfg
+import path_hopping.trials              as ph_trials
 
-from virtual_hosts.virtual_host                     import TrafficGenerationVirtualHost
 from networkx.algorithms.shortest_paths.generic     import all_shortest_paths
 from collections                                    import defaultdict
 
+from virtual_hosts.virtual_host                     import TrafficGenerationVirtualHost
 from nw_control.results_repository                  import ResultsRepository
 
 TARGET_GRAPH = nx.complete_graph(10)
@@ -79,14 +80,13 @@ def simple_paths_to_flow_json(simple_paths, tag_values, id_to_dpid):
     flow_json = {"paths": path_dicts}
     return flow_json, tag_values_for_flow
 
-def conduct_path_hopping_trial(results_repository):
+def conduct_path_hopping_trial(results_repository, the_trial, trial_provider_name):
     K = 3
     id_to_dpid = topo_mapper.get_and_validate_onos_topo_x(TARGET_GRAPH)
-    pp.pprint(id_to_dpid)
-    # flow_allocation_seed_number, flows = flow_allocation.compute_flow_allocations(TARGET_GRAPH)
-    flow_allocation_seed_number, flows = flow_allocation.compute_unequal_flow_allocations(
-            TARGET_GRAPH)
-    flow_tokens = set()
+    hosts                           = {}
+    flow_allocation_seed_number     = the_trial.get_parameter("seed-number")
+    flows                           = the_trial.get_parameter("flow-set")
+    flow_tokens                     = set()
 
     tag_values = defaultdict(int)
     try:
@@ -113,18 +113,13 @@ def conduct_path_hopping_trial(results_repository):
             host.start_traffic_generation_client()
         input("Hosts have been created and flows have been added. Press enter to continue...")
         traffic_monitor.stop_monitor()
-        utilization_results = traffic_monitor.get_monitor_statistics()
-        utilization_json    = json.dumps(utilization_results)
-        flows_json          = flow_allocation.create_flow_json(flows)
-
-        schema_vars = { "seed-number"       : str(flow_allocation_seed_number)
-                      , "trial-type"        : "single-path"
+        the_trial.add_parameter("utilization-results", utilization_results)
+        
+        schema_vars = { "provider-name"     : trial_provider_name
+                      , "trial-id"          : the_trial.get_parameter("id")
                       }
-        results_files = { "utilization-results.txt"     : utilization_json
-                        , "flows.json"                  : flows_json
-                        }
 
-        results_repository.write_trial_results(schema_vars, results_files, overwrite=True)
+        results_repository.write_trial_provider(schema_vars, the_trial)
 
     except Exception as ex:
         traceback.print_exc()
@@ -137,7 +132,10 @@ def conduct_path_hopping_trial(results_repository):
 def main():
     results_repository = ResultsRepository.create_repository(ph_cfg.base_repository_path,
             ph_cfg.repository_schema, ph_cfg.repository_name)
-    conduct_path_hopping_trial(results_repository)
+    trial_provider = ph_trials.path_hopping_various_k_values(TARGET_GRAPH)
+    print(str(trial_provider))
+    for the_trial in trial_provider:
+        conduct_path_hopping_trial(results_repository, the_trial, trial_provider.provider_name)
 
 if __name__ == "__main__":
     main()

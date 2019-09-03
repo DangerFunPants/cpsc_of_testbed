@@ -149,13 +149,13 @@ def read_results(results_repository, trial_type, seed_number):
 
     return utilization_results, flows
 
-def generate_link_utilization_cdf(results_repository, trial_name):
+def generate_link_utilization_cdf(results_repository, trial_name, seed_number):
     """
     Generate a CDF of mean link utilization
     """
     # utilization_results, flows = read_results(results_repository, "path-hopping",
     utilization_results, flows = read_results(results_repository, trial_name,
-            SEED_NUMBERS[1])
+            seed_number)
     
     byte_counts_per_time_period         = compute_byte_counts_per_time_period(utilization_results)
     network_utilization_per_time_period = compute_network_utilization_per_time_period(

@@ -12,15 +12,14 @@ from collections                                    import namedtuple
 
 LINK_CAPACITY = 10
 
-"""
-Represents a flow with 
-    * Source node
-    * Destination node
-    * Transmission rate
-    * A set of paths through the substrate network. 
-"""
-# Flow = namedtuple("Flow", "source_node destination_node, flow_tx_rate")
 class Flow:
+    """
+    Represents a flow with 
+        * Source node
+        * Destination node
+        * Transmission rate
+        * A set of paths through the substrate network. 
+    """
     def __init__( self
                 , source_node       = None
                 , destination_node  = None
@@ -52,6 +51,31 @@ class Flow:
     @property
     def splitting_ratio(self):
         return self._splitting_ratio
+
+class FlowSet:
+    """
+    Encapsulates a set of flows. Typically the set of flows will comprise a trial.
+    """
+    def __init__(self):
+        self._flows     = []
+
+    @property
+    def flows(self):
+        return self._flows
+
+    def add_flow(self, flow):
+        self._flows.append(flow)
+
+    def add_flows(self, flows):
+        self._flows.extend(flows)
+
+    def __iter__(self):
+        for flow in self.flows:
+            yield flow
+
+    def __str__(self):
+        s = "Flow set with %d flows." % len(self.flows)
+        return s
 
 def compute_flow_allocations(target_graph, K=3):
     """

@@ -3,6 +3,7 @@ import pathlib              as path
 import nw_control.util      as util
 import shutil               as shutil
 import json                 as json
+import pickle               as pickle
 
 from functools              import reduce
 
@@ -56,15 +57,30 @@ class ResultsRepository:
 
         return ResultsRepository(base_path, schema, repository_name)
 
-    def write_trial_results(self, schema_variables, results, overwrite=False):
-        output_path_segments = [schema_variables[schema_label] for schema_label in 
+    def build_output_path(self, schema_variables):
+        output_path_segments = [schema_variables[schema_label] for schema_label in
                 self.schema.split("/") if schema_label != ""]
-        output_path = reduce(lambda acc, v: acc.joinpath(path.Path(v)), output_path_segments,
+        output_path = reduce(lambda acc, v: acc / path.Path(v), output_path_segments,
                 self.base_path)
+        return output_path
+
+    def write_trial_results(self, schema_variables, results, overwrite=False):
+        # output_path_segments = [schema_variables[schema_label] for schema_label in 
+        #         self.schema.split("/") if schema_label != ""]
+        # output_path = reduce(lambda acc, v: acc.joinpath(path.Path(v)), output_path_segments,
+        #         self.base_path)
+        output_path = self.build_output_path(schema_variables)
         output_path.mkdir(parents=True, exist_ok=overwrite)
         for file_name, results_data in results.items():
             output_file = output_path.joinpath(file_name)
             output_file.write_text(results_data)
+
+    def write_trial_provider(self, schema_variables, trial_provider, overwrite=False):
+        output_path = self.build_output_path(schema_variables)
+        output_path.mkdir(parents=True, exist_ok=overwrite)
+        output_file = output_path / "trial-provider.p"
+        with output_file.open("wb") as fd:
+            pickle.dump(trial_provider, fd)
 
     def read_trial_results(self, schema_variables, file_names):
         output_path_segments = [schema_variables[schema_label] for schema_label in

@@ -80,15 +80,14 @@ def simple_paths_to_flow_json(simple_paths, tag_values, id_to_dpid):
     flow_json = {"paths": path_dicts}
     return flow_json, tag_values_for_flow
 
-def conduct_path_hopping_trial(results_repository, the_trial, trial_provider_name):
-    K = 3
-    id_to_dpid = topo_mapper.get_and_validate_onos_topo_x(TARGET_GRAPH)
+def conduct_path_hopping_trial(results_repository, the_trial, trial_provider):
+    id_to_dpid                      = topo_mapper.get_and_validate_onos_topo_x(TARGET_GRAPH)
     hosts                           = {}
     flow_allocation_seed_number     = the_trial.get_parameter("seed-number")
     flows                           = the_trial.get_parameter("flow-set")
     flow_tokens                     = set()
+    tag_values                      = defaultdict(int)
 
-    tag_values = defaultdict(int)
     try:
         hosts = create_virtual_hosts(id_to_dpid)
         for host in hosts.values():
@@ -111,15 +110,17 @@ def conduct_path_hopping_trial(results_repository, the_trial, trial_provider_nam
         traffic_monitor.start_monitor()
         for host in hosts.values():
             host.start_traffic_generation_client()
-        input("Hosts have been created and flows have been added. Press enter to continue...")
+        # input("Hosts have been created and flows have been added. Press enter to continue...")
+        time.sleep(the_trial.get_parameter("duration"))
         traffic_monitor.stop_monitor()
+        utilization_results = traffic_monitor.get_monitor_statistics()
         the_trial.add_parameter("utilization-results", utilization_results)
         
-        schema_vars = { "provider-name"     : trial_provider_name
+        schema_vars = { "provider-name"     : trial_provider.provider_name
                       , "trial-id"          : the_trial.get_parameter("id")
                       }
 
-        results_repository.write_trial_provider(schema_vars, the_trial)
+        results_repository.write_trial_provider(schema_vars, trial_provider, the_trial)
 
     except Exception as ex:
         traceback.print_exc()
@@ -132,10 +133,12 @@ def conduct_path_hopping_trial(results_repository, the_trial, trial_provider_nam
 def main():
     results_repository = ResultsRepository.create_repository(ph_cfg.base_repository_path,
             ph_cfg.repository_schema, ph_cfg.repository_name)
-    trial_provider = ph_trials.path_hopping_various_k_values(TARGET_GRAPH)
-    print(str(trial_provider))
+    # trial_provider = ph_trials.path_hopping_various_k_values(TARGET_GRAPH)
+    trial_provider = ph_trials.single_path_routing(TARGET_GRAPH)
+    # print(str(trial_provider))
     for the_trial in trial_provider:
-        conduct_path_hopping_trial(results_repository, the_trial, trial_provider.provider_name)
+        conduct_path_hopping_trial(results_repository, the_trial, trial_provider)
+        time.sleep(10)
 
 if __name__ == "__main__":
     main()

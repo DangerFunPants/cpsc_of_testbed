@@ -6,6 +6,7 @@ import pprint               as pp
 import numpy                as np
 import scipy                as sp
 import json                 as json
+import itertools            as itertools
 
 from networkx.algorithms.shortest_paths.generic     import all_shortest_paths
 from collections                                    import namedtuple
@@ -124,7 +125,18 @@ def compute_equal_flow_allocations(target_graph, K=3):
     for node in target_graph.nodes:
         possible_destination_nodes = set(target_graph.nodes) - set([node])
         [destination_node] = np.random.choice(list(possible_destination_nodes), 1, replace=False)
-        flows.append(Flow(node, destination_node.item(), 1.0))
+        # shortest_paths = all_shortest_paths(target_graph, node, destination_node.item())
+        shortest_paths = sorted(nx.all_simple_paths(target_graph, node, destination_node.item(),
+                cutoff=3),
+                key=lambda p: len(p))
+        k_shortest_paths = list(itertools.islice(shortest_paths, K))
+        the_flow = Flow( source_node        = node
+                       , destination_node   = destination_node.item()
+                       , flow_tx_rate       = 10.0
+                       , paths              = k_shortest_paths
+                       , splitting_ratio    = [1/K]*K
+                       )
+        flows.append(the_flow)
     
     return flow_allocation_seed_number, flows
 

@@ -75,12 +75,25 @@ class ResultsRepository:
             output_file = output_path.joinpath(file_name)
             output_file.write_text(results_data)
 
-    def write_trial_provider(self, schema_variables, trial_provider, overwrite=False):
+    def write_trial_provider(self, schema_variables, trial_provider, trial, overwrite=False):
         output_path = self.build_output_path(schema_variables)
         output_path.mkdir(parents=True, exist_ok=overwrite)
-        output_file = output_path / "trial-provider.p"
-        with output_file.open("wb") as fd:
+
+        provider_output_path = self.base_path / trial_provider.provider_name
+        provider_output_file = provider_output_path / "trial-provider.p"
+        if provider_output_file.exists():
+            with provider_output_file.open("rb") as fd:
+                the_existing_provider = pickle.load(fd)
+            if the_existing_provider != trial_provider:
+                raise ValueError("Attempting to write results from two different providers into the same direcotry!")
+
+
+        with provider_output_file.open("wb") as fd:
             pickle.dump(trial_provider, fd)
+
+        output_file = output_path / "trial.p"
+        with output_file.open("wb") as fd:
+            pickle.dump(trial, fd)
 
     def read_trial_results(self, schema_variables, file_names):
         output_path_segments = [schema_variables[schema_label] for schema_label in
@@ -94,6 +107,12 @@ class ResultsRepository:
             output_files[file_name] = file_text
 
         return output_files
+
+    def read_trial_provider(self, provider_name):
+        provider_file = self.base_path / provider_name / "trial-provider.p"
+        with provider_file.open("rb") as fd:
+            trial_provider = pickle.load(fd)
+        return trial_provider
 
     @staticmethod
     def repository_exists(base_path):

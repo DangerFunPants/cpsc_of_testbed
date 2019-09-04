@@ -134,50 +134,47 @@ def compute_network_utilization_per_time_period(byte_counts_per_time_period, byt
         network_utilization_per_time_period.append(utilization_at_time_t)
     return network_utilization_per_time_period
 
-def read_results(results_repository, trial_type, seed_number):
-    schema_variables = { "trial-type"   : trial_type
-                       , "seed-number"  : str(seed_number)
+def read_results(results_repository, provider_name):
+    schema_variables = { "provider-name"   : provider_name
                        }
-    files = [ "utilization-results.txt"
-            , "flows.json"
-            ]
-    results = results_repository.read_trial_results(schema_variables, files)
+    # results = results_repository.read_trial_results(schema_variables, files)
+    trial_provider = results_repository.read_trial_provider(schema_variables)
+    for trial in trial_provider:
+        return trial.get_parameter("utilization-results"), trial.get_parameter("flow-set")
 
-    flows               = flow_allocation.parse_flows_from_json(results["flows.json"])
-    utilization_results = [net_snapshot["netUtilStats"]["utilizationStats"]
-            for net_snapshot in json.loads(results["utilization-results.txt"])]
-
-    return utilization_results, flows
-
-def generate_link_utilization_cdf(results_repository, trial_name, seed_number):
+def generate_link_utilization_cdf(results_repository, provider_name):
     """
     Generate a CDF of mean link utilization
     """
-    # utilization_results, flows = read_results(results_repository, "path-hopping",
-    utilization_results, flows = read_results(results_repository, trial_name,
-            seed_number)
+    trial_provider = results_repository.read_trial_provider(provider_name)
     
-    byte_counts_per_time_period         = compute_byte_counts_per_time_period(utilization_results)
-    network_utilization_per_time_period = compute_network_utilization_per_time_period(
-            byte_counts_per_time_period)
-    mean_network_utilization            = compute_mean_network_utilization(
-            network_utilization_per_time_period)
+    for idx, trial in enumerate(trial_provider):
+        # print(trial)
+        utilization_results = trial.get_parameter("utilization-results")
 
-    pp.pprint(mean_network_utilization)
+        byte_counts_per_time_period         = compute_byte_counts_per_time_period(utilization_results)
+        network_utilization_per_time_period = compute_network_utilization_per_time_period(
+                byte_counts_per_time_period)
+        mean_network_utilization            = compute_mean_network_utilization(
+                network_utilization_per_time_period)
 
-    link_utilizations = sorted(mean_network_utilization.values())
-    xs = [0.0]
-    ys = [0.0]
-    for ctr, link_utilization in enumerate(link_utilizations):
-        xs.append(link_utilization)
-        ys.append(ctr / len(link_utilizations))
+        pp.pprint(mean_network_utilization)
+
+        link_utilizations = sorted(mean_network_utilization.values())
+        xs = [0.0]
+        ys = [0.0]
+        for ctr, link_utilization in enumerate(link_utilizations):
+            xs.append(link_utilization)
+            ys.append(ctr / len(link_utilizations))
+        plt.plot(xs, ys, marker=helpers.marker_style(idx), color=helpers.line_color(idx), 
+                linestyle=helpers.line_style(idx), label="K=%d" % trial.get_parameter("K"))
     
     plt.xlabel("Link throughput (Mbps)")
     plt.ylabel("P{x < X}")
-    plt.plot(xs, ys, **cfg.BASIC_CDF_PARAMS)
-    helpers.save_figure("%s-cdf.pdf" % trial_name, no_legend=True)
+    plt.legend(**cfg.LEGEND)
+    helpers.save_figure("%s-cdf.pdf" % provider_name, no_legend=True)
 
-def generate_topo_utilization_graph(results_repository, trial_name):
+def generate_topo_utilization_graph(results_repository, provider_name):
     def get_node_set(util_results):
         node_set = set()
         for results_list in util_results:
@@ -219,7 +216,9 @@ def generate_topo_utilization_graph(results_repository, trial_name):
         c = add_vectors(init_pos, scaled)
         return c
 
-    utilization_results, _ = read_results(results_repository, trial_name, SEED_NUMBERS[1])
+    trial_provider = results_repository.read_trial_provider(provider_name)
+    the_trial = next(iter(trial_provider))
+    utilization_results = the_trial.get_parameter("utilization-results")
     net_topo = generate_graph_from_utilization_results(utilization_results)
     # seed_number = rand.randint(0, 2**32)
     seed_number = 1107035453
@@ -261,12 +260,42 @@ def generate_topo_utilization_graph(results_repository, trial_name):
     sm = plt.cm.ScalarMappable(cmap=cm, norm=plt.Normalize(vmin=0, vmax=1))
     sm._A = []
     plt.colorbar(sm)
-    helpers.save_figure("net-topo-link-util.pdf")
+    helpers.save_figure("%s-topo-util.pdf" % provider_name, no_legend=True)
     plt.clf()
     pp.pprint(min(mean_utils.values()))
     print(seed_number)
 
 
+def generate_link_utilization_box_plot(results_repository, provider_name):
+    """
+    Generate a box and whisker plot showing the utilization of all the links in the 
+    network for a set of trials.
+    """
+    trial_provider = results_repository.read_trial_provider(provider_name)
+    link_utilization_results_for_trials = []
+    x_axis_labels = []
+    for idx, trial in enumerate(trial_provider):
+        utilization_results = trial.get_parameter("utilization-results")
+        byte_counts_per_time_period = compute_byte_counts_per_time_period(utilization_results)
+        network_utilization_per_time_period = compute_network_utilization_per_time_period(
+                byte_counts_per_time_period)
+        mean_network_utilization = compute_mean_network_utilization(
+                network_utilization_per_time_period)
+        link_utilization_results_for_trials.append(list(mean_network_utilization.values()))
+        x_axis_labels.append("K=%d" % trial.get_parameter("K"))
+
+
+    bp = plt.boxplot(link_utilization_results_for_trials, labels=x_axis_labels,
+            whiskerprops={"linestyle": "--"},
+            flierprops={"marker":"x", "markerfacecolor": "red", "markeredgecolor": "red"})
+    for element in ["boxes"]:
+        plt.setp(bp[element], color="blue")
+
+    plt.setp(bp["medians"], color="red")
+
+    plt.ylabel("Link Throughput (Mbps)")
+    helpers.save_figure("%s-box-plot.pdf" % provider_name, 3, no_legend=True)
+        
 
 
 

@@ -23,11 +23,11 @@ BAR_PLOT_COLORS         = ["palegreen", "skyblue", "lightpink", "silver"]
 # BAR_PLOT_TEXTURES       = ["//", "O", "x", "*", "|"]
 BAR_PLOT_TEXTURES       = ["x", ".", "*", "\\", "|"]
 
-MARKER_STYLE            = ["^", "o", "+"]
+MARKER_STYLE            = ["x", "^", "o", "+"]
 MARKER_COLOR            = ["red", "lime", "palegreen"]
 # LINE_STYLE              = ["--", "-", "-."]
-LINE_STYLE              = ["-"]
-LINE_COLOR              = ["red", "lime", "blue"]
+LINE_STYLE              = ["-", "-.", "--"]
+LINE_COLOR              = ["royalblue", "red", "lime", "blue"]
 FONT                    = { "family"        : "serif"
                           , "size"          : 16
                           }
@@ -59,6 +59,5 @@ GRID                    = { "b"         : True
                           }
 
 BASIC_CDF_PARAMS        = { "marker"        : "x"
-                          , "color"         : "red"
                           , "linestyle"     : "-."
                           }

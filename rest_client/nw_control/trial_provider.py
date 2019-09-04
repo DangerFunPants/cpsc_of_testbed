@@ -58,6 +58,10 @@ class TrialProvider:
             s += str(trial)
         return s
 
+    def __eq__(self, other):
+        return self._provider_name == other._provider_name
+
+
 
 
 

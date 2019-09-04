@@ -218,7 +218,7 @@ class TrafficGenerationVirtualHost(VirtualHost):
             args = [ str(traffic_gen_client_path)
                    , json.dumps(self.configured_flows)
                    ]
-            print(reduce(lambda v1, v2: " " + v1 + " " + v2, args))
+            # print(reduce(lambda v1, v2: " " + v1 + " " + v2, args))
             traffic_gen_client_process = subprocess.Popen(args,
                     stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
             self._traffic_gen_client_process = traffic_gen_client_process

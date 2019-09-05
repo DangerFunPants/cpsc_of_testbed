@@ -84,15 +84,12 @@ def path_hopping_plots():
     repo_path = path.Path("/home/cpsc-net-user/results-repositories/path-hopping-trial-results")
     results_repository = rr.ResultsRepository.create_repository(repo_path,
             ph_cfg.repository_schema, ph_cfg.repository_name)
-    # for trial_name in ["single-path", "path-hopping"]:
-    # for trial_name in ["testing-iperf"]:
-    #     for seed_number in [12345678]:
-    #         path_hopping.generate_link_utilization_cdf(results_repository, trial_name, seed_number)
-    #         # path_hopping.generate_topo_utilization_graph(results_repository, trial_name)
-    for provider_name in ["varying-k-values", "single-path-routing"]:
-        # path_hopping.generate_link_utilization_cdf(results_repository, provider_name)
+    # for provider_name in ["varying-k-values", "single-path-routing"]:
+    for provider_name in ["optimal"]:
+        path_hopping.generate_link_utilization_cdf(results_repository, provider_name)
         # path_hopping.generate_link_utilization_box_plot(results_repository, provider_name)
-        path_hopping.generate_topo_utilization_graph(results_repository, provider_name)
+        path_hopping.generate_expected_link_utilization_cdf(results_repository, provider_name)
+        # path_hopping.generate_topo_utilization_graph(results_repository, provider_name)
 
 def main():
     # flow_mirroring_plots()

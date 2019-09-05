@@ -133,9 +133,14 @@ def conduct_path_hopping_trial(results_repository, the_trial, trial_provider):
 def main():
     results_repository = ResultsRepository.create_repository(ph_cfg.base_repository_path,
             ph_cfg.repository_schema, ph_cfg.repository_name)
+
     # trial_provider = ph_trials.path_hopping_various_k_values(TARGET_GRAPH)
-    trial_provider = ph_trials.single_path_routing(TARGET_GRAPH)
+    # trial_provider = ph_trials.single_path_routing(TARGET_GRAPH)
+    trial_provider = ph_trials.attempted_optimal(TARGET_GRAPH)
+    # trial_provider = ph_trials.flow_allocation_tests(TARGET_GRAPH, 2)
+    
     # print(str(trial_provider))
+    # print(len(next(iter(trial_provider)).get_parameter("flow-set").flows))
     for the_trial in trial_provider:
         conduct_path_hopping_trial(results_repository, the_trial, trial_provider)
         time.sleep(10)

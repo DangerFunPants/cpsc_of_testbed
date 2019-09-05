@@ -33,6 +33,33 @@ def single_path_routing(target_graph):
     the_trial_provider.add_trial(the_trial)
     return the_trial_provider
 
+def attempted_optimal(target_graph):
+    the_trial_provider = trial_provider.TrialProvider("optimal")
+    flow_set = FlowSet()
+    the_trial = trial_provider.Trial("optimal")
+    flow_allocation_seed_number, flows, link_utilization = flow_allocation.compute_optimal_flow_allocations(
+            target_graph)
+    flow_set.add_flows(flows)
+    the_trial.add_parameter("K", 3)
+    the_trial.add_parameter("duration", 180)
+    the_trial.add_parameter("flow-set", flow_set)
+    the_trial.add_parameter("seed-number", flow_allocation_seed_number)
+    the_trial.add_parameter("link-utilization", link_utilization)
+    the_trial_provider.add_trial(the_trial)
+    return the_trial_provider
 
+def flow_allocation_tests(target_graph, number_of_flows):
+    the_trial_provider = trial_provider.TrialProvider("testing")
+    flow_set = FlowSet()
+    the_trial = trial_provider.Trial("testing")
+    flow_allocation_seed_number, flows, link_utilization = flow_allocation.compute_test_flow_allocations(target_graph, number_of_flows)
+    flow_set.add_flows(flows)
+    the_trial.add_parameter("K", 3)
+    the_trial.add_parameter("duration", 180)
+    the_trial.add_parameter("flow-set", flow_set)
+    the_trial.add_parameter("seed-number", flow_allocation_seed_number)
+    the_trial.add_parameter("link-utilization", link_utilization)
+    the_trial_provider.add_trial(the_trial)
+    return the_trial_provider
 
 

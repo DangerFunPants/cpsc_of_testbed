@@ -95,7 +95,9 @@ def compute_mean_network_utilization(network_utilization):
         m: source_node_destination_node -> mean_link_utilization
     """
     mean_link_utilizations = {}
-    for source_node, destination_node in itertools.combinations(network_utilization[0].keys(), 2):
+    node_set = {node_id for net_snapshot in network_utilization for node_id in net_snapshot}
+    # for source_node, destination_node in itertools.combinations(network_utilization[0].keys(), 2):
+    for source_node, destination_node in itertools.combinations(node_set, 2):
         # mean_link_utilization = np.mean([network_snapshot_at_time_t[source_node][destination_node]
         #     for network_snapshot_at_time_t in network_utilization])
         utilization_over_time = []
@@ -142,6 +144,26 @@ def read_results(results_repository, provider_name):
     for trial in trial_provider:
         return trial.get_parameter("utilization-results"), trial.get_parameter("flow-set")
 
+def plot_a_cdf(sorted_cdf_data, idx=0, label=None):
+    print("CDF data length %d" % len(sorted_cdf_data))
+    if label == None:
+        label = "CDF %d" % idx
+    xs = [0.0]
+    ys = [0.0]
+    for ctr, d_i in enumerate(sorted_cdf_data):
+        xs.append(d_i)
+        ys.append(ctr / len(sorted_cdf_data))
+    plt.plot(xs, ys, marker=helpers.marker_style(idx), label=label, 
+            linestyle=helpers.line_style(idx), color=helpers.line_color(idx))
+
+def get_link_set(util_results):
+    link_set = set()
+    for results_list in util_results:
+        for results_set in results_list:
+            link_set.add((results_set["sourceSwitchId"], results_set["destinationSwitchId"]))
+            link_set.add((results_set["destinationSwitchId"], results_set["sourceSwitchId"]))
+    return link_set
+
 def generate_link_utilization_cdf(results_repository, provider_name):
     """
     Generate a CDF of mean link utilization
@@ -151,24 +173,21 @@ def generate_link_utilization_cdf(results_repository, provider_name):
     for idx, trial in enumerate(trial_provider):
         # print(trial)
         utilization_results = trial.get_parameter("utilization-results")
+        links = get_link_set(utilization_results)
+        print("Number of links based on utilization results: %d" % len(links))
 
         byte_counts_per_time_period         = compute_byte_counts_per_time_period(utilization_results)
+        pp.pprint([len(b_i) * len(next(iter(b_i.values()))) for b_i in byte_counts_per_time_period])
         network_utilization_per_time_period = compute_network_utilization_per_time_period(
                 byte_counts_per_time_period)
+        pp.pprint([len(m_i) * len(next(iter(m_i.values()))) for m_i in network_utilization_per_time_period])
         mean_network_utilization            = compute_mean_network_utilization(
                 network_utilization_per_time_period)
-
-        pp.pprint(mean_network_utilization)
+        print(len(mean_network_utilization))
 
         link_utilizations = sorted(mean_network_utilization.values())
-        xs = [0.0]
-        ys = [0.0]
-        for ctr, link_utilization in enumerate(link_utilizations):
-            xs.append(link_utilization)
-            ys.append(ctr / len(link_utilizations))
-        plt.plot(xs, ys, marker=helpers.marker_style(idx), color=helpers.line_color(idx), 
-                linestyle=helpers.line_style(idx), label="K=%d" % trial.get_parameter("K"))
-    
+        plot_a_cdf(link_utilizations) 
+
     plt.xlabel("Link throughput (Mbps)")
     plt.ylabel("P{x < X}")
     plt.legend(**cfg.LEGEND)
@@ -265,7 +284,6 @@ def generate_topo_utilization_graph(results_repository, provider_name):
     pp.pprint(min(mean_utils.values()))
     print(seed_number)
 
-
 def generate_link_utilization_box_plot(results_repository, provider_name):
     """
     Generate a box and whisker plot showing the utilization of all the links in the 
@@ -283,8 +301,7 @@ def generate_link_utilization_box_plot(results_repository, provider_name):
                 network_utilization_per_time_period)
         link_utilization_results_for_trials.append(list(mean_network_utilization.values()))
         x_axis_labels.append("K=%d" % trial.get_parameter("K"))
-
-
+    
     bp = plt.boxplot(link_utilization_results_for_trials, labels=x_axis_labels,
             whiskerprops={"linestyle": "--"},
             flierprops={"marker":"x", "markerfacecolor": "red", "markeredgecolor": "red"})
@@ -296,6 +313,20 @@ def generate_link_utilization_box_plot(results_repository, provider_name):
     plt.ylabel("Link Throughput (Mbps)")
     helpers.save_figure("%s-box-plot.pdf" % provider_name, 3, no_legend=True)
         
+def generate_expected_link_utilization_cdf(results_repository, provider_name):
+    trial_provider = results_repository.read_trial_provider(provider_name)
+    the_trial = trial_provider.get_first_trial_that_matches(
+            lambda t: t.get_parameter("trial-name") == provider_name)
+    expected_utilization_results = the_trial.get_parameter("link-utilization")
+
+    link_utilizations = sorted(expected_utilization_results.values())
+    plot_a_cdf(link_utilizations)
+    helpers.save_figure("expected-link-utilization-cdf.pdf", no_legend=True)
+
+def generate_topology_graph():
+    topo = nx.complete_graph(10)
+    nx.draw_circular(topo, node_color="skyblue")
+    helpers.save_figure("network-topology.pdf", no_legend=True)
 
 
 

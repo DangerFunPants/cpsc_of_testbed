@@ -48,6 +48,16 @@ class TrialProvider:
     def add_trial(self, the_trial):
         self._trials.append(the_trial)
 
+    def get_first_trial_that_matches(self, match_fn):
+        matching_trials = self.get_all_trials_that_match(match_fn)
+        if len(matching_trials) == 0:
+            raise ValueError("get_first_trial_that_matches could not find any matching trials.")
+        return matching_trials[0]
+
+    def get_all_trials_that_match(self, match_fn):
+        matching_trials = [t_i for t_i in self.trials if match_fn(t_i)]
+        return matching_trials
+
     def __iter__(self):
         for trial in self.trials:
             yield trial

@@ -11,7 +11,7 @@ import itertools            as itertools
 from networkx.algorithms.shortest_paths.generic     import all_shortest_paths
 from collections                                    import namedtuple
 
-LINK_CAPACITY = 10
+LINK_CAPACITY = 100
 
 class Flow:
     """
@@ -78,7 +78,7 @@ class FlowSet:
         s = "Flow set with %d flows." % len(self.flows)
         return s
 
-def compute_flow_allocations(target_graph, K=3):
+def compute_optimal_flow_allocations(target_graph, K=3):
     """
     Returns a list of flows with randomly selected sources and destinations that 
     will saturate the network (i.e. a flow will be admitted provided that it would
@@ -90,26 +90,71 @@ def compute_flow_allocations(target_graph, K=3):
     flow_allocation_seed_number = 0xCAFE_BABE
     np.random.seed(flow_allocation_seed_number)
     link_utilization = {(u, v): 0.0 for u, v in target_graph.edges}
+    node_capacity = {u: 0.0 for u in target_graph.nodes}
     flows = []
     while True:
         [source_node, destination_node] = np.random.choice(target_graph.nodes, 2, replace=False)
-        shortest_paths = all_shortest_paths(target_graph,source_node, destination_node)
-        flow_tx_rate = np.random.uniform()
+
+        shortest_paths = sorted(nx.all_simple_paths(target_graph, source_node, destination_node,
+                cutoff=3),
+                key=lambda p: len(p))
+        k_shortest_paths = list(itertools.islice(shortest_paths, K))
+
+        flow_tx_rate = np.random.uniform() * 10
+        if node_capacity[source_node] + flow_tx_rate > LINK_CAPACITY:
+            break
+        node_capacity[source_node] += flow_tx_rate
         capacity_was_exceeded = False  
-        for path in [nx.utils.pairwise(p_i) for p_i in shortest_paths]:
+        for path in [nx.utils.pairwise(p_i) for p_i in k_shortest_paths]:
             for u, v in [sorted(h_i) for h_i in path]:
-                if (link_utilization[u, v] + (flow_tx_rate / K)) > LINK_CAPACITY:
+                flow_rate_per_subpath = flow_tx_rate / K
+                if (link_utilization[u, v] + flow_rate_per_subpath) > LINK_CAPACITY:
                     capacity_was_exceeded = True
                     break
-                link_utilization[u, v] += flow_tx_rate / K
+                link_utilization[u, v] += flow_rate_per_subpath
             if capacity_was_exceeded:
                 break
 
         if capacity_was_exceeded:
             break
 
-        flows.append(Flow(source_node.item(), destination_node.item(), flow_tx_rate))
-    return flow_allocation_seed_number, flows
+        the_flow = Flow( source_node        = source_node
+                       , destination_node   = destination_node
+                       , flow_tx_rate       = flow_tx_rate / 10.0
+                       , paths              = k_shortest_paths
+                       , splitting_ratio    = [1.0/K]*K
+                       )
+        flows.append(the_flow)
+    return flow_allocation_seed_number, flows, link_utilization
+
+def compute_test_flow_allocations(target_graph, number_of_flows, K=3):
+    flow_allocation_seed_number = 123456789
+    np.random.seed(flow_allocation_seed_number)
+    link_utilization = {(u, v): 0.0 for u, v in target_graph.edges}
+    flows = []
+    [source_node] = np.random.choice(target_graph.nodes, 1, replace=False)
+    destination_node_set = list(set(target_graph.nodes) - {source_node})
+    for _ in range(number_of_flows):
+        [destination_node] = np.random.choice(destination_node_set, 1, replace=False)
+        shortest_paths = sorted(nx.all_simple_paths(target_graph, source_node, destination_node,
+            cutoff=3),
+            key=lambda p: len(p))
+        k_shortest_paths = list(itertools.islice(shortest_paths, K))
+        pp.pprint(k_shortest_paths)
+        flow_tx_rate = 10.0
+        for path in [nx.utils.pairwise(p_i) for p_i in k_shortest_paths]:
+            for u, v in [sorted(h_i) for h_i in path]:
+                flow_rate_per_subpath = flow_tx_rate / K
+                link_utilization[u, v] += flow_rate_per_subpath
+
+        the_flow = Flow( source_node        = source_node
+                       , destination_node   = destination_node
+                       , flow_tx_rate       = flow_tx_rate / 10.0
+                       , paths              = k_shortest_paths
+                       , splitting_ratio    = [1.0/K]*K
+                       )
+        flows.append(the_flow)
+    return flow_allocation_seed_number, flows, link_utilization
 
 def compute_equal_flow_allocations(target_graph, K=3):
     """

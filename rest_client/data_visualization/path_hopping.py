@@ -281,8 +281,6 @@ def generate_topo_utilization_graph(results_repository, provider_name):
     plt.colorbar(sm)
     helpers.save_figure("%s-topo-util.pdf" % provider_name, no_legend=True)
     plt.clf()
-    pp.pprint(min(mean_utils.values()))
-    print(seed_number)
 
 def generate_link_utilization_box_plot(results_repository, provider_name):
     """
@@ -316,7 +314,7 @@ def generate_link_utilization_box_plot(results_repository, provider_name):
 def generate_expected_link_utilization_cdf(results_repository, provider_name):
     trial_provider = results_repository.read_trial_provider(provider_name)
     the_trial = trial_provider.get_first_trial_that_matches(
-            lambda t: t.get_parameter("trial-name") == provider_name)
+            lambda t: t.get_parameter("trial-name") == "optimal-3")
     expected_utilization_results = the_trial.get_parameter("link-utilization")
 
     link_utilizations = sorted(expected_utilization_results.values())

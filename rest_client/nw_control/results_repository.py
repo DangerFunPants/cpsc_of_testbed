@@ -75,25 +75,37 @@ class ResultsRepository:
             output_file = output_path.joinpath(file_name)
             output_file.write_text(results_data)
 
-    def write_trial_provider(self, schema_variables, trial_provider, trial, overwrite=False):
+    def write_trial_provider(self, schema_variables, trial_provider, overwrite=False):
         output_path = self.build_output_path(schema_variables)
-        output_path.mkdir(parents=True, exist_ok=overwrite)
-
-        provider_output_path = self.base_path / trial_provider.provider_name
-        provider_output_file = provider_output_path / "trial-provider.p"
+        output_path.mkdir(parents=True, exist_ok=True)
+        provider_output_file = output_path / "trial-provider.p"
+        name_intersection = set()
         if provider_output_file.exists():
             with provider_output_file.open("rb") as fd:
                 the_existing_provider = pickle.load(fd)
-            if the_existing_provider != trial_provider:
-                raise ValueError("Attempting to write results from two different providers into the same direcotry!")
+            # Check if we should be overwriting the trial.
+            # Are there any trials with identical IDs?
+            # Two trials are considered the same if they have the same name. If overwrite 
+            # is true then any existing trials with the same name as trials in the new provider
+            # will be removed. if trials have identical IDs they will not be overwritten 
+            # regardless of the value of the override parameter.
+            if (len({t_i.get_parameter("id") for t_i in the_existing_provider} &
+                    {t_j.get_parameter("id") for t_j in trial_provider}) != 0):
+                raise ValueError("Attempting to overwrite trials with the same ID.")
 
+            name_intersection = ({t_i.get_parameter("trial-name") for t_i in the_existing_provider} &
+                    {t_j.get_parameter("trial-name") for t_j in trial_provider})
+            if len(name_intersection) != 0 and not overwrite:
+                raise ValueError("Attempting to overwrite trials with the same name without specifying overwrite")
+            for duplicated_name in name_intersection:
+                the_existing_provider.remove_all_trials_that_match(
+                        lambda t: t.get_parameter("trial-name") == duplicated_name)
+
+            for t_i in the_existing_provider:
+                trial_provider.add_trial(t_i)
 
         with provider_output_file.open("wb") as fd:
             pickle.dump(trial_provider, fd)
-
-        output_file = output_path / "trial.p"
-        with output_file.open("wb") as fd:
-            pickle.dump(trial, fd)
 
     def read_trial_results(self, schema_variables, file_names):
         output_path_segments = [schema_variables[schema_label] for schema_label in

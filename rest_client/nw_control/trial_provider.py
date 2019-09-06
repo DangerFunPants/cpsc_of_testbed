@@ -38,15 +38,14 @@ class TrialProvider:
         return self._provider_name
 
     @property
-    def seed_number(self):
-        return self._seed_number
-
-    @property
     def trials(self):
         return self._trials 
 
     def add_trial(self, the_trial):
-        self._trials.append(the_trial)
+        self.trials.append(the_trial)
+
+    def remove_trial(self, trial_to_remove):
+        self.trials.remove(trial_to_remove)
 
     def get_first_trial_that_matches(self, match_fn):
         matching_trials = self.get_all_trials_that_match(match_fn)
@@ -57,6 +56,11 @@ class TrialProvider:
     def get_all_trials_that_match(self, match_fn):
         matching_trials = [t_i for t_i in self.trials if match_fn(t_i)]
         return matching_trials
+
+    def remove_all_trials_that_match(self, match_fn):
+        matching_trials = self.get_all_trials_that_match(match_fn)
+        for trial_to_remove in matching_trials:
+            self.trials.remove(trial_to_remove)
 
     def __iter__(self):
         for trial in self.trials:

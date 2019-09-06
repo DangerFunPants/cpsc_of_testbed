@@ -85,7 +85,7 @@ def path_hopping_plots():
     results_repository = rr.ResultsRepository.create_repository(repo_path,
             ph_cfg.repository_schema, ph_cfg.repository_name)
     # for provider_name in ["varying-k-values", "single-path-routing"]:
-    for provider_name in ["optimal"]:
+    for provider_name in ["optimal-varying-k"]:
         path_hopping.generate_link_utilization_cdf(results_repository, provider_name)
         # path_hopping.generate_link_utilization_box_plot(results_repository, provider_name)
         path_hopping.generate_expected_link_utilization_cdf(results_repository, provider_name)

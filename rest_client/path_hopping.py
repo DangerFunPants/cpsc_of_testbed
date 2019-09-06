@@ -63,7 +63,7 @@ def scale_flow_tx_rate(normalized_flow_tx_rate):
     to a scaled flow tx rate in bytes per second. The rate returned will be 
     in the range [0.0, 10.0) Mbps.
     """
-    return (normalized_flow_tx_rate * 10**7) / 8.0
+    return (normalized_flow_tx_rate * 10**6) / 8.0
 
 def simple_paths_to_flow_json(simple_paths, tag_values, id_to_dpid):
     path_dicts = []
@@ -80,7 +80,7 @@ def simple_paths_to_flow_json(simple_paths, tag_values, id_to_dpid):
     flow_json = {"paths": path_dicts}
     return flow_json, tag_values_for_flow
 
-def conduct_path_hopping_trial(results_repository, the_trial, trial_provider):
+def conduct_path_hopping_trial(results_repository, the_trial):
     id_to_dpid                      = topo_mapper.get_and_validate_onos_topo_x(TARGET_GRAPH)
     hosts                           = {}
     flow_allocation_seed_number     = the_trial.get_parameter("seed-number")
@@ -116,11 +116,6 @@ def conduct_path_hopping_trial(results_repository, the_trial, trial_provider):
         utilization_results = traffic_monitor.get_monitor_statistics()
         the_trial.add_parameter("utilization-results", utilization_results)
         
-        schema_vars = { "provider-name"     : trial_provider.provider_name
-                      , "trial-id"          : the_trial.get_parameter("id")
-                      }
-
-        results_repository.write_trial_provider(schema_vars, trial_provider, the_trial)
 
     except Exception as ex:
         traceback.print_exc()
@@ -136,14 +131,21 @@ def main():
 
     # trial_provider = ph_trials.path_hopping_various_k_values(TARGET_GRAPH)
     # trial_provider = ph_trials.single_path_routing(TARGET_GRAPH)
-    trial_provider = ph_trials.attempted_optimal(TARGET_GRAPH)
+    # trial_provider = ph_trials.path_hopping_flows(TARGET_GRAPH)
     # trial_provider = ph_trials.flow_allocation_tests(TARGET_GRAPH, 2)
+    # trial_provider = ph_trials.attempted_optimal_flows(TARGET_GRAPH)
+    trial_provider = ph_trials.ilp_flows(TARGET_GRAPH)
     
-    # print(str(trial_provider))
-    # print(len(next(iter(trial_provider)).get_parameter("flow-set").flows))
-    for the_trial in trial_provider:
-        conduct_path_hopping_trial(results_repository, the_trial, trial_provider)
-        time.sleep(10)
+    print(str(trial_provider))
+    print(len(next(iter(trial_provider)).get_parameter("flow-set").flows))
+    # for the_trial in trial_provider:
+    #     conduct_path_hopping_trial(results_repository, the_trial, trial_provider)
+    #     time.sleep(10)
+    schema_vars = { "provider-name"     : trial_provider.provider_name
+                  }
+
+    # results_repository.write_trial_provider(schema_vars, trial_provider, overwrite=True)
+    results_repository.write_trial_provider(schema_vars, trial_provider, overwrite=True)
 
 if __name__ == "__main__":
     main()

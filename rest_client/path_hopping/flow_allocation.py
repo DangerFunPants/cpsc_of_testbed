@@ -321,21 +321,29 @@ def create_model( target_topology
             # forall. l_i in p_i.links
             for link_tuple in nx.utils.pairwise(path):
                 link_index = link_set[tuple(sorted(link_tuple))]
-                Y[flow_index, link_index] = Y[flow_index, link_index] + X[flow_index, path_index]
+                Y[flow_index, link_index] += X[flow_index, path_index]
+
+    # T: flow_index -> link_index -> constraint_variable
+    T = {}
+    for (flow_index, link_index), y_ik in Y.items():
+        T[flow_index, link_index] = path_allocation_model.addVar(name="T{%d, %d}" % 
+                (flow_index, link_index), lb=0.0, ub=1.0)
+        path_allocation_model.addConstr(T[flow_index, link_index] == y_ik)
     
     # U: link_index -> link_utilization
     alpha = path_allocation_model.addVar(name="alpha", lb=0.0, ub=1.0)
+    path_allocation_model.addConstr(alpha >= 0.0)
 
     U = {link_index: path_allocation_model.addVar(name="U{%s}" % str(link_index))
             for link_index in link_set.values()}
-    for (flow_index, link_index), y_fl in Y.items():
-        U[link_index] = U[link_index] + y_fl
+    for (flow_index, link_index), y_fl in T.items():
+        U[link_index] += y_fl
 
     for link_index, u_l in U.items():
         # Change the floating point literal in this line to change link capacity
-        path_allocation_model.addConstr(u_l <= alpha * 1.0)
+        path_allocation_model.addConstr(u_l <= alpha * 2.0) 
 
-    path_allocation_model.setObjective(1.0 * alpha, gp.GRB.MINIMIZE)
+    path_allocation_model.setObjective(alpha, gp.GRB.MINIMIZE)
 
     return path_allocation_model
 
@@ -381,6 +389,7 @@ def compute_ilp_flows(target_graph, K=3):
                        )
         flows.append(new_flow)
 
+    # Failed to embed even a single flow into the network.
     if feasible_model == None:
         return flow_allocation_seed_number, [], None
 
@@ -399,7 +408,6 @@ def compute_ilp_flows(target_graph, K=3):
             link_index = variable_name_to_index_tuple(v_i.varName)
             link_tuple = link_set[link_index]
             U[link_tuple] = v_i.x
-
 
     return flow_allocation_seed_number, flows, U
 

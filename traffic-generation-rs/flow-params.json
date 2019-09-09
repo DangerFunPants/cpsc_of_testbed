@@ -1,0 +1,22 @@
+{
+    "dest_port": 50000,
+    "dest_addr": "127.0.0.1",
+    "prob_mat": [
+        0.5,
+        0.2,
+        0.3
+    ],
+    "tx_rate": 131072,
+    "variance": 0,
+    "traffic_model": "Uniform",
+    "packet_len": 1024,
+    "src_host": 0,
+    "time_slice": 1,
+    "tag_value": [
+        1,
+        2,
+        3
+    ],
+    "transmit_rates": null,
+    "source_addr": "127.0.0.1"
+}

@@ -131,13 +131,18 @@ def main():
 
     # trial_provider = ph_trials.path_hopping_various_k_values(TARGET_GRAPH)
     # trial_provider = ph_trials.single_path_routing(TARGET_GRAPH)
-    # trial_provider = ph_trials.path_hopping_flows(TARGET_GRAPH)
+    # trial_provider = ph_trials.path_hopping_flows(TARGET_GRAPH, K=3)
     # trial_provider = ph_trials.flow_allocation_tests(TARGET_GRAPH, 2)
-    # trial_provider = ph_trials.attempted_optimal_flows(TARGET_GRAPH)
-    trial_provider = ph_trials.ilp_flows(TARGET_GRAPH)
+    # trial_provider = ph_trials.attempted_optimal_flows(TARGET_GRAPH, K=3)
+    trial_provider = ph_trials.mcf_flows(TARGET_GRAPH)
+    # trial_provider = ph_trials.greedy_path_hopping_flows(TARGET_GRAPH, K=5)
     
-    print(str(trial_provider))
-    print(len(next(iter(trial_provider)).get_parameter("flow-set").flows))
+    # print(str(trial_provider))
+    the_trial = next(iter(trial_provider))
+    link_utilization = the_trial.get_parameter("link-utilization")
+    pp.pprint(link_utilization)
+    print(sum(link_utilization.values()))
+    print(len(the_trial.get_parameter("flow-set")))
     # for the_trial in trial_provider:
     #     conduct_path_hopping_trial(results_repository, the_trial, trial_provider)
     #     time.sleep(10)

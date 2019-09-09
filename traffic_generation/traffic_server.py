@@ -1,11 +1,13 @@
 #!/usr/bin/env python3
 
-import socket
-import signal
-import os
-from collections import defaultdict
-import pickle
-import argparse
+import pprint           as pp
+import socket           as socket
+import signal           as signal
+import os               as os
+import pickle           as pickle
+import argparse         as argparse
+
+from collections        import defaultdict
 
 # pkt_counts :: (src_addr, src_port) -> recv_count
 byte_counts = defaultdict(int)
@@ -22,10 +24,14 @@ def get_args():
 
 def handle_sig_int(signum, frame):
     global args
-    pkts_recv = { s : (bc / 1024) for s, bc in byte_counts.iteritems() }
-    print(pkts_recv)
-    with open("/home/alexj/packet_counts/receiver_%d.p" % args, "wb") as fd:
-        pickle.dump(pkts_recv, fd)
+    packets_received = { s : (bc // 1024) for s, bc in byte_counts.items() }
+    # Should decide on a better IPC mechanism than just named files since
+    # the communication becomes dependent on the structure of the host filesystem.
+    # The IPC mechanism should ideally work across machine boundaries as well as on 
+    # the same machine.
+    # with open("/home/alexj/packet_counts/receiver_%d.p" % args, "wb") as fd:
+    #     pickle.dump(pkts_recv, fd)
+    pp.pprint(packets_received)
     exit()
 
 def inc_pkt_counts(src, bc):

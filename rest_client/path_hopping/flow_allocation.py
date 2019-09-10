@@ -10,6 +10,7 @@ import itertools            as itertools
 import gurobipy             as gp
 
 from networkx.algorithms.shortest_paths.generic     import all_shortest_paths
+from newtorkx.connectivity.disjoint_paths           import node_disjoint_paths
 from collections                                    import namedtuple
 from sys                                            import stderr
 
@@ -375,7 +376,6 @@ def compute_ilp_flows(target_graph, K=3):
     feasible_model = None
     while True:
         [source_node, destination_node] = np.random.choice(target_graph.nodes, 2, replace=False)
-        # [source_node, destination_node] = [0, 1]
         shortest_paths = sorted(nx.all_simple_paths(target_graph, source_node, destination_node,
                 cutoff=3),
                 key=lambda p: len(p))
@@ -439,8 +439,6 @@ def create_mcf_model( substrate_topology
     
     link_set = {link_tuple: link_idx 
             for link_idx, link_tuple in enumerate(substrate_topology.edges)}
-    link_index_to_link_tuple = {link_idx: link_tuple 
-            for link_tuple, link_idx in link_set.items()}
     # F : flow_idx 
     #  -> source_node 
     #  -> destination_node 
@@ -517,16 +515,103 @@ def compute_mcf_flows(target_graph):
         return flow_allocation_seed_number, [], None
 
     link_set = {link_index: link_tuple for link_index, link_tuple in enumerate(substrate_topology)}
-    # U = {}
-    # for v_i in feasible_model.getVars():
-    #     if "U" in v_i.varName:
-    #         link_index = variable_name_to_index_tuple(v_i.var_name)
-    #         link_tuple = link_set[link_index]
-    #         U[link_tuple] = v_i.x
-
-
     U = {link_index: link_util.getValue() for link_index, link_util in feasible_utilization.items()}
     return flow_allocation_seed_number, flows, U
+
+def create_path_hopping_ilp_model( substrate_topology
+                                 , flows
+                                 , new_flow_source_node
+                                 , new_flow_destination_node
+                                 , new_flow_tx_rate):
+    path_hopping_mcf_model = gp.Model("path-hopping-mcf-model", gp.Env("gurobi.log"))
+    disjoint_paths = node_disjoint_paths(substrate_topology, new_flow_source_node,
+            new_flow_destination_node)
+    new_flow = Flow( source_node        = new_flow_source_node
+                   , destination_node   = new_flow_destination_node
+                   , flow_tx_rate       = new_flow_tx_rate
+                   , paths              = node_disjoint_paths
+                   , splitting_ratio    = None
+                   )
+    potential_flow_set = flows + [new_flow]
+    link_set = {link_tuple: link_idx
+            for link_idx, link_tuple in enumerate(substrate_topology.edges)}
+    
+    # X: flow_index -> path_index -> splitting_ratio
+    X = {}
+    for flow_idx, flow in enumerate(potential_flow_set):
+        flow_routing_constraint_variable = gp.LinExpr(0.0)
+        for path_index, path in enumerate(flow.paths):
+            X[flow_index, path_index] = path_hopping_mcf_model.addVar(name="X{%d,%d}" %
+                    (flow_index, path_index, lb=0.0, ub=1.0))
+            flow_routing_constraint_variable += X[flow_index, path_index]
+        path_allocation_model.addConstr(flow_routing_constraint_variable == 1.0)
+
+    # Y: flow_index -> link_index -> portion of flow bandwidth on link
+    Y = {(flow_index, link_index): path_hopping_mcf_model.addVar(name="Y{%d,%d}" %
+        (flow_index, link_index), lb=0.0, ub=1.0)
+        for flow_index, _ in enumerate(potential_flow_set) for link_index in link_set.values()}
+    # Y_rhs: flow_index -> link_index -> LinExpr
+    Y_rhs = {(flow_index, link_index): gp.LinExpr(0.0)
+            for flow_index, _ in enumerate(potential_flow_set)
+            for link_index in link_set.values()}
+            
+    for flow_index, flow in enumerate(potential_flow_set):
+        for path_index, path in enumerate(flow.paths):
+            for link_tuple in nx.utils.pairwise(path):
+                link_index = link_set[tuple(sorted(link_tuple))]
+                Y_rhs[flow_index, link_index] += X[flow_index, path_index]
+    
+    for (flow_index, link_index), y_rhs in Y_rhs.items():
+        path_hopping_mcf_model.addConstr(Y[flow_index, link_index] == y_rhs)
+
+    # U: link_index -> link_utilization
+    U = {link_index: path_hopping_mcf_model.addVar("U{%d}" % link_index)
+            for link_index in link_set.values()}
+    U_rhs = {link_index: gp.LinExpr(0.0) for link_index in link_set.values()}
+    for (flow_index, link_index), y_rhs in Y_rhs:
+        U_rhs[link_index] += y_rhs
+    
+    alpha = path_hopping_mcf_model.addVar(name="alpha", lb=0.0, ub=1.0)
+
+    for link_index, u_rhs in U_rhs.items():
+        path_hopping_mcf_model.addConstr(u_rhs == U[link_index])
+        path_hopping_mcf_model.addConstr(U[link_index] <= (alpha * LINK_CAPACITY))
+
+    path_hopping_mcf_model.setObjective(alpha, gp.GRB.MINIMIZE)
+
+    return path_hopping_mcf_model
+
+def compute_path_hopping_flows_ilp(target_graph, K=3):
+    flow_allocation_seed_number = 0xCAFE_BABE
+    np.random.seed(flow_allocation_seed_number)
+    flows = []
+    feasible_model = None
+    while True:
+        [source_node, destination_node] = np.random.choice(target_graph.nodes, 2, replace=False)
+        flow_tx_rate = np.random.uniform()
+
+        model_for_this_round = create_path_hopping_ilp_model(target_graph, flows, source_node,
+                destination_node, flow_tx_rate)
+        model_for_this_round.optimize()
+        if (model_for_this_round.status == gp.GRB.Status.INF_OR_UNBD or
+                model_for_this_round.status == gp.GRB.Status.INFEASIBLE or
+                model_for_this_round.status == gp.GRB.Status.UNBOUNDED):
+            break
+
+        print("Solved for %d flows" % (len(flows) + 1), file=stderr)
+        feasible_model = model_for_this_round
+        new_flow = Flow( source_node        = source_node
+                       , destination_node   = destination_node
+                       , flow_tx_rate       = flow_tx_rate
+                       , paths              = None
+                       , splitting_ratio    = None
+                       )
+        flows.append(new_flow)
+    # Failed to embed even a single flow into the network
+    if feasible_model == None:
+        return flow_allocation_seed_number, [], None
+
+    model_variables = feasible_model.getVars()
 
 def create_flow_json(flows):
     def create_json_for_single_flow(flow):

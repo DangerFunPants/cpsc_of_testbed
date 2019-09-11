@@ -31,7 +31,8 @@ class Trial:
 class TrialProvider:
     def __init__(self, provider_name):
         self._provider_name     = provider_name
-        self._trials             = []
+        self._trials            = []
+        self._metadata          = {}
 
     @property
     def provider_name(self):
@@ -62,6 +63,18 @@ class TrialProvider:
         for trial_to_remove in matching_trials:
             self.trials.remove(trial_to_remove)
 
+    def add_metadata(self, metadata_key, metadata_value):
+        if metadata_key in self._metadata:
+            raise ValueError("Attempted to add duplicate key %s to trial provider %s" %
+                    (metadata_key, self.provider_name))
+        self._metadata[metadata_key] = metadata_value
+
+    def get_metadata(self, metadata_key):
+        if not (metadata_key in self._metadata):
+            raise ValueError("Attempted to fetch non-existent metadata %s from provider %s" %
+                    (metadata_key, self.provider_name))
+        return self._metadata[metadata_key]
+
     def __iter__(self):
         for trial in self.trials:
             yield trial
@@ -74,6 +87,9 @@ class TrialProvider:
 
     def __eq__(self, other):
         return self._provider_name == other._provider_name
+
+    def __len__(self):
+        return len(self.trials)
 
 
 

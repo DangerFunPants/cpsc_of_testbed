@@ -34,6 +34,12 @@ def line_color(idx):
 def marker_color(idx):
     return idx_list_circular(idx, cfg.MARKER_COLOR)
 
+def bar_color(idx):
+    return idx_list_circular(idx, cfg.BAR_PLOT_COLORS)
+
+def bar_texture(idx):
+    return idx_list_circular(idx, cfg.BAR_PLOT_TEXTURES)
+
 def save_figure(figure_name, num_cols=0, **kwargs):
     p = cfg.FIGURE_OUTPUT_PATH.joinpath(figure_name)
     kwargs["bbox_inches"] = "tight"

@@ -134,18 +134,27 @@ def main():
     # trial_provider = ph_trials.path_hopping_flows(TARGET_GRAPH, K=3)
     # trial_provider = ph_trials.flow_allocation_tests(TARGET_GRAPH, 2)
     # trial_provider = ph_trials.attempted_optimal_flows(TARGET_GRAPH, K=3)
-    trial_provider = ph_trials.mcf_flows(TARGET_GRAPH)
+    # trial_provider = ph_trials.mcf_flows(TARGET_GRAPH)
     # trial_provider = ph_trials.greedy_path_hopping_flows(TARGET_GRAPH, K=5)
+    # trial_provider = ph_trials.path_hopping_mcf_flows(TARGET_GRAPH, K=5)
+    trial_provider = ph_trials.ilp_flows(TARGET_GRAPH, K=5)
+    # test_graph = nx.generators.random_graphs.barabasi_albert_graph(30, 3)
+    # trial_provider = ph_trials.multiflow_tests(test_graph, K=5)
+    # trial_provider = ph_trials.multiflow_tests_binomial(TARGET_GRAPH)
+    # trial_provider = ph_trials.multiflow_tests_uniform(TARGET_GRAPH)
     
     # print(str(trial_provider))
-    the_trial = next(iter(trial_provider))
-    link_utilization = the_trial.get_parameter("link-utilization")
-    pp.pprint(link_utilization)
-    print(sum(link_utilization.values()))
-    print(len(the_trial.get_parameter("flow-set")))
+    # the_trial = next(iter(trial_provider))
+    # link_utilization = the_trial.get_parameter("link-utilization")
+    # pp.pprint(link_utilization)
+    # print(sum(link_utilization.values()))
+    # print(len(the_trial.get_parameter("flow-set")))
+    # pp.pprint([flow.splitting_ratio for flow in the_trial.get_parameter("flow-set")])
     # for the_trial in trial_provider:
     #     conduct_path_hopping_trial(results_repository, the_trial, trial_provider)
     #     time.sleep(10)
+    for the_trial in trial_provider:
+        print("Trial %s has %d flows." % (the_trial.name, len(the_trial.get_parameter("flow-set"))))
     schema_vars = { "provider-name"     : trial_provider.provider_name
                   }
 

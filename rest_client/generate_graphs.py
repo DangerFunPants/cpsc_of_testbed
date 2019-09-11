@@ -91,12 +91,27 @@ def path_hopping_plots():
         path_hopping.generate_expected_link_utilization_cdf(results_repository, provider_name)
         # path_hopping.generate_topo_utilization_graph(results_repository, provider_name)
 
+def path_hopping_multiflow_plots(provider_name):
+    repo_path = path.Path("/home/cpsc-net-user/results-repositories/new-provider-results")
+    results_repository = rr.ResultsRepository.create_repository(repo_path,
+            ph_cfg.repository_schema, ph_cfg.repository_name)
+    trial_provider = results_repository.read_trial_provider(provider_name)
+
+    path_hopping.generate_computed_link_utilization_cdf(trial_provider) 
+    path_hopping.generate_flow_count_bar_plot(trial_provider)
+    # path_hopping.generate_node_probability_histogram(results_repository)
+    # path_hopping.generate_substrate_topology_graph(results_repository)
+    path_hopping.generate_computed_link_utilization_box_plot(trial_provider)
+
 def main():
     # flow_mirroring_plots()
     # port_mirroring_plots()
     # mp_routing_plots()
     # vle_simulation_plots()
-    path_hopping_plots()
+    # path_hopping_plots()
+    provider_names = ["multiflow-tests-uniform", "multiflow-tests-binomial"]
+    for provider_name in provider_names:
+        path_hopping_multiflow_plots(provider_name)
 
 if __name__ == "__main__":
     main()

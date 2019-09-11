@@ -10,6 +10,7 @@ import pprint                       as pp
 import pathlib                      as path
 import itertools                    as itertools
 import random                       as rand
+import operator                     as op
 
 import data_visualization.params                as cfg
 import data_visualization.helpers               as helpers
@@ -17,21 +18,22 @@ import path_hopping.flow_allocation             as flow_allocation
 
 from collections                    import defaultdict
 from statistics                     import mean
+from functools                      import reduce
 
 from data_visualization.helpers     import marker_style, line_style, line_color
 
 FIGURE_OUTPUT_PATH = path.Path("/home/cpsc-net-user/")
 
-# plt.rc("text", usetex=True)
+plt.rc("text", usetex=True)
 plt.rc("font", **cfg.FONT)
 matplotlib.rcParams["xtick.direction"]      = "in"
 matplotlib.rcParams["ytick.direction"]      = "in"
-# matplotlib.rcParams["text.latex.preamble"]  = [ r"\usepackage{amsmath}"
-#                                               , r"\usepackage{amssymb}"
-#                                               , r"\usepackage{amsfonts}"
-#                                               , r"\usepackage{amsthm}"
-#                                               , r"\usepackage{graphics}"
-#                                               ]
+matplotlib.rcParams["text.latex.preamble"]  = [ r"\usepackage{amsmath}"
+                                              , r"\usepackage{amssymb}"
+                                              , r"\usepackage{amsfonts}"
+                                              , r"\usepackage{amsthm}"
+                                              , r"\usepackage{graphics}"
+                                              ]
 
 TRIAL_TYPES     = ["path-hopping"]
 LABELS          = ["Path Hopping"]
@@ -326,14 +328,97 @@ def generate_topology_graph():
     nx.draw_circular(topo, node_color="skyblue")
     helpers.save_figure("network-topology.pdf", no_legend=True)
 
+def collect_trials_based_on_name(trial_provider):
+    names = sorted({the_trial.name for the_trial in trial_provider})
+    return [trial_provider.get_all_trials_that_match(lambda t_i: t_i.name == trial_name)
+            for trial_name in names]
 
+def multiflow_label(label):
+    label_dict = {"greedy-path-hopping" : helpers.trial_name_font("Path Hopping")
+                 , "k-paths-allocation" : helpers.trial_name_font("K-Paths")
+                 , "mcf-trial"          : helpers.trial_name_font("MCF")
+                 }
+    return label_dict[label]
 
+def generate_computed_link_utilization_cdf(trial_provider):
+    grouped_by_name = collect_trials_based_on_name(trial_provider)
+    labels          = [multiflow_label(group[0].name) for group in grouped_by_name]
+    link_utilizations = [reduce(op.add,
+        [list(t_i.get_parameter("link-utilization").values()) for t_i in group], [])
+        for group in grouped_by_name]
 
+    for plot_idx in range(len(labels)):
+        sorted_link_utilization_data = sorted(link_utilizations[plot_idx])
+        plot_a_cdf(sorted_link_utilization_data, idx=plot_idx, label=labels[plot_idx])
 
+    # for plot_idx, the_trial in enumerate(trial_provider):
+    #     link_utilization = the_trial.get_parameter("link-utilization")
+    #     sorted_link_utilization_data = sorted(list(link_utilization.values()))
+    #     plot_a_cdf(sorted_link_utilization_data, idx=plot_idx, 
+    #             label=multiflow_label(the_trial.name))
 
+    plt.xlabel("Link Utilization")
+    plt.ylabel(r"$\mathbb{P}\{x = \mathcal{X}\}$")
+    node_selection_type = trial_provider.get_metadata("node-selection-type")
+    helpers.save_figure("computed-link-utilization-%s-cdf.pdf" % node_selection_type, 
+            num_cols=len(trial_provider))
 
+def generate_flow_count_bar_plot(trial_provider):
+    grouped_by_name = collect_trials_based_on_name(trial_provider)
+    allocated_flows_data = [[len(t_i.get_parameter("flow-set")) for t_i in group]
+            for group in grouped_by_name]
+    bar_heights = [np.mean(d_i) for d_i in allocated_flows_data]
+    bar_errors  = [np.std(d_i) for d_i in allocated_flows_data]
+    labels = [multiflow_label(group[0].name) for group in grouped_by_name]
 
+    # bar_heights = [len(the_trial.get_parameter("flow-set")) for the_trial in trial_provider]
+    # labels      = [the_trial.name for the_trial in trial_provider]
+    bar_x_locations = np.arange(len(grouped_by_name))
+    for plot_idx in range(len(bar_x_locations)):
+        plt.bar(bar_x_locations[plot_idx], bar_heights[plot_idx], 
+                color=helpers.bar_color(plot_idx), tick_label=labels[plot_idx],
+                hatch=helpers.bar_texture(plot_idx), yerr=bar_errors[plot_idx],
+                capsize=5.0)
 
+    plt.ylabel(r"\# of admitted flows")
+    plt.xticks(bar_x_locations, labels)
+    node_selection_type = trial_provider.get_metadata("node-selection-type")
+    helpers.save_figure("admitted-flows-%s-bar.pdf" % node_selection_type, 
+            num_cols=len(trial_provider), no_legend=True)
+
+def generate_node_probability_histogram(results_repository, node_selection_type):
+    trial_provider = results_repository.read_trial_provider("multiflow-tests-%s" % 
+            node_selection_type)
+    discrete_probability_distribution = trial_provider.get_metadata("node-probability-distribution")
+    bar_x_locations = np.arange(len(discrete_probability_distribution))
+    plt.bar(bar_x_locations, discrete_probability_distribution, hatch="/")
+    plt.xticks(bar_x_locations, ["" for _ in bar_x_locations])
+    plt.xlabel("Node ID")
+    plt.ylabel("Probability of being selected to participate in a flow")
+    node_selection_type = trial_provider.get_metadata("node-selection-type")
+    helpers.save_figure("node-probability-distribution-%s.pdf" % node_selection_type, 
+            no_legend=True)
+
+def generate_substrate_topology_graph(results_repository):
+    trial_provider = results_repository.read_trial_provider("multiflow-tests")
+    topo = trial_provider.get_metadata("substrate-topology")
+    nx.draw(topo, node_color="skyblue")
+    helpers.save_figure("network-topology.pdf", no_legend=True)
+
+def generate_computed_link_utilization_box_plot(trial_provider):
+    grouped_by_name = collect_trials_based_on_name(trial_provider)
+    labels = [multiflow_label(group[0].name) for group in grouped_by_name]
+    # Make lists of link utilization data
+    link_utilization_data = [reduce(op.add,
+        [list(t_i.get_parameter("link-utilization").values()) for t_i in group], [])
+        for group in grouped_by_name]
+    # pp.pprint(link_utilization_data)
+    
+    plt.boxplot(link_utilization_data, labels=labels)
+    plt.ylabel("Link utilization")
+    node_selection_type = trial_provider.get_metadata("node-selection-type")
+    helpers.save_figure("computed-link-utilization-%s-box.pdf" % node_selection_type, 
+            no_legend=True)
 
 
 

@@ -99,7 +99,7 @@ def path_hopping_multiflow_plots(provider_name):
 
     path_hopping.generate_computed_link_utilization_cdf(trial_provider) 
     path_hopping.generate_flow_count_bar_plot(trial_provider)
-    # path_hopping.generate_node_probability_histogram(results_repository)
+    path_hopping.generate_node_probability_histogram(trial_provider)
     # path_hopping.generate_substrate_topology_graph(results_repository)
     path_hopping.generate_computed_link_utilization_box_plot(trial_provider)
 
@@ -109,7 +109,9 @@ def main():
     # mp_routing_plots()
     # vle_simulation_plots()
     # path_hopping_plots()
-    provider_names = ["multiflow-tests-uniform", "multiflow-tests-binomial"]
+    provider_names = [ "multiflow-tests-binomial"
+                     , "multiflow-tests-uniform"
+                     ]
     for provider_name in provider_names:
         path_hopping_multiflow_plots(provider_name)
 

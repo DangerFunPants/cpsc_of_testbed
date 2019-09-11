@@ -89,8 +89,9 @@ class ResultsRepository:
             # is true then any existing trials with the same name as trials in the new provider
             # will be removed. if trials have identical IDs they will not be overwritten 
             # regardless of the value of the override parameter.
-            if (len({t_i.get_parameter("id") for t_i in the_existing_provider} &
-                    {t_j.get_parameter("id") for t_j in trial_provider}) != 0):
+            id_intersection = ({t_i.get_parameter("id") for t_i in the_existing_provider} &
+                    {t_j.get_parameter("id") for t_j in trial_provider})
+            if (len(id_intersection) != 0):
                 raise ValueError("Attempting to overwrite trials with the same ID.")
 
             name_intersection = ({t_i.get_parameter("trial-name") for t_i in the_existing_provider} &

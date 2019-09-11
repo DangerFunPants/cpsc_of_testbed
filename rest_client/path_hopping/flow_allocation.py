@@ -104,7 +104,7 @@ def compute_path_hopping_flow_allocations(target_graph, K=3):
     node_capacity       = {u: 0.0 for u in target_graph.nodes}
     flows               = []
     while True:
-        [source_node, destination_node] = np.random.choice(target_graph.nodes, 2, replace=False)
+        source_node, destination_node = flow_selection_fn(target_graph.nodes, 2, replace=False)
         print(source_node, destination_node)
 
         shortest_paths = sorted(nx.all_simple_paths(target_graph, source_node, destination_node,
@@ -141,7 +141,6 @@ def compute_path_hopping_flow_allocations(target_graph, K=3):
     return flows, link_utilization
 
 def compute_greedy_flow_allocations( target_graph
-                                   , K
                                    , flow_selection_fn
                                    , seed_number=DEFAULT_SEED_NUMBER):
     """
@@ -151,37 +150,24 @@ def compute_greedy_flow_allocations( target_graph
     split across the K least utilized paths connecting the source node to the 
     destination node (i.e. this is a greedy algorithm).
     """
-    def utilization_of_most_utilized_link_on_path(path, link_utilization):
-        most_utilized_link = max([link_utilization[u, v] for u, v in
-            [sorted(t_i) for t_i in nx.utils.pairwise(path)]])
-        return most_utilized_link
-
-    def compute_k_least_utilized_paths(connecting_paths, link_utilization, K):
-        selected_paths = sorted(connecting_paths, 
-                key=lambda p_i: utilization_of_most_utilized_link_on_path(p_i, link_utilization))[:K]
-        return selected_paths
 
     flow_allocation_seed_number = seed_number
     np.random.seed(flow_allocation_seed_number)
 
-    link_utilization    = {(u, v): 0.0 for u, v in target_graph.edges}
-    node_capacity       = {u: 0.0 for u in target_graph.nodes}
+    link_utilization    = {tuple(sorted(link_tuple)): 0.0 for link_tuple in target_graph.edges}
     flows               = []
 
     while True:
         capacity_was_exceeded = False
+
         source_node, destination_node = flow_selection_fn(target_graph.nodes)
-        connecting_paths = nx.all_simple_paths(target_graph, source_node, destination_node,
-                cutoff=3)
-        selected_paths = compute_k_least_utilized_paths(connecting_paths, link_utilization, K)
-        flow_tx_rate = np.random.uniform()
-        if node_capacity[source_node] + flow_tx_rate > NODE_CAPACITY:
-            print("exceeded node capacity")
-            break
-        node_capacity[source_node] += flow_tx_rate
-        for path in [nx.utils.pairwise(p_i) for p_i in selected_paths]:
-            for u, v in [sorted(t_i) for t_i in path]:
-                flow_rate_per_subpath = flow_tx_rate / K
+        flow_tx_rate = np.random.uniform(FLOW_TX_RATE_LOWER_BOUND, FLOW_TX_RATE_UPPER_BOUND)
+
+        connecting_paths = list(node_disjoint_paths(target_graph, source_node, destination_node))
+        disjoint_path_count = len(connecting_paths)
+        flow_rate_per_subpath = flow_tx_rate / disjoint_path_count
+        for path in [nx.utils.pairwise(p_i) for p_i in connecting_paths]:
+            for u, v in [tuple(sorted(t_i)) for t_i in path]:
                 if (link_utilization[u, v] + flow_rate_per_subpath) > LINK_CAPACITY:
                     capacity_was_exceeded = True
                     break
@@ -194,8 +180,8 @@ def compute_greedy_flow_allocations( target_graph
         the_flow = Flow( source_node        = source_node
                        , destination_node   = destination_node
                        , flow_tx_rate       = flow_tx_rate
-                       , paths              = selected_paths
-                       , splitting_ratio    = [1.0/K]*K
+                       , paths              = connecting_paths
+                       , splitting_ratio    = [1.0/disjoint_path_count]*disjoint_path_count
                        )
         flows.append(the_flow)
     return flows, link_utilization
@@ -317,9 +303,11 @@ def create_k_paths_model( target_topology
         path_allocation_model.addConstr(flow_routing_constraint_variable == 1.0, "frc%d" %
                 flow_index)
 
-    ordered_list_of_edges = list(target_topology.edges)
-    link_set = {tuple(sorted(ordered_list_of_edges[idx])): idx 
-            for idx in range(len(ordered_list_of_edges))}
+    # ordered_list_of_edges = list(target_topology.edges)
+    # link_set = {tuple(sorted(ordered_list_of_edges[idx])): idx 
+    #         for idx in range(len(ordered_list_of_edges))}
+    link_set = {tuple(sorted(link_tuple)): link_idx 
+            for link_idx, link_tuple in enumerate(target_topology.edges)}
     # Y: flow_index -> link_index -> portion of flow bandwidth on link
     Y = {(flow_index, link_index): path_allocation_model.addVar(name="Y{%d,%d}" %
         (flow_index, link_index), lb=0.0, ub=1.0) 
@@ -373,7 +361,6 @@ def variable_name_to_index_tuple(variable_name):
         return int(variable_name[2:][:-1])
 
 def compute_ilp_flows( target_graph
-                     , K
                      , flow_selection_fn
                      , seed_number=DEFAULT_SEED_NUMBER):
 
@@ -383,10 +370,13 @@ def compute_ilp_flows( target_graph
     flows = []
     
     feasible_model = None
+    # flow_count = 0
+    # flow_limit = 1000
     while True:
         source_node, destination_node = flow_selection_fn(target_graph.nodes)
         k_shortest_paths = list(node_disjoint_paths(target_graph, source_node, destination_node))
         flow_tx_rate = np.random.uniform(FLOW_TX_RATE_LOWER_BOUND, FLOW_TX_RATE_UPPER_BOUND)
+        # flow_tx_rate = 1.0
 
         model_for_this_round = create_k_paths_model(target_graph, flows, source_node, destination_node, 
                 flow_tx_rate, k_shortest_paths)
@@ -416,8 +406,8 @@ def compute_ilp_flows( target_graph
     # U: link_index -> link_utilization
     U = {}
     for v_i in model_variables:
-        print(v_i)
         if "X" in v_i.varName:
+            print(v_i)
             flow_index, path_index = variable_name_to_index_tuple(v_i.varName)
             flows[flow_index].splitting_ratio.append(v_i.x)
         elif "K" in v_i.varName:
@@ -426,8 +416,22 @@ def compute_ilp_flows( target_graph
             U[link_tuple] = v_i.x
         elif "alpha" == v_i.varName:
             print("Final value of alpha: %f" % v_i.x)
+    
+    print("Checking flows for weirdness")
+    link_capacity_map = {link_tuple: 0.0 for link_tuple in target_graph.edges}
+    for flow in flows:
+        print(flow.splitting_ratio)
+        if (sum(flow.splitting_ratio) != 1.0) or (len(flow.paths) != len(flow.splitting_ratio)):
+            print("INVALID FLOW SPLITTING!!!")
 
-    return flows, U
+        for path, splitting_ratio in zip(flow.paths, flow.splitting_ratio):
+            for link in nx.utils.pairwise(path):
+                sorted_link_tuple = tuple(sorted(link))
+                link_capacity_map[sorted_link_tuple] += (splitting_ratio * flow.flow_tx_rate)
+
+
+    pp.pprint(link_capacity_map)
+    return flows, link_capacity_map
 
 def create_mcf_model( substrate_topology
                     , flows
@@ -496,10 +500,8 @@ def compute_mcf_flows(target_graph, flow_selection_fn, seed_number=DEFAULT_SEED_
     feasible_model = None
     feasible_utilization = None
     while True:
-        # [source_node, destination_node] = np.random.choice(substrate_topology.nodes, 2, replace=False)
         source_node, destination_node = flow_selection_fn(substrate_topology.nodes)
         flow_tx_rate = np.random.uniform(FLOW_TX_RATE_LOWER_BOUND, FLOW_TX_RATE_UPPER_BOUND)
-        # flow_tx_rate = 1.0
         model_for_this_round, U = create_mcf_model(substrate_topology, flows, source_node, 
                 destination_node, flow_tx_rate)
         model_for_this_round.optimize()

@@ -158,6 +158,13 @@ def plot_a_cdf(sorted_cdf_data, idx=0, label=None):
     plt.plot(xs, ys, marker=helpers.marker_style(idx), label=label, 
             linestyle=helpers.line_style(idx), color=helpers.line_color(idx))
 
+def plot_a_box_plot(data_vectors, vector_labels):
+    bp = plt.boxplot(data_vectors, labels=vector_labels,
+            whiskerprops={"linestyle": "--"},
+            flierprops={"marker": "x", "markerfacecolor": "red", "markeredgecolor": "red"})
+    plt.setp(bp["boxes"], color="blue")
+    plt.setp(bp["medians"], color="red")
+
 def get_link_set(util_results):
     link_set = set()
     for results_list in util_results:
@@ -386,15 +393,13 @@ def generate_flow_count_bar_plot(trial_provider):
     helpers.save_figure("admitted-flows-%s-bar.pdf" % node_selection_type, 
             num_cols=len(trial_provider), no_legend=True)
 
-def generate_node_probability_histogram(results_repository, node_selection_type):
-    trial_provider = results_repository.read_trial_provider("multiflow-tests-%s" % 
-            node_selection_type)
+def generate_node_probability_histogram(trial_provider):
     discrete_probability_distribution = trial_provider.get_metadata("node-probability-distribution")
     bar_x_locations = np.arange(len(discrete_probability_distribution))
     plt.bar(bar_x_locations, discrete_probability_distribution, hatch="/")
     plt.xticks(bar_x_locations, ["" for _ in bar_x_locations])
     plt.xlabel("Node ID")
-    plt.ylabel("Probability of being selected to participate in a flow")
+    plt.ylabel(r"$\mathbb{P}\{n \in \{s, t\}\}$")
     node_selection_type = trial_provider.get_metadata("node-selection-type")
     helpers.save_figure("node-probability-distribution-%s.pdf" % node_selection_type, 
             no_legend=True)
@@ -414,7 +419,16 @@ def generate_computed_link_utilization_box_plot(trial_provider):
         for group in grouped_by_name]
     # pp.pprint(link_utilization_data)
     
-    plt.boxplot(link_utilization_data, labels=labels)
+    # @TODO: Factor this out into a `plot_a_box_plot` function
+    # bp = plt.boxplot(link_utilization_data, labels=labels,
+    #         whiskerprops={"linestyle": "--"},
+    #         flierprops={"marker": "x", "markerfacecolor": "red", "markeredgecolor": "red"})
+    # for element in ["boxes"]:
+    #     plt.setp(bp[element], color="blue")
+    # plt.setp(bp["medians"], color="red")
+    # END todo
+    plot_a_box_plot(link_utilization_data, labels)
+
     plt.ylabel("Link utilization")
     node_selection_type = trial_provider.get_metadata("node-selection-type")
     helpers.save_figure("computed-link-utilization-%s-box.pdf" % node_selection_type, 

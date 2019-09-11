@@ -94,7 +94,7 @@ def attempted_optimal_flows(target_graph):
         the_trial_provider.add_trial(the_trial)
     return the_trial_provider
 
-def ilp_flows(target_graph, K=3):
+def ilp_flows(target_graph):
     def uniform_selection(node_list):
         [source_node, destination_node] = np.random.choice(node_list, 2, replace=False)
         return source_node, destination_node
@@ -116,14 +116,17 @@ def ilp_flows(target_graph, K=3):
 
     flow_selection_fn = lambda node_list: non_uniform_selection(
             mk_uniform_probability_distribution(node_list), node_list)
+    # flow_selection_fn = lambda node_list: non_uniform_selection(
+    #         mk_binomial_probability_distribution(node_list), node_list)
+
     the_trial_provider = trial_provider.TrialProvider("ilp-flows")
     flow_set = FlowSet()
     the_trial = trial_provider.Trial("ilp")
-    flow_allocation_seed_number = rand.randint(0, 2**32)
+    # flow_allocation_seed_number = 0xCAFE_BABE
+    flow_allocation_seed_number = 0xDEAD_BEEF
     flows, link_utilization = flow_allocation.compute_ilp_flows(
-            target_graph, K, flow_selection_fn, seed_number=flow_allocation_seed_number)
+            target_graph, flow_selection_fn, seed_number=flow_allocation_seed_number)
     flow_set.add_flows(flows)
-    the_trial.add_parameter("K", K)
     the_trial.add_parameter("duration", 180)
     the_trial.add_parameter("flow-set", flow_set)
     the_trial.add_parameter("seed-number", flow_allocation_seed_number)
@@ -132,11 +135,36 @@ def ilp_flows(target_graph, K=3):
     return the_trial_provider
 
 def mcf_flows(target_graph):
+    def uniform_selection(node_list):
+        [source_node, destination_node] = np.random.choice(node_list, 2, replace=False)
+        return source_node, destination_node
+
+    def non_uniform_selection(discrete_probability_distribution, node_list):
+        [source_node, destination_node] = np.random.choice(node_list, size=2, replace=False,
+                p=discrete_probability_distribution)
+        return source_node, destination_node
+
+    def mk_binomial_probability_distribution(node_set):
+        discrete_probability_distribution = [ss.binom.pmf(node_id, len(node_set), 0.5)
+                for node_id in node_set]
+        discrete_probability_distribution[-1] += 1 - sum(discrete_probability_distribution)
+        return discrete_probability_distribution
+
+    def mk_uniform_probability_distribution(node_set):
+        discrete_probability_distribution = [1.0/len(node_set) for _ in node_set]
+        return discrete_probability_distribution
+
+    # flow_selection_fn = lambda node_list: non_uniform_selection(
+    #         mk_uniform_probability_distribution(node_list), node_list)
+    flow_selection_fn = lambda node_list: non_uniform_selection(
+            mk_binomial_probability_distribution(node_list), node_list)
+
     the_trial_provider = trial_provider.TrialProvider("multiflow-tests")
     flow_set = FlowSet()
     the_trial = trial_provider.Trial("mcf")
-    flow_allocation_seed_number, flows, link_utilization =flow_allocation.compute_mcf_flows(
-            target_graph)
+    flow_allocation_seed_number = 0xCAFE_BABE
+    flows, link_utilization =flow_allocation.compute_mcf_flows(
+            target_graph, flow_selection_fn, flow_allocation_seed_number)
     flow_set.add_flows(flows)
     the_trial.add_parameter("duration", 180)
     the_trial.add_parameter("flow-set", flow_set)
@@ -192,7 +220,7 @@ def multiflow_tests(target_graph, node_selection_type, K=3):
         flow_set = FlowSet()
         k_paths_trial = trial_provider.Trial("k-paths-allocation")
         flows, link_utilization = flow_allocation.compute_ilp_flows(
-                target_graph, K, FLOW_SELECTOR, seed_number=flow_allocation_seed_number)
+                target_graph, FLOW_SELECTOR, seed_number=flow_allocation_seed_number)
         flow_set.add_flows(flows)
         k_paths_trial.add_parameter("duration", 180)
         k_paths_trial.add_parameter("flow-set", flow_set)
@@ -225,11 +253,11 @@ def multiflow_tests(target_graph, node_selection_type, K=3):
         mcf_trial.add_parameter("link-utilization", link_utilization)
         return mcf_trial
 
-    def greedy_path_hopping_allocation(target_graph, K, flow_allocation_seed_number):
+    def greedy_path_hopping_allocation(target_graph, flow_allocation_seed_number):
         flow_set = FlowSet()
         path_hopping_trial = trial_provider.Trial("greedy-path-hopping")
         flows, link_utilization = flow_allocation.compute_greedy_flow_allocations(
-                target_graph, K, FLOW_SELECTOR, seed_number=flow_allocation_seed_number)
+                target_graph, FLOW_SELECTOR, seed_number=flow_allocation_seed_number)
         flow_set.add_flows(flows)
         path_hopping_trial.add_parameter("duration", 180)
         path_hopping_trial.add_parameter("flow-set", flow_set)
@@ -244,7 +272,7 @@ def multiflow_tests(target_graph, node_selection_type, K=3):
         the_trial_provider.add_trial(k_paths_allocation(target_graph, K, 
             flow_allocation_seed_number))
         the_trial_provider.add_trial(mcf_allocation(target_graph, flow_allocation_seed_number))
-        the_trial_provider.add_trial(greedy_path_hopping_allocation(target_graph, 9, 
+        the_trial_provider.add_trial(greedy_path_hopping_allocation(target_graph, 
             flow_allocation_seed_number))
     # the_trial_provider.add_trial(path_hopping_allocation(target_graph, K))
 

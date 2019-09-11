@@ -27,7 +27,7 @@ MARKER_STYLE            = ["x", "^", "o", "+"]
 MARKER_COLOR            = ["red", "lime", "palegreen"]
 # LINE_STYLE              = ["--", "-", "-."]
 LINE_STYLE              = ["-", "-.", "--"]
-LINE_COLOR              = ["royalblue", "red", "lime", "blue"]
+LINE_COLOR              = ["lime", "royalblue", "red", "blue"]
 FONT                    = { "family"        : "serif"
                           , "size"          : 16
                           }

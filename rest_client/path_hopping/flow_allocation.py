@@ -658,6 +658,13 @@ def compute_path_hopping_flows_ilp( target_graph
 
     return flows, U
 
+def single_flow(substrate_topology):
+
+    np.random.seed(DEFAULT_SEED_NUMBER)
+    source_node, destination_node = np.random.choice(substrate_topology.nodes, 2, replace=False)
+    disjoint_paths = node_disjoint_paths(substrate_topology, source_node, destination_node)
+    flow_tx_rate = 10.
+
 def create_flow_json(flows):
     def create_json_for_single_flow(flow):
         return { "source-node"          : flow.source_node

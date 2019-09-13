@@ -289,9 +289,12 @@ def multiflow_tests_binomial(substrate_topology):
 def multiflow_tests_uniform(substrate_topology):
     return multiflow_tests(substrate_topology, "uniform")
 
-
-
-
-
-
-
+def single_flow_test(substrate_topology):
+    the_trial_provider = trial_provider.TrialProvider("single-flow-tests")
+    flow_set = FlowSet()
+    the_trial = trial_provider.Trial("single-flow-test")
+    flows = flow_allocation.single_flow(substrate_topology)
+    flow_set.add_flows(flows)
+    the_trial.add_parameter("180")
+    the_trial.add_parameter("flow-set", flow_set)
+    the_trial_provider.add_trial(the_trial)

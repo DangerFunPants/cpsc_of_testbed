@@ -23,11 +23,11 @@ BAR_PLOT_COLORS         = ["palegreen", "skyblue", "lightpink", "silver"]
 # BAR_PLOT_TEXTURES       = ["//", "O", "x", "*", "|"]
 BAR_PLOT_TEXTURES       = ["x", ".", "*", "\\", "|"]
 
-MARKER_STYLE            = ["x", "^", "o", "+"]
+MARKER_STYLE            = ["x", "^", "o", "+", "1", "s"]
 MARKER_COLOR            = ["red", "lime", "palegreen"]
 # LINE_STYLE              = ["--", "-", "-."]
 LINE_STYLE              = ["-", "-.", "--"]
-LINE_COLOR              = ["lime", "royalblue", "red", "blue"]
+LINE_COLOR              = ["lime", "royalblue", "red", "blue", "saddlebrown", "darkorange"]
 FONT                    = { "family"        : "serif"
                           , "size"          : 16
                           }

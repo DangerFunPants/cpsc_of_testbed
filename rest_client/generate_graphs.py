@@ -7,6 +7,7 @@ import pathlib                                  as path
 # import data_visualization.mp_routing            as mp_routing
 # import data_visualization.simulations           as sim
 import data_visualization.path_hopping          as path_hopping
+import data_visualization.security              as security
 import nw_control.results_repository            as rr
 import port_mirroring.params                    as pm_cfg
 import mp_routing.params                        as mp_cfg
@@ -103,17 +104,23 @@ def path_hopping_multiflow_plots(provider_name):
     # path_hopping.generate_substrate_topology_graph(results_repository)
     path_hopping.generate_computed_link_utilization_box_plot(trial_provider)
 
-def main():
-    # flow_mirroring_plots()
-    # port_mirroring_plots()
-    # mp_routing_plots()
-    # vle_simulation_plots()
-    # path_hopping_plots()
+def generate_path_hopping_plots_for_multiple_providers():
     provider_names = [ "multiflow-tests-binomial"
                      , "multiflow-tests-uniform"
                      ]
     for provider_name in provider_names:
         path_hopping_multiflow_plots(provider_name)
+
+def security_plots():
+    security.generate_all_plots()
+
+def main():
+    # flow_mirroring_plots()
+    # port_mirroring_plots()
+    # mp_routing_plots()
+    # vle_simulation_plots()
+    # generate_path_hopping_plots_for_multiple_providers()
+    security_plots()
 
 if __name__ == "__main__":
     main()

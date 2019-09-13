@@ -11,13 +11,16 @@ from collections import defaultdict
 
 def tick_font(tick_label, precision="%.2f"):
     if type(tick_label) == type(np.float64(1.0)):
-        s = "\\text{\\LARGE{\\textsf{%s}}}" % precision
+        s = r"\text{\LARGE{\textsf{%s}}}" % precision
         return s % tick_label
     else:
-        return "\\text{\\LARGE{\\textsf{%s}}}" % tick_label
+        return r"\text{\LARGE{\textsf{%s}}}" % tick_label
 
 def trial_name_font(phrase):
-    return "\\scalebox{0.7}[1.0]{\\textsf{%s}}" % phrase
+    return r"\scalebox{0.7}[1.0]{\textsf{%s}}" % phrase
+
+def title_font(phrase):
+    return r"\normalsize{%s}" % phrase
 
 def idx_list_circular(idx, the_list):
     return the_list[idx%len(the_list)]
@@ -98,5 +101,28 @@ def compute_network_util_over_time(util_results):
         util_in_time_period.append(link_utilization_snapshot)
 
     return util_in_time_period
+
+def plot_a_cdf( sorted_cdf_data
+              , idx=0
+              , label=None
+              , plot_markers=True):
+    print("CDF data length %d" % len(sorted_cdf_data))
+    if label == None:
+        label = "CDF %d" % idx
+    xs = [0.0]
+    ys = [0.0]
+    for ctr, d_i in enumerate(sorted_cdf_data):
+        xs.append(d_i)
+        ys.append(ctr / len(sorted_cdf_data))
+
+    if plot_markers:
+        plt.plot(xs, ys, marker=marker_style(idx), label=label, 
+                linestyle=line_style(idx), color=line_color(idx))
+    else:
+        plt.plot(xs, ys, label=label, 
+                linestyle=line_style(idx), color=line_color(idx))
+
+
+
 
 

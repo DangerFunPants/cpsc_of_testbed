@@ -678,3 +678,156 @@ def parse_flows_from_json(json_str):
     flow_list = json.loads(json_str)
     return [Flow(flow_dict["source-node"], flow_dict["destination-node"], flow_dict["flow-tx-rate"])
             for flow_dict in flow_list]
+
+
+def testing_k_paths_flow_allocation( target_graph
+                                   , flow_selection_fn
+                                   , seed_number=DEFAULT_SEED_NUMBER):
+
+    # id_to_dpid = topo_mapper.get_and_validate_onos_topo_x(target_graph)
+    flow_allocation_seed_number = seed_number
+    np.random.seed(flow_allocation_seed_number)
+    flows = []
+    
+    feasible_model = None
+    # flow_count = 0
+    # flow_limit = 1000
+    while True:
+        source_node, destination_node = flow_selection_fn(target_graph.nodes)
+        k_shortest_paths = list(node_disjoint_paths(target_graph, source_node, destination_node))
+        # flow_tx_rate = np.random.uniform(FLOW_TX_RATE_LOWER_BOUND, FLOW_TX_RATE_UPPER_BOUND)
+        flow_tx_rate = 0.2
+
+        model_for_this_round = create_k_paths_model(target_graph, flows, source_node, destination_node, 
+                flow_tx_rate, k_shortest_paths)
+        model_for_this_round.optimize()
+        if (model_for_this_round.status == gp.GRB.Status.INF_OR_UNBD or
+                model_for_this_round.status == gp.GRB.Status.INFEASIBLE or
+                model_for_this_round.status == gp.GRB.Status.UNBOUNDED):
+            break
+
+        print("Solved for %d flows" % (len(flows) + 1), file=stderr)
+        feasible_model = model_for_this_round
+        new_flow = Flow( source_node        = source_node
+                       , destination_node   = destination_node
+                       , flow_tx_rate       = flow_tx_rate
+                       , paths              = k_shortest_paths
+                       , splitting_ratio    = []
+                       )
+        flows.append(new_flow)
+
+    # Failed to embed even a single flow into the network.
+    if feasible_model == None:
+        return [], {}
+
+    model_variables = feasible_model.getVars()
+    ordered_list_of_links = list(target_graph.edges)
+    link_set = {idx: ordered_list_of_links[idx] for idx in range(len(ordered_list_of_links))}
+    # U: link_index -> link_utilization
+    U = {}
+    for v_i in model_variables:
+        if "X" in v_i.varName:
+            print(v_i)
+            flow_index, path_index = variable_name_to_index_tuple(v_i.varName)
+            flows[flow_index].splitting_ratio.append(v_i.x)
+        elif "K" in v_i.varName:
+            link_index = variable_name_to_index_tuple(v_i.varName)
+            link_tuple = link_set[link_index]
+            U[link_tuple] = v_i.x
+        elif "alpha" == v_i.varName:
+            print("Final value of alpha: %f" % v_i.x)
+    
+    print("Checking flows for weirdness")
+    link_capacity_map = {link_tuple: 0.0 for link_tuple in target_graph.edges}
+    for flow in flows:
+        print(flow.splitting_ratio)
+        if (sum(flow.splitting_ratio) != 1.0) or (len(flow.paths) != len(flow.splitting_ratio)):
+            print("INVALID FLOW SPLITTING!!! sum was %f" % sum(flow.splitting_ratio))
+            print("len(flow.paths) = %d, len(flow.splitting_ratio) = %d" %
+                    (len(flow.paths), len(flow.splitting_ratio)))
+
+        for path, splitting_ratio in zip(flow.paths, flow.splitting_ratio):
+            for link in nx.utils.pairwise(path):
+                sorted_link_tuple = tuple(sorted(link))
+                link_capacity_map[sorted_link_tuple] += (splitting_ratio * flow.flow_tx_rate)
+
+
+    pp.pprint(link_capacity_map)
+    return flows, link_capacity_map
+
+def create_test_k_paths_model( target_graph
+                             , flows
+                             , new_flow_source_node
+                             , new_flow_destination_node
+                             , new_flow_tx_rate
+                             , disjoint_paths):
+    path_allocation_model = gp.Model("path-allocation-model", gp.Env("gurobi.log"))
+    
+    new_flow = Flow( source_node        = new_source_node
+                   , destination_node   = new_destination_node
+                   , flow_tx_rate       = new_flow_tx_rate
+                   , paths              = disjoint_paths
+                   , splitting_ratio    = None
+                   )
+    potential_flow_set = flows + [new_flow]
+
+    # X: flow_index -> path_index -> splitting_ratio
+    X = {}
+
+    # forall. f_i in flows
+    for flow_index, flow in enumerate(potential_flow_set):
+        flow_routing_constraint_variable = gp.LinExpr(0.0)
+        # forall. p_i in f_i.paths
+        for path_index, path in enumerate(flow.paths):
+            X[flow_index, path_index] = path_allocation_model.addVar(name="X{%d,%d}" % 
+                    (flow_index, path_index), lb=0.0, ub=1.0)
+            flow_routing_constraint_variable += X[flow_index, path_index]
+        path_allocation_model.addConstr(flow_routing_constraint_variable == 1.0, "frc%d" %
+                flow_index)
+
+    # ordered_list_of_edges = list(target_topology.edges)
+    # link_set = {tuple(sorted(ordered_list_of_edges[idx])): idx 
+    #         for idx in range(len(ordered_list_of_edges))}
+    link_set = {tuple(sorted(link_tuple)): link_idx 
+            for link_idx, link_tuple in enumerate(target_topology.edges)}
+    # Y: flow_index -> link_index -> portion of flow bandwidth on link
+    Y = {(flow_index, link_index): path_allocation_model.addVar(name="Y{%d,%d}" %
+        (flow_index, link_index), lb=0.0, ub=1.0) 
+        for flow_index, flow in enumerate(potential_flow_set) for link_index in link_set.values()}
+
+    # forall. f_i in flows
+    for flow_index, flow in enumerate(potential_flow_set):
+        # forall. p_i in f_i.paths
+        for path_index, path in enumerate(flow.paths):
+            # forall. l_i in p_i.links
+            for link_tuple in nx.utils.pairwise(path):
+                link_index = link_set[tuple(sorted(link_tuple))]
+                Y[flow_index, link_index] += X[flow_index, path_index] * flow.flow_tx_rate
+
+    # T: flow_index -> link_index -> constraint_variable
+    T = {}
+    for (flow_index, link_index), y_ik in Y.items():
+        T[flow_index, link_index] = path_allocation_model.addVar(name="T{%d, %d}" % 
+                (flow_index, link_index), lb=0.0, ub=1.0)
+        path_allocation_model.addConstr(T[flow_index, link_index] == y_ik)
+    
+    # U: link_index -> link_utilization
+    alpha = path_allocation_model.addVar(name="alpha", lb=0.0, ub=1.0)
+    path_allocation_model.addConstr(alpha >= 0.0)
+
+    U = {link_index: path_allocation_model.addVar(name="U{%s}" % str(link_index))
+            for link_index in link_set.values()}
+    for (flow_index, link_index), y_fl in T.items():
+        U[link_index] += y_fl
+
+    K = {link_index: path_allocation_model.addVar(name="K{%s}" % str(link_index))
+        for link_index in link_set.values()}
+
+    for link_index, u_l in U.items():
+        path_allocation_model.addConstr(K[link_index] == u_l)
+        # Change the floating point literal in this line to change link capacity
+        path_allocation_model.addConstr(K[link_index] <= (alpha * LINK_CAPACITY))
+
+    path_allocation_model.setObjective(alpha, gp.GRB.MINIMIZE)
+
+    return path_allocation_model

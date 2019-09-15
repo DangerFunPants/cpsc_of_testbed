@@ -404,10 +404,13 @@ def generate_node_probability_histogram(trial_provider):
     helpers.save_figure("node-probability-distribution-%s.pdf" % node_selection_type, 
             no_legend=True)
 
-def generate_substrate_topology_graph(results_repository):
-    trial_provider = results_repository.read_trial_provider("multiflow-tests")
-    topo = trial_provider.get_metadata("substrate-topology")
-    nx.draw(topo, node_color="skyblue")
+def generate_substrate_topology_graph():
+    # trial_provider = results_repository.read_trial_provider("multiflow-tests")
+    # topo = trial_provider.get_metadata("substrate-topology")
+    topo = nx.complete_graph(10)
+    the_layout = nx.circular_layout(topo)
+    # nx.draw(topo, node_color="skyblue", layout=the_layout)
+    nx.draw_circular(topo, node_color="skyblue")
     helpers.save_figure("network-topology.pdf", no_legend=True)
 
 def generate_computed_link_utilization_box_plot(trial_provider):

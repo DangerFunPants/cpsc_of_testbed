@@ -298,3 +298,82 @@ def single_flow_test(substrate_topology):
     the_trial.add_parameter("180")
     the_trial.add_parameter("flow-set", flow_set)
     the_trial_provider.add_trial(the_trial)
+
+def k_flows_tests(substrate_topology):
+    DEFAULT_FLOW_ALLOCATION_SEED_NUMBER = 0xCAFE_BABE
+    node_selection_type = "constant"
+    def uniform_selection(node_list):
+        [source_node, destination_node] = np.random.choice(node_list, 2, replace=False)
+        return source_node, destination_node
+
+    def non_uniform_selection(discrete_probability_distribution, node_list):
+        [source_node, destination_node] = np.random.choice(node_list, size=2, replace=False,
+                p=discrete_probability_distribution)
+        return source_node, destination_node
+
+    def constant_selection(node_list):
+        node_list = list(node_list)
+        print(node_list)
+        print(node_list[0], node_list[1])
+        return node_list[0], node_list[1]
+
+    def mk_binomial_probability_distribution(node_set):
+        discrete_probability_distribution = [ss.binom.pmf(node_id, len(node_set), 0.5)
+                for node_id in node_set]
+        discrete_probability_distribution[-1] += 1 - sum(discrete_probability_distribution)
+        return discrete_probability_distribution
+
+    def mk_uniform_probability_distribution(node_set):
+        discrete_probability_distribution = [1.0/len(node_set) for _ in node_set]
+        return discrete_probability_distribution
+
+    if node_selection_type == "binomial":
+        discrete_probability_distribution = mk_binomial_probability_distribution(
+                substrate_topology.nodes)
+        FLOW_SELECTOR = lambda node_list: non_uniform_selection(discrete_probability_distribution,
+                node_list)
+    elif node_selection_type == "uniform":
+        discrete_probability_distribution = mk_uniform_probability_distribution(
+                substrate_topology.nodes)
+        FLOW_SELECTOR = uniform_selection
+    elif node_selection_type == "constant":
+        FLOW_SELECTOR = constant_selection
+
+    the_trial_provider = trial_provider.TrialProvider("k-paths-testing")
+    flow_set = FlowSet()
+    k_paths_trial = trial_provider.Trial("k-paths-allocation")
+    flows, link_utilization = flow_allocation.testing_k_paths_flow_allocation(
+            substrate_topology, FLOW_SELECTOR, DEFAULT_FLOW_ALLOCATION_SEED_NUMBER)
+
+    flow_set.add_flows(flows)
+    k_paths_trial.add_parameter("duration", 180)
+    k_paths_trial.add_parameter("flow-set", flow_set)
+    k_paths_trial.add_parameter("seed-number", DEFAULT_FLOW_ALLOCATION_SEED_NUMBER)
+    k_paths_trial.add_parameter("link-utilization", link_utilization)
+
+    the_trial_provider.add_metadata("node-selection-type", node_selection_type)
+    the_trial_provider.add_trial(k_paths_trial)
+
+    return the_trial_provider
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

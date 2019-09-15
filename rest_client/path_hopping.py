@@ -126,7 +126,7 @@ def conduct_path_hopping_trial(results_repository, the_trial):
         remove_all_flows(flow_tokens)
 
 def main():
-    EXECUTION_MODE = "testbed"
+    EXECUTION_MODE = "simulate"
     results_repository = ResultsRepository.create_repository(ph_cfg.base_repository_path,
             ph_cfg.repository_schema, ph_cfg.repository_name)
 
@@ -142,7 +142,8 @@ def main():
     # trial_provider = ph_trials.multiflow_tests(test_graph, K=5)
     # trial_provider = ph_trials.multiflow_tests_binomial(TARGET_GRAPH)
     # trial_provider = ph_trials.multiflow_tests_uniform(TARGET_GRAPH)
-    trial_providerr = ph_trials.single_flow_test()
+    test_topology = nx.complete_graph(4)
+    trial_provider = ph_trials.k_flows_tests(test_topology)
     
     if EXECUTION_MODE == "testbed":
         for the_trial in trial_provider:

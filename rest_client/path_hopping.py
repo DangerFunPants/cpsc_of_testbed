@@ -142,7 +142,7 @@ def main():
     # trial_provider = ph_trials.multiflow_tests(test_graph, K=5)
     # trial_provider = ph_trials.multiflow_tests_binomial(TARGET_GRAPH)
     # trial_provider = ph_trials.multiflow_tests_uniform(TARGET_GRAPH)
-    test_topology = nx.complete_graph(4)
+    test_topology = nx.complete_graph(10)
     trial_provider = ph_trials.k_flows_tests(test_topology)
     
     if EXECUTION_MODE == "testbed":

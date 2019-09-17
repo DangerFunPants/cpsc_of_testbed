@@ -8,6 +8,7 @@ import pathlib                                  as path
 # import data_visualization.simulations           as sim
 import data_visualization.path_hopping          as path_hopping
 import data_visualization.security              as security
+import data_visualization.mininet_benchmarks    as mininet_benchmarks
 import nw_control.results_repository            as rr
 import port_mirroring.params                    as pm_cfg
 import mp_routing.params                        as mp_cfg
@@ -114,13 +115,17 @@ def generate_path_hopping_plots_for_multiple_providers():
 def security_plots():
     security.generate_all_plots()
 
+def mininet_benchmark_plots():
+    mininet_benchmarks.generate_all_plots()
+
 def main():
     # flow_mirroring_plots()
     # port_mirroring_plots()
     # mp_routing_plots()
     # vle_simulation_plots()
     # generate_path_hopping_plots_for_multiple_providers()
-    security_plots()
+    # security_plots()
+    mininet_benchmark_plots()
 
 if __name__ == "__main__":
     main()

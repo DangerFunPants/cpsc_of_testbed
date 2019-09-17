@@ -274,11 +274,11 @@ def compute_unequal_flow_allocations(target_graph, K=3):
     return flow_allocation_seed_number, flows 
 
 def create_k_paths_model( target_topology
-                , flows
-                , new_source_node
-                , new_destination_node
-                , new_flow_tx_rate
-                , k_shortest_paths):
+                        , flows
+                        , new_source_node
+                        , new_destination_node
+                        , new_flow_tx_rate
+                        , k_shortest_paths):
     path_allocation_model = gp.Model("path-allocation-model", gp.Env("gurobi.log"))
     
     new_flow = Flow( source_node        = new_source_node
@@ -698,7 +698,8 @@ def testing_k_paths_flow_allocation( target_graph
         # flow_tx_rate = np.random.uniform(FLOW_TX_RATE_LOWER_BOUND, FLOW_TX_RATE_UPPER_BOUND)
         flow_tx_rate = 0.2
 
-        model_for_this_round = create_k_paths_model(target_graph, flows, source_node, destination_node, 
+        model_for_this_round = create_test_k_paths_model(target_graph, flows, 
+                source_node, destination_node, 
                 flow_tx_rate, k_shortest_paths)
         model_for_this_round.optimize()
         if (model_for_this_round.status == gp.GRB.Status.INF_OR_UNBD or
@@ -831,3 +832,80 @@ def create_test_k_paths_model( target_graph
     path_allocation_model.setObjective(alpha, gp.GRB.MINIMIZE)
 
     return path_allocation_model
+
+def create_test_k_paths_model( target_topology
+                             , flows
+                             , new_source_node
+                             , new_destination_node
+                             , new_flow_tx_rate
+                             , k_disjoint_paths):
+    path_allocation_model = gp.Model("path-allocation-model", gp.Env("gurobi.log"))
+    new_flow = Flow( source_node        = new_source_node
+                   , destination_node   = new_destination_node
+                   , flow_tx_rate       = new_flow_tx_rate
+                   , paths              = k_disjoint_paths
+                   , splitting_ratio    = None
+                   )
+    potential_flow_set = flows + [new_flow]
+
+    X = {}
+    for flow_index, flow in enumerate(potential_flow_set):
+        flow_routing_constraint_variable = gp.LinExpr(0.0)
+        for path_index, path in enumerate(flow.paths):
+            X[flow_index, path_index] = path_allocation_model.addVar(name="X{%d,%d}" %
+                    (flow_index, path_index), lb=0.0, ub=1.0)
+            flow_routing_constraint_variable += X[flow_index, path_index]
+        path_allocation_model.addConstr(flow_routing_constraint_variable == 1.0)
+    
+    link_set = {tuple(sorted(link_tuple)): link_idx
+            for link_idx, link_tuple in enumerate(target_topology.edges)}
+    # Y: flow_index -> link_index -> portion of flow on link
+    Y = {(flow_index, link_index): path_allocation_model.addVar(name="Y{%d,%d}" %
+        (flow_index, link_index), lb=0.0, ub=1.0)
+        for flow_index, flow in enumerate(potential_flow_set) for link_index in link_set.values()}
+    Y_rhs = {(flow_index, link_index): gp.LinExpr(0.0)
+        for flow_index, flow in enumerate(potential_flow_set) for link_index in link_set.values()}
+    for flow_idnex, flow in enumerate(potential_flow_set):
+        for path_index, path in enumerate(flow.paths):
+            for link_tuple in nx.utils.pairwise(path):
+                link_index = link_set[tuple(sorted(link_tuple))]
+                Y_rhs[flow_index, link_index] += X[flow_index, path_index] * flow.flow_tx_rate
+
+    for (flow_index, link_index), y_ik in Y_rhs.items():
+        path_allocation_model.addConstr(Y[flow_index, link_index] == y_ik)
+    
+    alpha = path_allocation_model.addVar("alpha", lb=0.0, ub=1.0)
+
+    # U: link_index -> link_utilization
+    U = {link_index: path_allocation_model.addVar(name="U{%s}" % str(link_index))
+            for link_index in link_set.values()}
+    for (flow_index, link_index), y_ik in Y_rhs.items():
+        U[link_index] += y_ik
+
+    for link_index, u_l in U.items():
+        path_allocation_model.addConstr(u_l <= (alpha * LINK_CAPACITY))
+
+    path_allocation_model.setObjective(alpha, gp.GRB.MINIMIZE)
+    return path_allocation_model
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

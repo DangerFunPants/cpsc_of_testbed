@@ -17,7 +17,6 @@ import data_visualization.helpers               as helpers
 import path_hopping.flow_allocation             as flow_allocation
 
 from collections                    import defaultdict
-from statistics                     import mean
 from functools                      import reduce
 
 from data_visualization.helpers     import marker_style, line_style, line_color
@@ -356,7 +355,8 @@ def generate_computed_link_utilization_cdf(trial_provider):
 
     for plot_idx in range(len(labels)):
         sorted_link_utilization_data = sorted(link_utilizations[plot_idx])
-        plot_a_cdf(sorted_link_utilization_data, idx=plot_idx, label=labels[plot_idx])
+        plot_a_cdf(sorted_link_utilization_data, idx=plot_idx, 
+                label=helpers.legend_font(labels[plot_idx]))
 
     # for plot_idx, the_trial in enumerate(trial_provider):
     #     link_utilization = the_trial.get_parameter("link-utilization")
@@ -364,11 +364,12 @@ def generate_computed_link_utilization_cdf(trial_provider):
     #     plot_a_cdf(sorted_link_utilization_data, idx=plot_idx, 
     #             label=multiflow_label(the_trial.name))
 
-    plt.xlabel("Link Utilization")
-    plt.ylabel(r"$\mathbb{P}\{x = \mathcal{X}\}$")
+    plt.xlabel(helpers.axis_label_font("Link Utilization"))
+    plt.ylabel(helpers.axis_label_font(r"$\mathbb{P}\{x = \mathcal{X}\}$"))
     node_selection_type = trial_provider.get_metadata("node-selection-type")
+    legend_kwargs = dict(cfg.LEGEND)
     helpers.save_figure("computed-link-utilization-%s-cdf.pdf" % node_selection_type, 
-            num_cols=len(trial_provider))
+            num_cols=len(trial_provider), legend_kwargs=legend_kwargs)
 
 def generate_flow_count_bar_plot(trial_provider):
     grouped_by_name = collect_trials_based_on_name(trial_provider)
@@ -376,7 +377,8 @@ def generate_flow_count_bar_plot(trial_provider):
             for group in grouped_by_name]
     bar_heights = [np.mean(d_i) for d_i in allocated_flows_data]
     bar_errors  = [np.std(d_i) for d_i in allocated_flows_data]
-    labels = [multiflow_label(group[0].name) for group in grouped_by_name]
+    labels = [helpers.axis_label_font(multiflow_label(group[0].name)) 
+            for group in grouped_by_name]
 
     # bar_heights = [len(the_trial.get_parameter("flow-set")) for the_trial in trial_provider]
     # labels      = [the_trial.name for the_trial in trial_provider]
@@ -387,7 +389,7 @@ def generate_flow_count_bar_plot(trial_provider):
                 hatch=helpers.bar_texture(plot_idx), yerr=bar_errors[plot_idx],
                 capsize=5.0)
 
-    plt.ylabel(r"\# of admitted flows")
+    plt.ylabel(helpers.axis_label_font(r"\# of admitted flows"))
     plt.xticks(bar_x_locations, labels)
     node_selection_type = trial_provider.get_metadata("node-selection-type")
     helpers.save_figure("admitted-flows-%s-bar.pdf" % node_selection_type, 
@@ -415,24 +417,14 @@ def generate_substrate_topology_graph():
 
 def generate_computed_link_utilization_box_plot(trial_provider):
     grouped_by_name = collect_trials_based_on_name(trial_provider)
-    labels = [multiflow_label(group[0].name) for group in grouped_by_name]
+    labels = [helpers.axis_label_font(multiflow_label(group[0].name)) 
+            for group in grouped_by_name]
     # Make lists of link utilization data
     link_utilization_data = [reduce(op.add,
         [list(t_i.get_parameter("link-utilization").values()) for t_i in group], [])
         for group in grouped_by_name]
-    # pp.pprint(link_utilization_data)
-    
-    # @TODO: Factor this out into a `plot_a_box_plot` function
-    # bp = plt.boxplot(link_utilization_data, labels=labels,
-    #         whiskerprops={"linestyle": "--"},
-    #         flierprops={"marker": "x", "markerfacecolor": "red", "markeredgecolor": "red"})
-    # for element in ["boxes"]:
-    #     plt.setp(bp[element], color="blue")
-    # plt.setp(bp["medians"], color="red")
-    # END todo
     plot_a_box_plot(link_utilization_data, labels)
-
-    plt.ylabel("Link utilization")
+    plt.ylabel(helpers.axis_label_font("Link utilization"))
     node_selection_type = trial_provider.get_metadata("node-selection-type")
     helpers.save_figure("computed-link-utilization-%s-box.pdf" % node_selection_type, 
             no_legend=True)

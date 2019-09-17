@@ -16,6 +16,21 @@ def tick_font(tick_label, precision="%.2f"):
     else:
         return r"\text{\LARGE{\textsf{%s}}}" % tick_label
 
+def axis_label_font(phrase):
+    return huge(phrase)
+
+def legend_font(phrase):
+    return huge(phrase)
+
+def LARGE(phrase):
+    return r"\LARGE{%s}" % phrase
+
+def huge(phrase):
+    return r"\huge{%s}" % phrase
+
+def bf(phrase):
+    return r"\textbf{%s}" % phrase
+
 def trial_name_font(phrase):
     return r"\scalebox{0.7}[1.0]{\textsf{%s}}" % phrase
 
@@ -48,13 +63,14 @@ def bar_texture(idx):
 
 def save_figure( figure_name
                , num_cols           = 1
+               , legend_kwargs      = cfg.LEGEND
                , **kwargs):
     p = cfg.FIGURE_OUTPUT_PATH.joinpath(figure_name)
     kwargs["bbox_inches"] = "tight"
     plt.tick_params(labelsize=15)
     plt.grid(**cfg.GRID)
     if not ("no_legend" in kwargs and kwargs["no_legend"]):
-        legend = plt.legend(ncol=num_cols, **cfg.LEGEND)
+        legend = plt.legend(ncol=num_cols, **legend_kwargs)
     plt.gca().set_axisbelow(True)
     plt.savefig(str(p), **kwargs) 
     plt.clf()
@@ -176,3 +192,40 @@ def plot_a_bar( bar_x_locations
         plot_kwargs["label"] = label
 
     axis_to_plot_on.bar(bar_x_locations, bar_y_values, **plot_kwargs)
+    
+    # Workaround since hatching does not appear to be working in this version of
+    # matplotlib
+    plot_kwargs["label"] = None
+    plot_kwargs["color"] = "None"
+    axis_to_plot_on.bar(bar_x_locations, bar_y_values, **plot_kwargs)
+
+def plot_a_scatter( xs
+                  , ys
+                  , idx             = 0
+                  , label           = None
+                  , plot_markers    = True
+                  , axis_to_plot_on = None
+                  , label_data      = True):
+    if label == None:
+        label = "SCATTER %d" % idx
+
+    if axis_to_plot_on == None:
+        axis_to_plot_on = plt
+
+    plot_kwargs = { "linestyle"     : line_style(idx)
+                  , "color"         : line_color(idx)
+                  }
+    
+    if plot_markers:
+        plot_kwargs["marker"] = marker_style(idx)
+
+    if label_data:
+        plot_kwargs["label"] = label
+
+    axis_to_plot_on.plot(xs, ys, **plot_kwargs)
+
+
+
+
+
+

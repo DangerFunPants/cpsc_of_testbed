@@ -445,9 +445,10 @@ def generate_throughput_over_time_plot(data_file):
                            , 12 : 0.2
                            }
     path_to_tputs = read_literal_from_file(data_file)
+    num_points = 15
     for plot_idx, (path_id, tputs) in enumerate(sorted(path_to_tputs.items(), key=lambda t: t[0])):
-        tputs = tputs[1:11]
-        xs = np.arange(len(tputs))
+        tputs = tputs[1:num_points+1]
+        xs = np.arange(num_points)
         plt.plot(xs, tputs, linestyle="-.", marker=marker_style(plot_idx),
                 color=line_color(plot_idx))
         plt.plot(np.arange(len(tputs)), 
@@ -641,47 +642,9 @@ def generate_heterogeneous_links_mean_rate_plot():
     plt.xticks(xtick_locations[1:], ["" for x_i in xtick_locations][1:])
     plt.yticks(ytick_locations[1:], [helpers.tick_font(y_i, "%.0f") for y_i in ytick_locations][1:])
     helpers.save_figure("mean-model-tx-rates.pdf", 1, no_legend=True)
-    
-        
 
 def print_mean_and_standard_deviation_of_trace_rates():
     tx_rate_list, mean_flow_tx_rates, std_dev_flow_tx_rates = core_taps.get_rates_for_flows()
     all_rates = [r_i for rate_list in tx_rate_list for r_i in rate_list]
     print("Mu: %f, Sigma: %f" % (np.mean(all_rates), np.std(all_rates)))
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 

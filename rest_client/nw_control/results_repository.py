@@ -3,6 +3,7 @@ import pathlib              as path
 import nw_control.util      as util
 import shutil               as shutil
 import json                 as json
+import pickle               as pickle
 
 from functools              import reduce
 
@@ -56,15 +57,56 @@ class ResultsRepository:
 
         return ResultsRepository(base_path, schema, repository_name)
 
-    def write_trial_results(self, schema_variables, results):
-        output_path_segments = [schema_variables[schema_label] for schema_label in 
+    def build_output_path(self, schema_variables):
+        output_path_segments = [schema_variables[schema_label] for schema_label in
                 self.schema.split("/") if schema_label != ""]
-        output_path = reduce(lambda acc, v: acc.joinpath(path.Path(v)), output_path_segments,
+        output_path = reduce(lambda acc, v: acc / path.Path(v), output_path_segments,
                 self.base_path)
-        output_path.mkdir(parents=True)
+        return output_path
+
+    def write_trial_results(self, schema_variables, results, overwrite=False):
+        # output_path_segments = [schema_variables[schema_label] for schema_label in 
+        #         self.schema.split("/") if schema_label != ""]
+        # output_path = reduce(lambda acc, v: acc.joinpath(path.Path(v)), output_path_segments,
+        #         self.base_path)
+        output_path = self.build_output_path(schema_variables)
+        output_path.mkdir(parents=True, exist_ok=overwrite)
         for file_name, results_data in results.items():
             output_file = output_path.joinpath(file_name)
             output_file.write_text(results_data)
+
+    def write_trial_provider(self, schema_variables, trial_provider, overwrite=False):
+        output_path = self.build_output_path(schema_variables)
+        output_path.mkdir(parents=True, exist_ok=True)
+        provider_output_file = output_path / "trial-provider.p"
+        name_intersection = set()
+        if provider_output_file.exists():
+            with provider_output_file.open("rb") as fd:
+                the_existing_provider = pickle.load(fd)
+            # Check if we should be overwriting the trial.
+            # Are there any trials with identical IDs?
+            # Two trials are considered the same if they have the same name. If overwrite 
+            # is true then any existing trials with the same name as trials in the new provider
+            # will be removed. if trials have identical IDs they will not be overwritten 
+            # regardless of the value of the override parameter.
+            id_intersection = ({t_i.get_parameter("id") for t_i in the_existing_provider} &
+                    {t_j.get_parameter("id") for t_j in trial_provider})
+            if (len(id_intersection) != 0):
+                raise ValueError("Attempting to overwrite trials with the same ID.")
+
+            name_intersection = ({t_i.get_parameter("trial-name") for t_i in the_existing_provider} &
+                    {t_j.get_parameter("trial-name") for t_j in trial_provider})
+            if len(name_intersection) != 0 and not overwrite:
+                raise ValueError("Attempting to overwrite trials with the same name without specifying overwrite")
+            for duplicated_name in name_intersection:
+                the_existing_provider.remove_all_trials_that_match(
+                        lambda t: t.get_parameter("trial-name") == duplicated_name)
+
+            for t_i in the_existing_provider:
+                trial_provider.add_trial(t_i)
+
+        with provider_output_file.open("wb") as fd:
+            pickle.dump(trial_provider, fd)
 
     def read_trial_results(self, schema_variables, file_names):
         output_path_segments = [schema_variables[schema_label] for schema_label in
@@ -78,6 +120,12 @@ class ResultsRepository:
             output_files[file_name] = file_text
 
         return output_files
+
+    def read_trial_provider(self, provider_name):
+        provider_file = self.base_path / provider_name / "trial-provider.p"
+        with provider_file.open("rb") as fd:
+            trial_provider = pickle.load(fd)
+        return trial_provider
 
     @staticmethod
     def repository_exists(base_path):

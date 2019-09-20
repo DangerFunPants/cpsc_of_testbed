@@ -42,4 +42,4 @@ class OnMonitor:
     def get_monitor_statistics(self):
         if self._stop_monitor_response == None:
             raise ValueError("No results have been collected yet! Did you remember to start/stop the monitor.")
-        return self._stop_monitor_response
+        return [d["netUtilStats"]["utilizationStats"] for d in self._stop_monitor_response]

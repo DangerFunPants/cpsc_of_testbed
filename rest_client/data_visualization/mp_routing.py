@@ -126,7 +126,6 @@ def compute_network_util_over_time(util_results):
             source_switch = results_set["sourceSwitchId"]
             destination_switch = results_set["destinationSwitchId"]
             byte_counts[source_switch][destination_switch] = results_set["bytesSent"] + results_set["bytesReceived"]
-            # byte_counts[source_switch][destination_switch] = results_set["packetsSent"] + results_set["packetsReceived"]
         byte_counts_per_time_period.append(byte_counts)
     
     util_in_time_period = []

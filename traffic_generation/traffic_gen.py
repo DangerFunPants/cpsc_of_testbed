@@ -1,4 +1,4 @@
-#!/usr/bin/python3
+#!/usr/bin/env python3
 
 import socket               as socket                   
 import time                 as time
@@ -11,6 +11,7 @@ import sys                  as sys
 import pprint               as pp
 import pickle               as pickle
 import scipy.stats          as stats
+import json                 as json
 
 from enum               import Enum
 from functools          import reduce
@@ -59,7 +60,7 @@ class TrafficModels(Enum):
 class FlowParameters:
     def __init__( self
                 , dest_port         = 0
-                , dest_addr         = '0.0.0.0'
+                , dest_addr         = "0.0.0.0"
                 , prob_mat          = []
                 , tx_rate           = 131072
                 , variance          = 131072
@@ -69,6 +70,7 @@ class FlowParameters:
                 , time_slice        = 1 
                 , tag_value         = None
                 , transmit_rates    = None
+                , source_addr       = None
                 ):
         self.dest_port          = dest_port
         self.dest_addr          = dest_addr
@@ -81,21 +83,23 @@ class FlowParameters:
         self.time_slice         = time_slice
         self.tag_value          = tag_value
         self.transmit_rates     = transmit_rates
+        self.source_addr        = source_addr
 
     def __str__(self):
-        str_rep = [ 'Dest. Port: %d'        % self.dest_port
-                  , 'Dest. Addr: %s'        % self.dest_addr
-                  , 'Prob. Mat: %s'         % self.prob_mat
-                  , 'Tx Rate: %d'           % self.tx_rate
-                  , 'Variance: %d'          % self.variance
-                  , 'Traffic Model: %s'     % self.traffic_model
-                  , 'Packet Length: %d'     % self.packet_len
-                  , 'Source Host: %d'       % self.src_host
-                  , 'Time Slice: %d'        % self.time_slice
+        str_rep = [ "Dest. Port: %d"        % self.dest_port
+                  , "Dest. Addr: %s"        % self.dest_addr
+                  , "Prob. Mat: %s"         % self.prob_mat
+                  , "Tx Rate: %d"           % self.tx_rate
+                  , "Variance: %d"          % self.variance
+                  , "Traffic Model: %s"     % self.traffic_model
+                  , "Packet Length: %d"     % self.packet_len
+                  , "Source Host: %d"       % self.src_host
+                  , "Time Slice: %d"        % self.time_slice
                   , "Tag Value: %s"         % str(self.tag_value)
                   , "Transmit Rates: %s"    % self.transmit_rates
+                  , "Source Address: %s"    % self.source_addr
                   ]
-        s = reduce(lambda s1, s2 : s1 + '\n' + s2, str_rep)
+        s = reduce(lambda s1, s2 : s1 + "\n" + s2, str_rep)
         return s
     
     def __repr__(self):
@@ -202,7 +206,8 @@ def set_dscp(sock, dscp):
 
 def get_args():
     arg_str = sys.argv[1]
-    arg_dicts = eval(arg_str)
+    arg_dicts = json.loads(arg_str)
+    pp.pprint(arg_dicts)
     for d in arg_dicts:
         d['traffic_model'] = TrafficModels.from_str(d['traffic_model'])
     fp_list = { i: FlowParameters(**d) for i, d in enumerate(arg_dicts) }
@@ -242,8 +247,15 @@ def transmit(sock_list, ipd_list, duration, flow_params):
         actual_wait = time.perf_counter() - loop_start
         ipds = { i: (s, t - actual_wait) for i, (s, t) in ipds.items() }
 
+def create_socket(source_address):
+    the_socket = socket.socket(type=socket.SOCK_DGRAM)
+    if source_address:
+        the_socket.bind((source_address, 0))
+    return the_socket
+
 def generate_traffic(flow_params):
-    socks = {i: socket.socket(type=socket.SOCK_DGRAM) for i in flow_params.keys()}
+
+    socks = {i: create_socket(flow_params[i].source_addr) for i in flow_params.keys()}
     global sock_dict
     sock_dict = socks
     rvs = {i: create_distribution(fp.tx_rate, fp.variance, fp.traffic_model, fp.transmit_rates) 

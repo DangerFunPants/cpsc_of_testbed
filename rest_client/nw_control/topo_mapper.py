@@ -47,7 +47,7 @@ def get_nw_links():
         raise ValueError("Failed to get links from ONOS controller. Status %d %s." %
                 (links_request.status_code, links_request.reason))
     links = json.loads(links_request.text)
-    return links["links"]
+    return [link for link in links["links"] if link["type"] != "EDGE"]
 
 def get_nw_hosts():
     requests_url = url.urljoin(cfg.onos_url.geturl(), "v1/hosts")
@@ -120,6 +120,27 @@ def get_and_validate_onos_topo(target_topo_string):
         find_where_graphs_differ(target_topo, current_topo)
         raise ex
         
+    id_to_dpid = {v: k for k, v in dpid_to_id.items()}
+    return id_to_dpid
+
+# @TODO: This version takes a network X graph, the other version takes a string representation
+# of a list of edges in the network. Should change all calling code to use this version.
+def get_and_validate_onos_topo_x(target_topo):
+    def find_where_graphs_differ(target_graph, actual_graph):
+        target_adj_list = target_graph.adj
+        actual_adj_list = actual_graph.adj
+        for actual_entry, target_entry in zip(actual_adj_list.items(), target_adj_list.items()):
+            if actual_entry != target_entry:
+                print("Expected node %s to have edges to %s links. Found edges to %s" %
+                        (actual_entry[0], target_entry[1].keys(), actual_entry[1].keys()))
+    current_topo = build_onos_topo_graph()
+    try:
+        dpid_to_id = generate_graph_isomorphism(current_topo, target_topo)
+    except ValueError as ex:
+        print("Failed to find isomorphism between current ONOS topology and target topology.")
+        find_where_graphs_differ(target_topo, current_topo)
+        raise ex
+
     id_to_dpid = {v: k for k, v in dpid_to_id.items()}
     return id_to_dpid
 

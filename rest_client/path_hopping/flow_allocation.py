@@ -9,17 +9,20 @@ import json                 as json
 import itertools            as itertools
 import gurobipy             as gp
 import random               as rand
+import sys                  as sys
 
 from networkx.algorithms.shortest_paths.generic         import all_shortest_paths
 from networkx.algorithms.connectivity.disjoint_paths    import node_disjoint_paths
 from collections                                        import defaultdict
 from sys                                                import stderr
 
-LINK_CAPACITY = 1.0
-NODE_CAPACITY = 100
-FLOW_TX_RATE_LOWER_BOUND = 0.1
-FLOW_TX_RATE_UPPER_BOUND = 0.5
-DEFAULT_SEED_NUMBER = 0xCAFE_BABE
+# ************************* Global Flow Allocation Parameters *****************
+LINK_CAPACITY               = 1.0
+FLOW_TX_RATE_LOWER_BOUND    = 0.1
+FLOW_TX_RATE_UPPER_BOUND    = 0.5
+DEFAULT_SEED_NUMBER         = 0xCAFE_BABE
+# *****************************************************************************
+
 
 class Flow:
     """
@@ -488,7 +491,7 @@ def create_mcf_model( substrate_topology
         mcf_model.addConstr((U[one_direction] + U[other_direction]) <= LINK_CAPACITY * alpha)
 
     mcf_model.setObjective(alpha, gp.GRB.MINIMIZE)
-    return mcf_model, U
+    return mcf_model, U, F
 
 def compute_mcf_flows(target_graph, flow_selection_fn, seed_number=DEFAULT_SEED_NUMBER):
     substrate_topology = nx.DiGraph(target_graph)
@@ -502,7 +505,7 @@ def compute_mcf_flows(target_graph, flow_selection_fn, seed_number=DEFAULT_SEED_
     while True:
         source_node, destination_node = flow_selection_fn(substrate_topology.nodes)
         flow_tx_rate = np.random.uniform(FLOW_TX_RATE_LOWER_BOUND, FLOW_TX_RATE_UPPER_BOUND)
-        model_for_this_round, U = create_mcf_model(substrate_topology, flows, source_node, 
+        model_for_this_round, U, F = create_mcf_model(substrate_topology, flows, source_node, 
                 destination_node, flow_tx_rate)
         model_for_this_round.optimize()
         
@@ -515,6 +518,7 @@ def compute_mcf_flows(target_graph, flow_selection_fn, seed_number=DEFAULT_SEED_
         print("Solved for %d flows with alpha %s" % ((len(flows) + 1), alpha.x), file=stderr)
         feasible_model = model_for_this_round
         feasible_utilization = U
+        feasible_allocations = {k: v.x for k, v in F.items()}
         new_flow = Flow( source_node        = source_node
                        , destination_node   = destination_node
                        , flow_tx_rate       = flow_tx_rate
@@ -532,7 +536,11 @@ def compute_mcf_flows(target_graph, flow_selection_fn, seed_number=DEFAULT_SEED_
     bidirectional_utilization = defaultdict(float)
     for link_tuple, unidirectional_utilization in U.items():
         bidirectional_utilization[tuple(sorted(link_tuple))] += unidirectional_utilization
-    return flows, dict(bidirectional_utilization)
+
+    do_f_sanity_checks(flows, feasible_allocations)
+    flows_with_routes = compute_mcf_flow_routes(flows, feasible_allocations)
+    
+    return flows_with_routes, dict(bidirectional_utilization)
 
 def create_path_hopping_ilp_model( substrate_topology
                                  , flows
@@ -662,8 +670,15 @@ def single_flow(substrate_topology):
 
     np.random.seed(DEFAULT_SEED_NUMBER)
     source_node, destination_node = np.random.choice(substrate_topology.nodes, 2, replace=False)
-    disjoint_paths = node_disjoint_paths(substrate_topology, source_node, destination_node)
-    flow_tx_rate = 10.
+    disjoint_paths = list(node_disjoint_paths(substrate_topology, source_node, destination_node))
+    flow_tx_rate = 0.5
+    the_flow = Flow( source_node    = source_node
+                   , destination_node   = destination_node
+                   , flow_tx_rate       = flow_tx_rate
+                   , paths              = disjoint_paths
+                   , splitting_ratio    = [1.0] + [0 for _ in range(len(disjoint_paths)-1)]
+                   )
+    return DEFAULT_SEED_NUMBER, [the_flow]
 
 def create_flow_json(flows):
     def create_json_for_single_flow(flow):
@@ -888,9 +903,117 @@ def create_test_k_paths_model( target_topology
     path_allocation_model.setObjective(alpha, gp.GRB.MINIMIZE)
     return path_allocation_model
 
+def do_f_sanity_checks(flows, F):
+    def compute_flow_indices(F):
+        return {t_i[0] for t_i in F.keys()}
+    def flow_selector(f_key):
+        return f_key[0]
 
+    list_of_keys = sorted(list(F.keys()), key=flow_selector)
 
+    for flow_idx, g in itertools.groupby(list_of_keys, flow_selector):
+        the_flow = flows[flow_idx]
+        g = list(g)
+        egress_sum = sum([F[flow_key] for flow_key in g if flow_key[1] == the_flow.source_node])
+        ingress_sum = sum([F[flow_key] for flow_key in g 
+            if flow_key[2] == the_flow.destination_node])
+        print(egress_sum, ingress_sum)
 
+def traverse_graph(F, f, s, t, u, sr):
+    r"""
+    RETURNS
+        A set of paths, P. \forall p_i \in P, p_i begins at s and ends at t.
+        The set also includes the proportion of flow f that should transit
+        each path p_i \in P
+    """
+    def get_paths_for_flow(F, s, f):
+        """
+        RETURNS
+            A set of outgoing links and corresponding splitting ratios for flow f
+            at node s
+        """
+        links = [((u, v), split_ratio) 
+                for (flow_id, u, v), split_ratio in F.items() 
+                if flow_id == f and u == s and split_ratio > 0.001]
+        return links
+    
+    if u == t:
+        return [([t], sr)]
+
+    outgoing_links = get_paths_for_flow(F, u, f)
+    paths_to_t = []
+
+    for ((current_node, next_hop), split_ratio) in outgoing_links:
+        paths_from_u_to_t = traverse_graph(F, f, s, t, next_hop, split_ratio) 
+        paths_to_t.extend(paths_from_u_to_t)
+
+    paths_to_t_with_u = []
+    for path in paths_to_t:
+        nodes, sr = path
+        new_path = [u] + nodes
+        paths_to_t_with_u.append((new_path, sr))
+
+    return paths_to_t_with_u
+
+def traverse_graph_iterative(F, f, s, t):
+    def get_paths_for_flow(F, s, f):
+        """
+        RETURNS
+            A set of outgoing links and corresponding splitting ratios for flow f
+            at node s
+        """
+        links = [((u, v), split_ratio) 
+                for (flow_id, u, v), split_ratio in F.items() 
+                if flow_id == f and u == s and split_ratio > 0.001]
+        return links
+
+    # paths_from_s_to_t: [(node_list, splitting_ratio)]
+    paths_from_s_to_t = []
+
+    incomplete_paths = [([s], 1.0)]
+    while len(incomplete_paths) != 0:
+        current_path, current_sr = incomplete_paths[0]
+        incomplete_paths = incomplete_paths[1:]
+        next_hops = get_paths_for_flow(F, current_path[-1], f)
+
+        for (u, v), sr in next_hops:
+            if v in current_path:
+                print("path has a loop")
+                continue
+            new_path = current_path + [v]
+            new_sr = sr if sr < current_sr else current_sr
+            if v == t:
+                paths_from_s_to_t.append((new_path, new_sr))
+            else:
+                incomplete_paths.append((new_path, new_sr))
+    
+    return paths_from_s_to_t
+
+def compute_mcf_flow_routes(flows, F):
+    def flow_selector(f_key):
+        return f_key[0]
+
+    list_of_keys = sorted(list(F.keys()), key=flow_selector)
+    routes_for_flow_at_idx = []
+    flows_with_routes = []
+    for flow_idx, g in itertools.groupby(list_of_keys, flow_selector):
+        the_flow = flows[flow_idx]
+        g = list(g) # g is a generator and is consumed on use.
+        routes = traverse_graph_iterative(F, flow_idx, the_flow.source_node,
+                the_flow.destination_node)
+        s = sum([p_i[1] for p_i in routes]) 
+        if abs(s - 1.0) > 0.1:
+            print("WEIRDNESS...", s)
+            pp.pprint(routes)
+        
+        flow_with_routes = Flow( source_node        = the_flow.source_node
+                               , destination_node   = the_flow.destination_node
+                               , flow_tx_rate       = the_flow.flow_tx_rate
+                               , paths              = [p_i[0] for p_i in routes]
+                               , splitting_ratio    = [p_i[1] for p_i in routes]
+                               )
+        flows_with_routes.append(flow_with_routes)
+    return flows_with_routes
 
 
 

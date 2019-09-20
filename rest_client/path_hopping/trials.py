@@ -189,6 +189,7 @@ def path_hopping_mcf_flows(target_graph, K=3):
 
 def multiflow_tests(target_graph, node_selection_type, K=3):
     NUMBER_OF_TRIALS = 10
+    TRIAL_DURATION = 180
     def uniform_selection(node_list):
         [source_node, destination_node] = np.random.choice(node_list, 2, replace=False)
         return source_node, destination_node
@@ -222,7 +223,7 @@ def multiflow_tests(target_graph, node_selection_type, K=3):
         flows, link_utilization = flow_allocation.compute_ilp_flows(
                 target_graph, FLOW_SELECTOR, seed_number=flow_allocation_seed_number)
         flow_set.add_flows(flows)
-        k_paths_trial.add_parameter("duration", 180)
+        k_paths_trial.add_parameter("duration", TRIAL_DURATION)
         k_paths_trial.add_parameter("flow-set", flow_set)
         k_paths_trial.add_parameter("seed-number", flow_allocation_seed_number)
         k_paths_trial.add_parameter("link-utilization", link_utilization)
@@ -234,7 +235,7 @@ def multiflow_tests(target_graph, node_selection_type, K=3):
         path_hopping_trial = trial_provider.Trial("path-hopping-allocation")
         flows, link_utilization = flow_allocation.compute_path_hopping_flows_ilp(target_graph, K, FLOW_SELECTOR, seed_number=flow_allocation_seed_number)
         flow_set.add_flows(flows)
-        path_hopping_trial.add_parameter("duration", 180)
+        path_hopping_trial.add_parameter("duration", TRIAL_DURATION)
         path_hopping_trial.add_parameter("flow-set", flow_set)
         path_hopping_trial.add_parameter("seed-number", flow_allocation_seed_number)
         path_hopping_trial.add_parameter("link-utilization", link_utilization)
@@ -247,7 +248,7 @@ def multiflow_tests(target_graph, node_selection_type, K=3):
         flows, link_utilization = flow_allocation.compute_mcf_flows(
                 target_graph, FLOW_SELECTOR, seed_number=flow_allocation_seed_number)
         flow_set.add_flows(flows)
-        mcf_trial.add_parameter("duration", 180)
+        mcf_trial.add_parameter("duration", TRIAL_DURATION)
         mcf_trial.add_parameter("flow-set", flow_set)
         mcf_trial.add_parameter("seed-number", flow_allocation_seed_number)
         mcf_trial.add_parameter("link-utilization", link_utilization)
@@ -259,7 +260,7 @@ def multiflow_tests(target_graph, node_selection_type, K=3):
         flows, link_utilization = flow_allocation.compute_greedy_flow_allocations(
                 target_graph, FLOW_SELECTOR, seed_number=flow_allocation_seed_number)
         flow_set.add_flows(flows)
-        path_hopping_trial.add_parameter("duration", 180)
+        path_hopping_trial.add_parameter("duration", TRIAL_DURATION)
         path_hopping_trial.add_parameter("flow-set", flow_set)
         path_hopping_trial.add_parameter("seed-number", flow_allocation_seed_number)
         path_hopping_trial.add_parameter("link-utilization", link_utilization)
@@ -274,7 +275,6 @@ def multiflow_tests(target_graph, node_selection_type, K=3):
         the_trial_provider.add_trial(mcf_allocation(target_graph, flow_allocation_seed_number))
         the_trial_provider.add_trial(greedy_path_hopping_allocation(target_graph, 
             flow_allocation_seed_number))
-    # the_trial_provider.add_trial(path_hopping_allocation(target_graph, K))
 
     the_trial_provider.add_metadata("node-probability-distribution", 
             discrete_probability_distribution)
@@ -356,24 +356,14 @@ def k_flows_tests(substrate_topology):
 
     return the_trial_provider
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+def sanity_test_trial(target_graph):
+    the_trial_provider = trial_provider.TrialProvider("sanity-test-trial")
+    flow_set = FlowSet()
+    the_trial = trial_provider.Trial("sanity-test")
+    the_trial.add_parameter("duration", 180)
+    flow_allocation_seed_number, flows = flow_allocation.single_flow(target_graph)
+    flow_set.add_flows(flows)
+    the_trial.add_parameter("flow-set", flow_set)
+    the_trial.add_parameter("seed-number", flow_allocation_seed_number)
+    the_trial_provider.add_trial(the_trial)
+    return the_trial_provider

@@ -58,19 +58,6 @@ def compute_mean_goodput(trial_dicts, selector_fn):
     return compute_parameter_statistics(trial_dicts, selector_fn, compute_goodput)
 
 def compute_mean_data_recovery(trial_dicts, selector_fn):
-    # trial_dicts = sorted(trial_dicts, key=selector_fn)
-    # scatter_points = []
-    # pp.pprint(trial_dicts)
-    # for key_value, g in itertools.groupby(trial_dicts, selector_fn):
-    #     measured_data_recovery = []
-    #     for d_i in g:
-    #         measured_data_recovery.append(d_i["attacker_intercepted_bytes"])
-
-    #     print("Number of trials: %d" % len(measured_data_recovery))
-    #     scatter_points.append((key_value, np.mean(measured_data_recovery),
-    #         np.std(measured_data_recovery)))
-
-    # return scatter_points
     def compute_data_recovery(trial_dict):
         return trial_dict["attacker_intercepted_bytes"]
     return compute_parameter_statistics(trial_dicts, selector_fn, compute_data_recovery)
@@ -180,10 +167,15 @@ def generate_goodput_vs_message_size_scatter():
 def generate_attacker_vs_k_scatter():
     def attacker_setting(trial_dict):
         return trial_dict["experiment"]["attacker_setting"]
+
+    def attacker_timestep(trial_dict):
+        return trial_dict["experiment"]["attacker_timestep"]
+
     results_file = MININET_RESULTS_DIR / "results_attacker_k" / "results.log"
-    
     results_dicts = [eval(s_i) for s_i in results_file.read_text().splitlines()]
-    # pp.pprint([attacker_setting(d_i) for d_i in results_dicts])
+    # pp.pprint(results_dicts)
+    print(len(results_dicts))
+    # pp.pprint([attacker_timestep(d_i) for d_i in results_dicts])
     fixed_attacker_trials = [d_i for d_i in results_dicts
             if attacker_setting(d_i) == "fixed"]
     unsynced_attacker_trials = [d_i for d_i in results_dicts
@@ -192,7 +184,7 @@ def generate_attacker_vs_k_scatter():
             if attacker_setting(d_i) == "hop_sync"]
 
     trial_data_list = [fixed_attacker_trials, unsynced_attacker_trials, synced_attacker_trials]
-    trial_names = ["Fixed", "Not synced", "Synced"]
+    trial_names = ["Fixed", "Independent", "Synced"]
     k_selector = lambda d_i: d_i["experiment"]["k"]
     for plot_idx, (trial_name, trial_data) in enumerate(zip(trial_names, trial_data_list)):
         scatter_points = compute_mean_data_recovery(trial_data, k_selector)
@@ -206,12 +198,37 @@ def generate_attacker_vs_k_scatter():
     plt.ylabel(helpers.axis_label_font("Kilobytes"))
     helpers.save_figure("attacker.pdf", num_cols=len(trial_data_list))
 
+def generate_loss_vs_timestep_plot():
+    host_hopping = [ (100, 0.0), (250, 0.0)
+                   , (500, 0.0), (1000, 0.0)
+                   , (5000, 0.0), (10000, 0.0)
+                   ]
+    net_hopping  = [ (100, 0.32), (250, 0.14)
+                   , (500, 0.093), (1000, 0.025)
+                   , (5000, 0.015), (10000, 0.0)
+                   ]
+    
+    trial_names = ["Host hopping", "Net hopping"]
+    trial_data_lists  = [host_hopping, net_hopping]
+    for plot_idx, (trial_name, trial_data) in enumerate(zip(trial_names, trial_data_lists)):
+        xs = [t_i[0] for t_i in trial_data]
+        ys = [t_i[1] for t_i in trial_data]
+        helpers.plot_a_scatter(xs, ys, idx=plot_idx,
+                label=helpers.legend_font(trial_name))
+
+    plt.xlim((0.0, 10000))
+    plt.ylim((0.0, 0.35))
+    plt.xlabel(helpers.axis_label_font("Timestep (ms)"))
+    plt.ylabel(helpers.axis_label_font("Packet loss rate"))
+    helpers.save_figure("loss-plot.pdf", num_cols=2)
+
 def generate_all_plots():
-    generate_goodput_vs_k_scatter()
-    generate_goodput_vs_message_size_scatter()
-    generate_goodput_vs_path_length_scatter()
-    generate_goodput_vs_hopping_interval_scatter()
+    # generate_goodput_vs_k_scatter()
+    # generate_goodput_vs_message_size_scatter()
+    # generate_goodput_vs_path_length_scatter()
+    # generate_goodput_vs_hopping_interval_scatter()
     generate_attacker_vs_k_scatter()
+    # generate_loss_vs_timestep_plot()
 
 
 

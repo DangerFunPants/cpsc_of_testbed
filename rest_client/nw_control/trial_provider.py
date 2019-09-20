@@ -13,14 +13,27 @@ class Trial:
     def name(self):
         return self._name
 
-    def add_parameter(self, parameter_name, parameter_value):
+    def add_parameter( self
+                     , parameter_name
+                     , parameter_value):
         if parameter_name in self._parameters:
             raise ValueError("Name conflict for parameter with name %s",
                     parameter_name)
         self._parameters[parameter_name] = parameter_value
 
+    def update_parameter( self
+                        , parameter_name
+                        , parameter_value):
+        if parameter_name not in self._parameters:
+            raise ValueError("Attempting to update non-existent parameter value.")
+
+        self._parameters[parameter_name] = parameter_value
+
     def get_parameter(self, property_name):
         return self._parameters[property_name]
+
+    def has_parameter(self, parameter_name):
+        return parameter_name in self._parameters
 
     def __str__(self):
         s = "Trial Name: %s\n" % self.name

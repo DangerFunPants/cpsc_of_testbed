@@ -93,12 +93,7 @@ def path_hopping_plots():
         path_hopping.generate_expected_link_utilization_cdf(results_repository, provider_name)
         # path_hopping.generate_topo_utilization_graph(results_repository, provider_name)
 
-def path_hopping_multiflow_plots(provider_name):
-    repo_path = path.Path("/home/cpsc-net-user/results-repositories/new-provider-results")
-    results_repository = rr.ResultsRepository.create_repository(repo_path,
-            ph_cfg.repository_schema, ph_cfg.repository_name)
-    trial_provider = results_repository.read_trial_provider(provider_name)
-
+def path_hopping_multiflow_plots(trial_provider):
     path_hopping.generate_computed_link_utilization_cdf(trial_provider) 
     path_hopping.generate_flow_count_bar_plot(trial_provider)
     path_hopping.generate_node_probability_histogram(trial_provider)
@@ -109,14 +104,53 @@ def generate_path_hopping_plots_for_multiple_providers():
     provider_names = [ "multiflow-tests-binomial"
                      , "multiflow-tests-uniform"
                      ]
+
+    repo_path = path.Path("/home/cpsc-net-user/results-repositories/multiflow-results")
+    results_repository = rr.ResultsRepository.create_repository(repo_path,
+            ph_cfg.repository_schema, ph_cfg.repository_name)
     for provider_name in provider_names:
-        path_hopping_multiflow_plots(provider_name)
+        trial_provider = results_repository.read_trial_provider(provider_name)
+        pre_process_trial_data(trial_provider)
+        path_hopping_multiflow_plots(trial_provider)
 
 def security_plots():
     security.generate_all_plots()
 
 def mininet_benchmark_plots():
     mininet_benchmarks.generate_all_plots()
+
+def test_plot():
+    repo_path = path.Path("/home/cpsc-net-user/results-repositories/multiflow-results")
+    results_repository = rr.ResultsRepository.create_repository(repo_path,
+            ph_cfg.repository_schema, ph_cfg.repository_name)
+    trial_provider = results_repository.read_trial_provider("multiflow-tests-binomial")
+    path_hopping.generate_measured_link_utilization_cdf(trial_provider)
+
+def pre_process_trial_data(trial_provider):
+    for t_i in trial_provider:
+        if t_i.has_parameter("measured-link-utilization"):
+            link_utilization = t_i.get_parameter("measured-link-utilization")
+            for link_id in link_utilization.keys():
+                link_utilization[link_id] = min(link_utilization[link_id], 20.0) / 20.0
+            # t_i.update_parameter("measured-link-utilization", link_utilization) 
+            # pp.pprint(t_i.get_parameter("measured-link-utilization"))
+
+def testbed_multiflow_plots():
+    repo_path = path.Path("/home/cpsc-net-user/results-repositories/multiflow-results")
+    results_repository = rr.ResultsRepository.create_repository(repo_path,
+            ph_cfg.repository_schema, ph_cfg.repository_name)
+    trial_provider = results_repository.read_trial_provider("multiflow-tests-uniform")
+    pre_process_trial_data(trial_provider)
+    path_hopping.generate_computed_link_utilization_cdf(trial_provider)
+
+def print_statistics():
+    repo_path = path.Path("/home/cpsc-net-user/results-repositories/multiflow-results")
+    results_repository = rr.ResultsRepository.create_repository(repo_path,
+            ph_cfg.repository_schema, ph_cfg.repository_name)
+    trial_provider = results_repository.read_trial_provider("multiflow-tests-binomial")
+    pre_process_trial_data(trial_provider)
+    path_hopping.print_admitted_flow_statistics(trial_provider)
+
 
 def main():
     # flow_mirroring_plots()
@@ -125,7 +159,10 @@ def main():
     # vle_simulation_plots()
     # generate_path_hopping_plots_for_multiple_providers()
     # security_plots()
-    mininet_benchmark_plots()
+    # mininet_benchmark_plots()
+    # test_plot()
+    # testbed_multiflow_plots()
+    print_statistics()
 
 if __name__ == "__main__":
     main()

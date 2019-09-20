@@ -350,7 +350,8 @@ def generate_computed_link_utilization_cdf(trial_provider):
     grouped_by_name = collect_trials_based_on_name(trial_provider)
     labels          = [multiflow_label(group[0].name) for group in grouped_by_name]
     link_utilizations = [reduce(op.add,
-        [list(t_i.get_parameter("link-utilization").values()) for t_i in group], [])
+        [list(t_i.get_parameter("measured-link-utilization").values()) 
+            for t_i in group if t_i.has_parameter("measured-link-utilization")], [])
         for group in grouped_by_name]
 
     for plot_idx in range(len(labels)):
@@ -358,14 +359,8 @@ def generate_computed_link_utilization_cdf(trial_provider):
         plot_a_cdf(sorted_link_utilization_data, idx=plot_idx, 
                 label=helpers.legend_font(labels[plot_idx]))
 
-    # for plot_idx, the_trial in enumerate(trial_provider):
-    #     link_utilization = the_trial.get_parameter("link-utilization")
-    #     sorted_link_utilization_data = sorted(list(link_utilization.values()))
-    #     plot_a_cdf(sorted_link_utilization_data, idx=plot_idx, 
-    #             label=multiflow_label(the_trial.name))
-
     plt.xlabel(helpers.axis_label_font("Link Utilization"))
-    plt.ylabel(helpers.axis_label_font(r"$\mathbb{P}\{x = \mathcal{X}\}$"))
+    plt.ylabel(helpers.axis_label_font(r"$\mathbb{P}\{x \leq \mathcal{X}\}$"))
     node_selection_type = trial_provider.get_metadata("node-selection-type")
     legend_kwargs = dict(cfg.LEGEND)
     helpers.save_figure("computed-link-utilization-%s-cdf.pdf" % node_selection_type, 
@@ -421,7 +416,9 @@ def generate_computed_link_utilization_box_plot(trial_provider):
             for group in grouped_by_name]
     # Make lists of link utilization data
     link_utilization_data = [reduce(op.add,
-        [list(t_i.get_parameter("link-utilization").values()) for t_i in group], [])
+        [list(t_i.get_parameter("measured-link-utilization").values()) 
+            for t_i in group
+            if t_i.has_parameter("measured-link-utilization")], [])
         for group in grouped_by_name]
     plot_a_box_plot(link_utilization_data, labels)
     plt.ylabel(helpers.axis_label_font("Link utilization"))
@@ -429,9 +426,28 @@ def generate_computed_link_utilization_box_plot(trial_provider):
     helpers.save_figure("computed-link-utilization-%s-box.pdf" % node_selection_type, 
             no_legend=True)
 
+def generate_measured_link_utilization_cdf(trial_provider):
+    trial = trial_provider.get_first_trial_that_matches(
+            lambda t_i: t_i.name == "greedy-path-hopping")
+    link_utilization = trial.get_parameter("measured-link-utilization")
+    link_utilization_data = sorted(list(link_utilization.values()))
+    helpers.plot_a_cdf(link_utilization_data)
+    helpers.save_figure("test-cdf.pdf")
 
+def print_admitted_flow_statistics(trial_provider):
+    grouped_by_name = collect_trials_based_on_name(trial_provider)
+    # pp.pprint(grouped_by_name) 
 
-
+    grouped_by_name = collect_trials_based_on_name(trial_provider)
+    allocated_flows_data = [[len(t_i.get_parameter("flow-set")) for t_i in group]
+            for group in grouped_by_name]
+    bar_heights = [np.mean(d_i) for d_i in allocated_flows_data]
+    bar_errors  = [np.std(d_i) for d_i in allocated_flows_data]
+    labels = [group[0].name for group in grouped_by_name]
+    label_to_flow_count = {l_i: h_i for l_i, h_i in zip(labels, bar_heights)}
+    k_paths_to_path_hopping = abs(label_to_flow_count["greedy-path-hopping"] -
+            label_to_flow_count["k-paths-allocation"]) / label_to_flow_count["k-paths-allocation"]
+    print(k_paths_to_path_hopping)
 
 
 

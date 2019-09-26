@@ -30,6 +30,9 @@ class Trial:
         self._parameters[parameter_name] = parameter_value
 
     def get_parameter(self, property_name):
+        if property_name not in self._parameters:
+            raise ValueError("Attempting to access non-existent property %s in trial with name %s" %
+                    (property_name, self.name))
         return self._parameters[property_name]
 
     def has_parameter(self, parameter_name):

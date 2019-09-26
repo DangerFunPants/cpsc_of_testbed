@@ -65,45 +65,62 @@ class VirtualHost:
         proc_result = subprocess.run(ip_addr_add_cmd, stdout=subprocess.PIPE,
                 stderr=subprocess.STDOUT)
         if proc_result.returncode != 0:
+            print(proc_result.stdout.decode("utf-8"))
             raise ValueError("Failed to initialize local network interface with command: %s" %
                     (ip_addr_add_cmd))
         interface_mac_address = netifaces.ifaddresses(iface_name)[netifaces.AF_LINK][0]
         return interface_mac_address["addr"]
-         
-    @staticmethod
-    def create_virtual_host( virtual_host_mac
-                           , virtual_host_ip
-                           , actual_host_ip
-                           , ingress_node_device_id):
-        actual_host_mac = VirtualHost._initialize_local_network_interface(vhost_cfg.iface_name, 
-                actual_host_ip)
-        virtual_host_token = VirtualHost._install_virtual_host(actual_host_mac, actual_host_ip,
-                virtual_host_mac, virtual_host_ip, ingress_node_device_id)
-        the_virtual_host = VirtualHost(actual_host_mac, actual_host_ip,
-                virtual_host_mac, virtual_host_ip, ingress_node_device_id, virtual_host_token)
-        return the_virtual_host
 
-    def destroy_virtual_host(self):
+    @staticmethod
+    def _remove_local_network_interface(iface_name, actual_host_ip_address):
+        def build_del_ip_addr_cmd(password, actual_host_ip_address, mask_length, iface_name):
+            ip_addr_del_cmd = ("ip addr del %s/%d dev %s" %
+                    (actual_host_ip_address, mask_length, iface_name)).split(" ")
+            return ip_addr_del_cmd
+
+        ip_addr_del_cmd = build_del_ip_addr_cmd(vhost_cfg.password, actual_host_ip_address,
+                24, iface_name)
+        proc_result = subprocess.run(ip_addr_del_cmd, stdout=subprocess.PIPE,
+                stderr=subprocess.STDOUT)
+        if proc_result.returncode != 0:
+            raise ValueError("Failed to remove local network interface with command: %s" %
+                    (ip_addr_del_cmd))
+    
+    @staticmethod
+    def _uninstall_virtual_host(virtual_host_token):
         request_url = url.urljoin(vhost_cfg.onos_url.geturl(), 
-                "virtual-hosts/v1/destroy-virtual-host?virtual-host-id=%s" % self.token)
+                "virtual-hosts/v1/destroy-virtual-host?virtual-host-id=%s" % virtual_host_token)
         destroy_host_request = req.post(request_url, auth=cfg.ONOS_API_CREDENTIALS)
         if not destroy_host_request:
             raise ValueError("Failed to destroy virtual host with token %s. %d %s" %
-                    (self.token, destroy_host_request.status_code, destroy_host_request.reason))
-        self._remove_virtual_host_ip_address()
+                    (virtual_host_token, 
+                        destroy_host_request.status_code, destroy_host_request.reason))
+         
+    @staticmethod
+    def initialize_virtual_host_persistent_state( virtual_host_mac
+                                                , virtual_host_ip
+                                                , actual_host_ip
+                                                , ingress_node_device_id):
+        actual_host_mac     = None
+        virtual_host_token  = None
+        try:
+            actual_host_mac = VirtualHost._initialize_local_network_interface(vhost_cfg.iface_name, 
+                    actual_host_ip)
+            virtual_host_token = VirtualHost._install_virtual_host(actual_host_mac, actual_host_ip,
+                    virtual_host_mac, virtual_host_ip, ingress_node_device_id)
+        except Exception as ex:
+            if actual_host_mac != None:
+                VirtualHost._remove_local_network_interface(vhost_cfg.iface_name,
+                        actual_host_ip)
+            if virtual_host_token != None:
+                VirtualHost._uninstall_virtual_host(virtual_host_token)
+            raise ex
 
+        return actual_host_mac, virtual_host_token
 
-    def _remove_virtual_host_ip_address(self):
-        def build_ip_addr_del_cmd(iface_name, actual_host_ip_address, mask_length):
-            ip_addr_del_cmd = ("ip addr del %s/%d dev %s" %
-                    (actual_host_ip_address, mask_length, iface_name))
-            return ip_addr_del_cmd.split(" ")
-
-        ip_addr_del_cmd = build_ip_addr_del_cmd(vhost_cfg.iface_name, self.actual_host_ip, 24)
-        proc_result = subprocess.run(ip_addr_del_cmd, stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE)
-        if proc_result.returncode != 0:
-            raise ValueError("Failed to remove IP address with command %s" % ip_addr_del_cmd)
+    def destroy_virtual_host(self):
+        VirtualHost._uninstall_virtual_host(self.token)
+        VirtualHost._remove_local_network_interface(vhost_cfg.iface_name, self.actual_host_ip) 
 
     @property
     def actual_host_mac(self):
@@ -162,10 +179,9 @@ class TrafficGenerationVirtualHost(VirtualHost):
                            , virtual_host_ip
                            , actual_host_ip
                            , ingress_node_device_id):
-        actual_host_mac = VirtualHost._initialize_local_network_interface(vhost_cfg.iface_name,
-                actual_host_ip)
-        virtual_host_token = VirtualHost._install_virtual_host(actual_host_mac, actual_host_ip,
-                virtual_host_mac, virtual_host_ip, ingress_node_device_id)
+        actual_host_mac, virtual_host_token = \
+                VirtualHost.initialize_virtual_host_persistent_state(virtual_host_mac, 
+                        virtual_host_ip, actual_host_ip, ingress_node_device_id)
         the_virtual_host = TrafficGenerationVirtualHost(host_id, actual_host_mac, actual_host_ip,
                 virtual_host_mac, virtual_host_ip, ingress_node_device_id, virtual_host_token)
         return the_virtual_host
@@ -236,7 +252,7 @@ class TrafficGenerationVirtualHost(VirtualHost):
         if self._traffic_gen_client_process.returncode != 0:
             std_out, std_err = self._traffic_gen_client_process.communicate()
             print("Host %d traffic generation failed with error: " % self.host_id)
-            print(std_out.decode("utf=8"))
+            print(std_out.decode("utf-8"))
             print("")
 
 
@@ -247,3 +263,143 @@ class TrafficGenerationVirtualHost(VirtualHost):
 
         if self._traffic_gen_server_process != None:
             self.stop_traffic_generation_server()
+
+class PathHoppingSender(VirtualHost):
+    BIN_DIR = path.Path("/home/cpsc-net-user/repos/mtd-crypto-impl/endpoint/sender")
+    
+    def __init__(self, host_id, *args):
+        super(PathHoppingSender, self).__init__(*args)
+        self._host_id               = host_id
+        self._sender_process        = None
+
+    @property
+    def host_id(self):
+        return self._host_id
+
+    @staticmethod
+    def create_virtual_host( host_id
+                           , virtual_host_mac
+                           , virtual_host_ip
+                           , actual_host_ip
+                           , ingress_node_device_id):
+        actual_host_mac, virtual_host_token = \
+                VirtualHost.initialize_virtual_host_persistent_state(virtual_host_mac,
+                        virtual_host_ip, actual_host_ip, ingress_node_device_id)
+        the_virtual_host = PathHoppingSender(host_id, actual_host_mac, actual_host_ip,
+                virtual_host_mac, virtual_host_ip, ingress_node_device_id, virtual_host_token)
+        return the_virtual_host
+
+    def start_path_hopping_sender( self
+                                 , port                 = None
+                                 , K                    = None
+                                 , N                    = None
+                                 , data_file            = None
+                                 , message_size         = None
+                                 , timestep             = None
+                                 , hop_probability      = None
+                                 , reliable             = None
+                                 , hop_method           = None):
+
+        sender_args = [ str(PathHoppingSender.BIN_DIR)
+                      , "-h"           , self.actual_host_ip
+                      , "-p"           , port
+                      , "-k"           , K
+                      , "-n"           , N
+                      , "-file"        , data_file
+                      , "-m"           , message_size
+                      , "-timestep"    , timestep
+                      , "-lambda"      , hop_probability
+                      , "-reliable"    , reliable
+                      , "-hop"         , hop_method
+                      ]
+
+        if self._sender_process != None:
+            raise ValueError("Attempting to start sender host after already being started.")
+
+        self._sender_process = subprocess.Popen(sender_args, stderr=subprocess.PIPE,
+                stdout=subprocess.DEVNULL)
+
+    def stop_path_hopping_sender(self):
+        if self._sender_process == None:
+            raise ValueError("Attempting to stop path hopping sender without starting it.")
+
+        self._sender_process.terminate()
+        _, std_err = self._sender_process.communicate()
+        if self._sender_process.returncode != 0:
+            print("PathHoppingSender %d failed with error: " % self.host_id)
+            print(std_err.decode("utf-8"))
+            print("")
+
+    def destroy_virtual_host(self):
+        super().destroy_virtual_host()
+        if self._sender_process != None:
+            self.stop_path_hopping_sender()
+
+class PathHoppingReceiver(VirtualHost):
+    BIN_DIR = path.Path("/home/cpsc-net-user/repos/mtd-crypto-impl/endpoint/receiver")
+    
+    def __init__(self, host_id, *args):
+        super(PathHoppingReceiver, self).__init__(*args)
+        self._host_id           = host_id
+        self._receiver_process  = None
+
+    @property
+    def host_id(self):
+        return self._host_id
+
+    @staticmethod
+    def create_virtual_host( host_id
+                           , virtual_host_mac
+                           , virtual_host_ip
+                           , actual_host_ip
+                           , ingress_node_device_id):
+        actual_host_mac, virtual_host_token = \
+                VirtualHost.initialize_virtual_host_persistent_state(virtual_host_mac, 
+                        virtual_host_ip, actual_host_ip, ingress_node_device_id)
+        the_virtual_host = PathHoppingReceiver(host_id, actual_host_mac, actual_host_ip,
+                virtual_host_mac, virtual_host_ip, ingress_node_device_id, virtual_host_token)
+        return the_virtual_host
+
+    def start_path_hopping_receiver( self
+                                   , sender_ip              = None
+                                   , port                   = None
+                                   , data_file              = None
+                                   , timestep               = None
+                                   , hopping_probability    = None):
+        receiver_args = [ str(PathHoppingReceiver.BIN_DIR)
+                        , "-h"          , sender_ip
+                        , "-p"          , port
+                        , "-file"       , data_file
+                        , "-timestep"   , timestep
+                        , "-lambda"     , hopping_probability
+                        , "-local_addr" , self.actual_host_ip
+                        ]
+        if self._receiver_process != None:
+            raise ValueError("Attempting to start receiver host after already being started.")
+
+        self._receiver_process = subprocess.Popen(receiver_args, stderr=subprocess.PIPE,
+                stdout=subprocess.DEVNULL)
+
+    def stop_path_hopping_receiver(self):
+        if self._receiver_process == None:
+            raise ValueError("Attempting to stop path hopping receiver without starting it.")
+        self._receiver_process.terminate()
+        _, std_err = self._receiver_process.communicate()
+        if self._receiver_process.returncode != 0:
+            print("PathHoppingReceiver %d failed with error: " % self.host_id)
+            print(std_err.decode("utf-8"))
+            print("")
+
+    def destroy_virtual_host(self):
+        super().destroy_virtual_host()
+        if self._receiver_process != None:
+            self.stop_path_hopping_receiver()
+
+    def wait_until_done(self):
+        if self._receiver_process == None:
+            raise ValueError("Attempting to wait on path hopping receiver without starting it.")
+        return self._receiver_process.wait()
+
+
+
+

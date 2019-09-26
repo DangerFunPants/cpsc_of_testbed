@@ -6,6 +6,7 @@ import time                             as time
 import virtual_hosts.virtual_host       as virtual_host
 import nw_control.topo_mapper           as topo_mapper
 import attacker_tests.trials            as trials
+import nw_control.packet_capture        as pcap
 
 SUBSTRATE_TOPOLOGY = nx.complete_graph(10)
 
@@ -81,8 +82,10 @@ def conduct_path_hopping_trial(results_repository, the_trial):
         id_to_dpid = topo_mapper.get_and_validate_onos_topo_x(SUBSTRATE_TOPOLOGY)
 
         sender, receiver = create_sender_receiver_pair(id_to_dpid)
-        
         time.sleep(10)
+
+        packet_capture = pcap.InterfaceCapture("ens192")
+        packet_capture.start_capture()
         sender.start_path_hopping_sender(**get_sender_kwargs(the_trial))
         receiver.start_path_hopping_receiver(
                 **get_receiver_kwargs(the_trial, sender.virtual_host_ip))
@@ -90,6 +93,9 @@ def conduct_path_hopping_trial(results_repository, the_trial):
         print("Waiting on the receiver to terminate...")
         receiver.wait_until_done()
         print("Receiver has terminated.")
+        packet_capture.stop_capture()
+        packets = packet_capture.process_capture_data()
+        print("Captured %d packets" % len(packets))
         # input("Stuff is happening. Hit return to continue...")
     except Exception as ex:
         traceback.print_exc()
@@ -97,6 +103,8 @@ def conduct_path_hopping_trial(results_repository, the_trial):
         input("Failed to carry out path hopping attacker test. Press enter to continue...")
     finally:
         destroy_sender_receiver_pair(sender, receiver)
+        if packet_capture != None and packet_capture.is_capture_running():
+            packet_capture.stop_capture()
 
 def main():
     trial_provider = trials.test_with_single_trial()

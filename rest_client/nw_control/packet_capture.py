@@ -22,7 +22,7 @@ class InterfaceCapture:
     PROCESS_CAP_BIN = path.Path(
             "/home/cpsc-net-user/repos/physical-testbed-testing/pcap-analysis/src/cap_analysis")
     PROCESS_CAP_OUT_FILE = path.Path(
-            "/home/cpsc-net-user/repos/physical-testbed-testing/pcap-analysis/src/output.txt")
+            "/home/cpsc-net-user/repos/cpsc_of_testbed/rest_client/output.txt")
     CAPTURE_OUTPUT_FILE_PATH = path.Path("/home/cpsc-net-user/capture-files/")
 
     def __init__(self, iface_name):

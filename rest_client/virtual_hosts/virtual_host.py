@@ -300,6 +300,7 @@ class PathHoppingSender(VirtualHost):
                                  , reliable             = None
                                  , hop_method           = None):
 
+        print("Using data file %s" % data_file)
         sender_args = [ str(PathHoppingSender.BIN_DIR)
                       , "-h"           , self.actual_host_ip
                       , "-p"           , port

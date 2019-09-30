@@ -6,14 +6,15 @@ import pathlib                                  as path
 # import data_visualization.port_mirroring        as port_mirroring
 # import data_visualization.mp_routing            as mp_routing
 # import data_visualization.simulations           as sim
-import data_visualization.path_hopping          as path_hopping
-import data_visualization.security              as security
-import data_visualization.mininet_benchmarks    as mininet_benchmarks
-import nw_control.results_repository            as rr
-import port_mirroring.params                    as pm_cfg
-import mp_routing.params                        as mp_cfg
-import simulations.params                       as sim_cfg
-import path_hopping.params                      as ph_cfg   
+import data_visualization.path_hopping              as path_hopping
+import data_visualization.security                  as security
+import data_visualization.mininet_benchmarks        as mininet_benchmarks
+import data_visualization.path_hopping_attacker     as path_hopping_attacker
+import nw_control.results_repository                as rr
+import port_mirroring.params                        as pm_cfg
+import mp_routing.params                            as mp_cfg
+import simulations.params                           as sim_cfg
+import path_hopping.params                          as ph_cfg   
 
 # def flow_mirroring_plots():
 #     # results-5 : Multi provider that ran for five minutes
@@ -151,6 +152,11 @@ def print_statistics():
     pre_process_trial_data(trial_provider)
     path_hopping.print_admitted_flow_statistics(trial_provider)
 
+def attacker_plots():
+    results_repository = rr.ResultsRepository.create_repository(ph_cfg.base_repository_path,
+            ph_cfg.repository_schema, ph_cfg.repository_name)
+    trial_provider = results_repository.read_trial_provider("attacker-testing")
+    path_hopping_attacker.display_capture_statistics(trial_provider)
 
 def main():
     # flow_mirroring_plots()
@@ -162,7 +168,8 @@ def main():
     # mininet_benchmark_plots()
     # test_plot()
     # testbed_multiflow_plots()
-    print_statistics()
+    # print_statistics()
+    attacker_plots()
 
 if __name__ == "__main__":
     main()

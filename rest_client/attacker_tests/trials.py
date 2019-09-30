@@ -11,7 +11,7 @@ def test_with_single_trial():
     the_trial.add_parameter("N", 10)
     the_trial.add_parameter("port", 11111)
     the_trial.add_parameter("input-file", 
-            path.Path("/home/cpsc-net-user/repos/mtd-crypto-impl/data/random_byte_10MB"))
+            path.Path("/home/cpsc-net-user/repos/mtd-crypto-impl/data/random_byte_20MB.dat"))
     the_trial.add_parameter("output-file", path.Path("./out.dat"))
     the_trial.add_parameter("message-size", 256)
     the_trial.add_parameter("timestep", 100)

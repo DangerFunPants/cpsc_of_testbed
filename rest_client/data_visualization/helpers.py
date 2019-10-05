@@ -19,6 +19,12 @@ def tick_font(tick_label, precision="%.2f"):
 def axis_label_font(phrase):
     return huge(phrase)
 
+def xlabel(phrase):
+    plt.xlabel(axis_label_font(phrase))
+
+def ylabel(phrase):
+    plt.ylabel(axis_label_font(phrase))
+
 def legend_font(phrase):
     return huge(phrase)
 
@@ -202,10 +208,11 @@ def plot_a_bar( bar_x_locations
 def plot_a_scatter( xs
                   , ys
                   , idx             = 0
-                  , label           = None
+                  , label_data      = True
                   , plot_markers    = True
-                  , axis_to_plot_on = None
-                  , label_data      = True):
+                  , err             = None
+                  , label           = None
+                  , axis_to_plot_on = None):
     if label == None:
         label = "SCATTER %d" % idx
 
@@ -221,6 +228,11 @@ def plot_a_scatter( xs
 
     if label_data:
         plot_kwargs["label"] = label
+
+    if err != None:
+        # plot_kwargs["err"] = err
+        # axis_to_plot_on.errorbar(xs, ys, yerr=err, **plot_kwargs)
+        pass
 
     axis_to_plot_on.plot(xs, ys, **plot_kwargs)
 

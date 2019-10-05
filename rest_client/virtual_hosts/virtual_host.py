@@ -48,8 +48,9 @@ class VirtualHost:
         create_virtual_host_request = req.post(request_url, json=request_json,
                 auth=cfg.ONOS_API_CREDENTIALS)
         if not create_virtual_host_request:
-            raise ValueError("Failed to create virtual host. Status %d %s" %
-                    (create_virtual_host_request.status_code, create_virtual_host_request.reason))
+            raise ValueError("Failed to create virtual host with IP Address %s. Status %d %s" %
+                    (virtual_host_ip, create_virtual_host_request.status_code, 
+                        create_virtual_host_request.reason))
         response_json = create_virtual_host_request.json()
         return response_json["virtual-host-id"]
 

@@ -155,8 +155,16 @@ def print_statistics():
 def attacker_plots():
     results_repository = rr.ResultsRepository.create_repository(ph_cfg.base_repository_path,
             ph_cfg.repository_schema, ph_cfg.repository_name)
-    trial_provider = results_repository.read_trial_provider("attacker-testing")
-    path_hopping_attacker.display_capture_statistics(trial_provider)
+    provider_name = "delta-values"
+    trial_provider = results_repository.read_trial_provider(provider_name)
+    computed_trial_provider = results_repository.read_trial_provider(provider_name + "-computed")
+    # path_hopping_attacker.display_statistics_for_fixed_attacker(trial_provider)
+    # path_hopping_attacker.display_statistics_for_random_attacker(trial_provider)
+    # path_hopping_attacker.display_capture_statistics(trial_provider)
+    # path_hopping_attacker.display_statistics_for_synchronized_random_attacker(trial_provider)
+    # path_hopping_attacker.generate_data_recovery_data(trial_provider, "timestep")
+    # path_hopping_attacker.generate_data_recovery_versus_k_scatter(computed_trial_provider)
+    path_hopping_attacker.generate_data_recovery_versus_delta_scatter(computed_trial_provider)
 
 def main():
     # flow_mirroring_plots()

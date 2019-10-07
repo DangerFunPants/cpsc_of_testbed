@@ -37,7 +37,7 @@ class RandomPathHoppingAttacker(PathHoppingAttacker):
 
     def select_monitored_nodes(self, nodes, flows):
         self._monitored_nodes = {node 
-                for node in np.random.choice(list(nodes.keys()), self._K, replace=False)}
+                for node in np.random.choice(sorted(list(nodes.keys())), self._K, replace=False)}
 
     @staticmethod
     def create(N, K, G):

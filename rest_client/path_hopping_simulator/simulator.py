@@ -51,11 +51,11 @@ class PathHoppingSimulation:
         # Allow each flow to hop
         for flow in self._flows.values():
             pass
-            # flow.hop()
+            flow.hop()
 
         for attacker in self._attackers:
             attacker.monitor(self._nodes)
-            # attacker.select_monitored_nodes(self._nodes, self._flows)
+            attacker.select_monitored_nodes(self._nodes, self._flows)
 
     def print_state(self):
         print("Nodes: ")
@@ -95,9 +95,14 @@ class PathHoppingShare:
         return self._sink_node
 
     @staticmethod
-    def create_shares_for(flow_id, flow_source_node, flow_sink_node, seq_num, K):
+    def create_shares_for( flow_id
+                         , flow_source_node
+                         , flow_sink_node
+                         , seq_num
+                         , K
+                         , paths_for_message):
         return [PathHoppingShare(flow_id, seq_num, share_num, flow_source_node, flow_sink_node)
-                for share_num in range(K)]
+                for share_num in paths_for_message]
 
     def __str__(self):
         share_dict = { "flow_id"    : self.flow_id
@@ -205,7 +210,7 @@ class PathHoppingFlow:
         return fresh_flow_id
 
     def get_next_hop_for_share(self, share, current_node):
-        path_for_share = self._active_paths[share.share_num]
+        path_for_share = self._paths[share.share_num]
         current_hop_idx = path_for_share.index(current_node.node_id)
         next_hop_idx = current_hop_idx + 1
         if next_hop_idx == len(path_for_share):
@@ -222,7 +227,7 @@ class PathHoppingFlow:
         seq_num_for_share = self.get_next_seq_num()
         self._shares_received[seq_num_for_share] = 0
         shares = PathHoppingShare.create_shares_for(self.flow_id, self.source_node, 
-                self.sink_node, seq_num_for_share, self._K)
+                self.sink_node, seq_num_for_share, self._K, self._active_paths)
         return shares
 
     def receive_share(self, share):
@@ -233,6 +238,5 @@ class PathHoppingFlow:
 
     def hop(self):
         # @TODO: Make hopping frequency adjustable
-        self._active_paths = np.random.choice(self._paths, self._K, replace=False)
-        print("Sender chose paths: ")
-        pp.pprint(self._active_paths)
+        self._active_paths = np.random.choice([idx for idx in range(len(self._paths))],
+                self._K, replace=False)

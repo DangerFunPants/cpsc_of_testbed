@@ -10,22 +10,39 @@ from networkx.algorithms.connectivity.disjoint_paths    import node_disjoint_pat
 from collections                                        import defaultdict
 
 class PathHoppingSimulation:
-    def __init__(self, nx_graph, nodes, flows, attacker_collection):
-        self._ticks     = 0
+    def __init__(self, nx_graph, nodes, flows):
+        self._ticks     = 1
         self._nodes     = {n_i.node_id: n_i for n_i in nodes}
         self._nx_graph  = nx_graph
         self._flows     = {f_i.flow_id: f_i for f_i in flows}
-        self._attackers = attacker_collection
+        self._attackers = []
+
+    @property
+    def nodes(self):
+        return self._nodes
+
+    @property
+    def nx_graph(self):
+        return self._nx_graph
+
+    @property
+    def flows(self):
+        return self._flows
+
+    @property
+    def attackers(self):
+        return self._attackers
 
     @staticmethod
-    def create(nx_graph, flow_count, attacker_collection):
+    def create(nx_graph, flows):
         # @TODO: Determine values for N and K from G.
-        flows = {PathHoppingFlow.create_random_flow(nx_graph, 9, 5) for _ in range(flow_count)}
         nodes = {PathHoppingNode(node_id) for node_id in nx_graph.nodes}
-        the_path_hopping_simulation = PathHoppingSimulation(nx_graph, nodes, flows, 
-                attacker_collection)
+        the_path_hopping_simulation = PathHoppingSimulation(nx_graph, nodes, flows)
         return the_path_hopping_simulation
     
+    def add_attacker(self, the_attacker):
+        self._attackers.append(the_attacker)
+
     def step(self):
         # Inject packets from source to ingress node
         for flow in self._flows.values():
@@ -50,12 +67,14 @@ class PathHoppingSimulation:
         
         # Allow each flow to hop
         for flow in self._flows.values():
-            pass
             flow.hop()
 
+        # Allow the attacker to monitor nodes and update the collection of monitored paths
         for attacker in self._attackers:
             attacker.monitor(self._nodes)
-            attacker.select_monitored_nodes(self._nodes, self._flows)
+            attacker.select_monitored_nodes(self._nodes, self._flows, self._ticks)
+
+        self._ticks += 1
 
     def print_state(self):
         print("Nodes: ")
@@ -183,13 +202,30 @@ class PathHoppingFlow:
     def messages_rx(self):
         return self._messages_rx
 
+    @property
+    def paths(self):
+        return self._paths
+
     @staticmethod
     def create_random_flow( G
                           , N
                           , K
                           , min_data_volume = 1
-                          , max_data_volume = 100):
-        source_node, sink_node  = np.random.choice(G.nodes, 2, replace=False)
+                          , max_data_volume = 100
+                          , source_node     = None
+                          , sink_node       = None):
+        if source_node == None:
+            source_node = np.random.choice(G.nodes, 1)
+        if sink_node == None:
+            sink_node = np.random.choice((set(G.nodes) - {source_node}), 1)
+        
+        if source_node not in G.nodes: 
+            raise ValueError("Attempting to create flow with source %d that is not in graph" %
+                    source_node)
+        if sink_node not in G.nodes:
+            raise ValueError("Cannot create flow with sink %d that is not in graph" %
+                    sink_node)
+
         flow_data_volume        = np.random.randint(min_data_volume, max_data_volume+1)
         print("Source %d, Sink %d, Volume %d" % (source_node, sink_node, flow_data_volume))
         paths                   = list(node_disjoint_paths(G, source_node, sink_node))

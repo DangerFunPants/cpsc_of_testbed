@@ -6,7 +6,8 @@ import pprint           as pp
 
 import path_hopping_simulator.attackers     as attackers
 
-from networkx.algorithms.connectivity.disjoint_paths import node_disjoint_paths
+from networkx.algorithms.connectivity.disjoint_paths    import node_disjoint_paths
+from collections                                        import defaultdict
 
 class PathHoppingSimulation:
     def __init__(self, nx_graph, nodes, flows, attacker_collection):
@@ -33,17 +34,28 @@ class PathHoppingSimulation:
                 self._nodes[flow.source_node].receive_share(share)
 
         # Move each packet one hop towards its destination
+        node_id_to_shares_to_inject = defaultdict(set)
         for node in self._nodes.values():
             for share in node.resident_shares:
                 next_hop = self._flows[share.flow_id].get_next_hop_for_share(share, node)
                 if next_hop == -1:
                     self._flows[share.flow_id].receive_share(share)
                 else:
-                    self._nodes[next_hop].receive_share(share)
-            node.clear_resident_packets()
+                    node_id_to_shares_to_inject[next_hop].add(share)
+            node.clear_resident_packets() 
+
+        for node_id, shares_to_inject in node_id_to_shares_to_inject.items():
+            for share in shares_to_inject:
+                self._nodes[node_id].receive_share(share)
         
+        # Allow each flow to hop
+        for flow in self._flows.values():
+            pass
+            # flow.hop()
+
         for attacker in self._attackers:
             attacker.monitor(self._nodes)
+            # attacker.select_monitored_nodes(self._nodes, self._flows)
 
     def print_state(self):
         print("Nodes: ")
@@ -102,12 +114,6 @@ class PathHoppingNode:
         self._node_id           = node_id   
         self._resident_shares   = set()
 
-    def receive_share(self, share):
-        self._resident_shares.add(share)
-
-    def clear_resident_packets(self):
-        self._resident_shares = set()
-
     @property
     def node_id(self):
         return self._node_id
@@ -118,7 +124,16 @@ class PathHoppingNode:
 
     def vulnerable_shares(self):
         return [s_i for s_i in self.resident_shares 
-                if s_i.source_node != self._node_id and s_i.sink_node != self._node_id]
+                if s_i.source_node != self.node_id and s_i.sink_node != self.node_id]
+
+    def receive_share(self, share):
+        self._resident_shares.add(share)
+
+    def clear_resident_packets(self):
+        self._resident_shares = set()
+
+    def remove_share(self, share):
+        self._resident_shares.remove(share)
 
 class PathHoppingFlow:
     _flow_id_counter = 0
@@ -171,8 +186,8 @@ class PathHoppingFlow:
                           , max_data_volume = 100):
         source_node, sink_node  = np.random.choice(G.nodes, 2, replace=False)
         flow_data_volume        = np.random.randint(min_data_volume, max_data_volume+1)
+        print("Source %d, Sink %d, Volume %d" % (source_node, sink_node, flow_data_volume))
         paths                   = list(node_disjoint_paths(G, source_node, sink_node))
-
         if len(paths) < N:
             raise ValueError("Substrate cannot accommodate path hopping flow with N = %d \
                     (only %d disjoint paths between %d and %d)" %
@@ -217,4 +232,7 @@ class PathHoppingFlow:
             del self._shares_received[share.seq_num]
 
     def hop(self):
+        # @TODO: Make hopping frequency adjustable
         self._active_paths = np.random.choice(self._paths, self._K, replace=False)
+        print("Sender chose paths: ")
+        pp.pprint(self._active_paths)

@@ -9,11 +9,13 @@ from path_hopping_simulator.attackers       import RandomPathHoppingAttacker
 def main():
     np.random.seed(0xCAFE_BABE)
     G = nx.complete_graph(10)
-    attackers = [ RandomPathHoppingAttacker.create(9, 5, {n_i: 0 for n_i  in G.nodes})
+    attackers = [ RandomPathHoppingAttacker.create(9, 5, {n_i: 0 for n_i in sorted(G.nodes)})
                 ]
     simulation = ph_sim.PathHoppingSimulation.create(G, 1, attackers)
+
     for _ in range(300):
         simulation.step()
+
     simulation.print_state()
 
     for attacker in attackers:

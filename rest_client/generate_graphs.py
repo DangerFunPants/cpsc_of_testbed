@@ -10,6 +10,7 @@ import data_visualization.path_hopping              as path_hopping
 import data_visualization.security                  as security
 import data_visualization.mininet_benchmarks        as mininet_benchmarks
 import data_visualization.path_hopping_attacker     as path_hopping_attacker
+import data_visualization.path_hopping_simulations  as path_hopping_sim
 import nw_control.results_repository                as rr
 import port_mirroring.params                        as pm_cfg
 import mp_routing.params                            as mp_cfg
@@ -155,7 +156,8 @@ def print_statistics():
 def attacker_plots():
     results_repository = rr.ResultsRepository.create_repository(ph_cfg.base_repository_path,
             ph_cfg.repository_schema, ph_cfg.repository_name)
-    provider_name = "delta-values"
+    # provider_name = "delta-values"
+    provider_name = "k-values"
     trial_provider = results_repository.read_trial_provider(provider_name)
     computed_trial_provider = results_repository.read_trial_provider(provider_name + "-computed")
     # path_hopping_attacker.display_statistics_for_fixed_attacker(trial_provider)
@@ -163,8 +165,16 @@ def attacker_plots():
     # path_hopping_attacker.display_capture_statistics(trial_provider)
     # path_hopping_attacker.display_statistics_for_synchronized_random_attacker(trial_provider)
     # path_hopping_attacker.generate_data_recovery_data(trial_provider, "timestep")
-    # path_hopping_attacker.generate_data_recovery_versus_k_scatter(computed_trial_provider)
-    path_hopping_attacker.generate_data_recovery_versus_delta_scatter(computed_trial_provider)
+    path_hopping_attacker.generate_data_recovery_versus_k_scatter(computed_trial_provider)
+    # path_hopping_attacker.generate_data_recovery_versus_delta_scatter(computed_trial_provider)
+
+def simulation_plots():
+    results_repository = rr.ResultsRepository.create_repository(
+        path.Path("/home/cpsc-net-user/results-repositories/path-hopping-simulations"),
+        ph_cfg.repository_schema, "path-hopping-simulations")
+    trial_provider = results_repository.read_trial_provider("sim-path-length")
+    path_hopping_sim.generate_data_recovery_vs_param_plot(trial_provider, "path-length")
+
 
 def main():
     # flow_mirroring_plots()
@@ -178,6 +188,7 @@ def main():
     # testbed_multiflow_plots()
     # print_statistics()
     attacker_plots()
+    # simulation_plots()
 
 if __name__ == "__main__":
     main()

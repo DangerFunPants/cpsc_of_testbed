@@ -231,12 +231,13 @@ def generate_data_recovery_versus_k_scatter(trial_provider):
     helpers.plot_a_scatter(xs(random_synchronized_attacker_data), 
             ys(random_synchronized_attacker_data), idx=2, label="Random Synchronized Attacker", 
             err=zs(random_synchronized_attacker_data))
-    helpers.plot_a_scatter([2, 9], [unique_seq_nums]*2, label="Total Messages",
-            plot_markers=False, idx=3)
+    # helpers.plot_a_scatter([2, 9], [unique_seq_nums]*2, label="Total Messages",
+    #         plot_markers=False, idx=3)
 
+    plt.ylim(0, 10000)
     helpers.xlabel("$K$")
     helpers.ylabel("\# of Recovered Messages.")
-    helpers.save_figure("attacker-data-recovery.pdf", num_cols=2)
+    helpers.save_figure("attacker-data-recovery-vs-k.pdf", num_cols=2)
 
 def generate_data_recovery_versus_delta_scatter(trial_provider):
     random_unsynchronized_attacker_data = trial_provider.get_metadata(
@@ -258,8 +259,8 @@ def generate_data_recovery_versus_delta_scatter(trial_provider):
     helpers.plot_a_scatter(xs(random_synchronized_attacker_data), 
             ys(random_synchronized_attacker_data), idx=2, label="Random Synchronized Attacker", 
             err=zs(random_synchronized_attacker_data))
-    helpers.plot_a_scatter([min(xs(fixed_attacker_data)), max(xs(fixed_attacker_data))], 
-            [unique_seq_nums]*2, label="Total Messages", plot_markers=False, idx=3)
+    # helpers.plot_a_scatter([min(xs(fixed_attacker_data)), max(xs(fixed_attacker_data))], 
+    #         [unique_seq_nums]*2, label="Total Messages", plot_markers=False, idx=3)
 
     helpers.xlabel(r"$\delta$")
     helpers.ylabel(r"\# of Recovered Messages.")

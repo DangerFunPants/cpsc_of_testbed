@@ -12,6 +12,18 @@ class Attacker:
         self._hop_period        = hop_period
         self._hop_count         = 0
 
+    @property
+    def monitored_nodes(self):
+        return self._monitored_nodes
+
+    @property
+    def captured_shares(self):
+        return self._captured_shares
+
+    @property
+    def hop_count(self):
+        return self._hop_count
+
     def monitor(self, nodes):
         for node_id in self._monitored_nodes:
             self.capture_shares(nodes[node_id])
@@ -28,7 +40,7 @@ class Attacker:
         captured_messages = []
         for seq_num, share_group in itertools.groupby(captured_shares, key=seq_num_selector):
             share_group = list(share_group)
-            if len(share_group) == self._K:
+            if len({s_i.share_num for s_i in share_group}) == self._K:
                 captured_messages.append(seq_num)
         return captured_messages
 
@@ -56,19 +68,22 @@ class RandomNodeHoppingAttacker(Attacker):
 
     def print_state(self):
         captured_messages = self.reconstruct_captured_messages()
+        print("******************************** RANDOM NODE **************************")
         print("The random node hopping attacker captured %d shares." % len(self._captured_shares))
         print("The random node hopping attacker recovered %d messages." % len(captured_messages))
         print("The random node hopping attacker hopped %d times." % self._hop_count)
+        print("***********************************************************************\n")
 
 class RandomPathHoppingAttacker(Attacker):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self._node_collection = []
+        self._node_collection = None
 
     def select_monitored_nodes(self, nodes, flows, simulation_time):
         # Attack exactly one flow 
         flow = flows[0]
-        if len(self._node_collection) == 0:
+        if self._node_collection == None:
+            self._node_collection = []
             for p_i in flow.paths:
                 if len(p_i) <= 2:
                     continue
@@ -89,6 +104,47 @@ class RandomPathHoppingAttacker(Attacker):
 
     def print_state(self):
         captured_messages = self.reconstruct_captured_messages()
+        print("******************************** RANDOM PATH **************************")
         print("The random path hopping attacker recovered %d shares." % len(self._captured_shares))
-        print("The random path hopping attacker recevered %d messages." % len(captured_messages))
+        print("The random path hopping attacker recovered %d messages." % len(captured_messages))
         print("The random path hopping attacker hopped %d times." % self._hop_count)
+        print("***********************************************************************\n")
+
+class IdealRandomPathHoppingAttacker(Attacker):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self._path_collection = None
+
+    def select_monitored_nodes(self, nodes, flows, simulation_time):
+        def build_paths_for_target_flow(target_flow):
+            paths = []
+            for p_i in target_flow.paths:
+                paths.append(p_i[1:-1])
+            return paths
+
+        target_flow = flows[0]
+        if self._path_collection == None:
+            self._path_collection = build_paths_for_target_flow(target_flow)
+
+        if (simulation_time % self._hop_period) == 0:
+            monitored_paths = np.random.choice(range(len(self._path_collection)), 
+                    self._K, replace=False)
+            monitored_nodes = {n_i for p_i in monitored_paths for n_i in self._path_collection[p_i]}
+            self._monitored_nodes = monitored_nodes
+            self._hop_count += 1
+    
+    @staticmethod
+    def create(N, K, G, flows, hop_period):
+        the_ideal_attacker = IdealRandomPathHoppingAttacker(N, K, hop_period)
+        the_ideal_attacker.select_monitored_nodes(G.nodes, flows, 1)
+        return the_ideal_attacker
+
+    def print_state(self):
+        captured_messages = self.reconstruct_captured_messages()
+        print("******************************** RANDOM IDEAL *************************")
+        print("The random ideal path hopping attacker recovered %d shares." % 
+                len(self._captured_shares))
+        print("The random ideal path hopping attacker recovered %d messages." %
+                len(captured_messages))
+        print("The random ideal path hopping attacker hopped %d times." % self._hop_count)
+        print("***********************************************************************\n")

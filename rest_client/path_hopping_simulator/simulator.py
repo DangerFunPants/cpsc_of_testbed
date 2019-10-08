@@ -86,10 +86,17 @@ class PathHoppingSimulation:
             for f_i in self._flows.values()})
 
 class PathHoppingShare:
-    def __init__(self, flow_id, seq_num, share_num, source_node, sink_node):
+    def __init__( self
+                , flow_id
+                , seq_num
+                , share_num
+                , path_idx
+                , source_node
+                , sink_node):
         self._flow_id       = flow_id
         self._seq_num       = seq_num
         self._share_num     = share_num
+        self._path_idx      = path_idx
         self._source_node   = source_node
         self._sink_node     = sink_node 
 
@@ -106,6 +113,10 @@ class PathHoppingShare:
         return self._share_num 
 
     @property
+    def path_idx(self):
+        return self._path_idx
+
+    @property
     def source_node(self):
         return self._source_node
 
@@ -120,8 +131,9 @@ class PathHoppingShare:
                          , seq_num
                          , K
                          , paths_for_message):
-        return [PathHoppingShare(flow_id, seq_num, share_num, flow_source_node, flow_sink_node)
-                for share_num in paths_for_message]
+        return [PathHoppingShare(flow_id, seq_num, share_num, path_idx,
+            flow_source_node, flow_sink_node)
+                for share_num, path_idx in enumerate(paths_for_message)]
 
     def __str__(self):
         share_dict = { "flow_id"    : self.flow_id
@@ -148,7 +160,7 @@ class PathHoppingNode:
 
     def vulnerable_shares(self):
         return [s_i for s_i in self.resident_shares 
-                if s_i.source_node != self.node_id and s_i.sink_node != self.node_id]
+                if (s_i.source_node != self.node_id) and (s_i.sink_node != self.node_id)]
 
     def receive_share(self, share):
         self._resident_shares.add(share)
@@ -168,8 +180,9 @@ class PathHoppingFlow:
                 , data_volume
                 , paths
                 , N
-                , K):
-        self._flow_id           = PathHoppingFlow._get_fresh_flow_id()
+                , K
+                , flow_id):
+        self._flow_id           = flow_id if flow_id != None else PathHoppingFlow.get_fresh_flow_id()
         self._source_node       = source_node
         self._sink_node         = sink_node
         self._paths             = paths 
@@ -213,7 +226,8 @@ class PathHoppingFlow:
                           , min_data_volume = 1
                           , max_data_volume = 100
                           , source_node     = None
-                          , sink_node       = None):
+                          , sink_node       = None
+                          , flow_id         = None):
         if source_node == None:
             source_node = np.random.choice(G.nodes, 1)
         if sink_node == None:
@@ -234,7 +248,7 @@ class PathHoppingFlow:
                     (only %d disjoint paths between %d and %d)" %
                     (N, len(paths), source_node, sink_node))
         
-        the_flow = PathHoppingFlow(source_node, sink_node, flow_data_volume, paths, N, K)
+        the_flow = PathHoppingFlow(source_node, sink_node, flow_data_volume, paths, N, K, flow_id)
         # @TODO: Implement hopping and variable hopping rates.
         the_flow.hop()
         return the_flow
@@ -246,7 +260,7 @@ class PathHoppingFlow:
         return fresh_flow_id
 
     def get_next_hop_for_share(self, share, current_node):
-        path_for_share = self._paths[share.share_num]
+        path_for_share = self._paths[share.path_idx]
         current_hop_idx = path_for_share.index(current_node.node_id)
         next_hop_idx = current_hop_idx + 1
         if next_hop_idx == len(path_for_share):

@@ -182,7 +182,7 @@ class PathHoppingFlow:
                 , N
                 , K
                 , flow_id):
-        self._flow_id           = flow_id if flow_id != None else PathHoppingFlow.get_fresh_flow_id()
+        self._flow_id           = flow_id if flow_id != None else PathHoppingFlow._get_fresh_flow_id()
         self._source_node       = source_node
         self._sink_node         = sink_node
         self._paths             = paths 

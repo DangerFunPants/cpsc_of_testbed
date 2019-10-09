@@ -77,7 +77,11 @@ def main():
     results_repository = rr.ResultsRepository.create_repository(
             path.Path("/home/cpsc-net-user/results-repositories/path-hopping-simulations"),
             ph_cfg.repository_schema, "path-hopping-simulations")
-    trial_provider = trials.varying_path_length()
+
+    # trial_provider = trials.varying_path_length()
+    # trial_provider = trials.varying_hop_period()
+    trial_provider = trials.varying_number_of_paths()
+
     for the_trial in trial_provider:
         conduct_path_hopping_simulation(the_trial)
     schema_vars = {"provider-name": trial_provider.provider_name}

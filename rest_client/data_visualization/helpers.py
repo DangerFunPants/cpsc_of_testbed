@@ -231,10 +231,9 @@ def plot_a_scatter( xs
 
     if err != None:
         # plot_kwargs["err"] = err
-        # axis_to_plot_on.errorbar(xs, ys, yerr=err, **plot_kwargs)
-        pass
-
-    axis_to_plot_on.plot(xs, ys, **plot_kwargs)
+        axis_to_plot_on.errorbar(xs, ys, yerr=err, **plot_kwargs)
+    else:
+        axis_to_plot_on.plot(xs, ys, **plot_kwargs)
 
 
 

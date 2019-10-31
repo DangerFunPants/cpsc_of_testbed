@@ -5,7 +5,7 @@ import pathlib                          as path
 import nw_control.trial_provider        as trial_provider
 
 def test_with_single_trial():
-    the_trial_provider = trial_provider.TrialProvider("attacker-testing")
+    the_trial_provider = trial_provider.TrialProvider("attacker-testing-latency")
     the_trial = trial_provider.Trial("attacker-testing")
     the_trial.add_parameter("K", 5)
     the_trial.add_parameter("N", 9)
@@ -22,7 +22,7 @@ def test_with_single_trial():
     return the_trial_provider
 
 def test_with_varying_k_values():
-    the_trial_provider = trial_provider.TrialProvider("k-values")
+    the_trial_provider = trial_provider.TrialProvider("k-values-discrete-delay")
     for k_value in range(1, 10):
         the_trial = trial_provider.Trial("k-%d" % k_value)
         the_trial.add_parameter("K", k_value)
@@ -40,7 +40,7 @@ def test_with_varying_k_values():
     return the_trial_provider
 
 def test_with_varying_delta_values():
-    the_trial_provider = trial_provider.TrialProvider("delta-values")
+    the_trial_provider = trial_provider.TrialProvider("delta-values-discrete-delay")
     for delta_value in [10, 100, 1000]:
         the_trial = trial_provider.Trial("delta-%d" % delta_value)
         the_trial.add_parameter("K", 5)

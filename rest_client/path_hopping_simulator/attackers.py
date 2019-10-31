@@ -3,8 +3,10 @@ import numpy                    as np
 import pprint                   as pp
 import itertools                as itertools
 
+from networkx.algorithms.connectivity.disjoint_paths import node_disjoint_paths
+
 class Attacker:
-    def __init__(self, N, K, hop_period):
+    def __init__(self, N, K, hop_period, **kwargs):
         self._monitored_nodes   = set()
         self._N                 = N
         self._K                 = K
@@ -148,3 +150,123 @@ class IdealRandomPathHoppingAttacker(Attacker):
                 len(captured_messages))
         print("The random ideal path hopping attacker hopped %d times." % self._hop_count)
         print("***********************************************************************\n")
+
+class OneNodePerPathAttacker(Attacker):
+    def __init__(self, *args, **kwargs):
+        self._graph = kwargs["graph"]
+        super().__init__(*args, **kwargs)
+        self._path_collection = None
+
+    def select_monitored_nodes(self, nodes, flows, simulation_time):
+        target_flow = flows[0]
+        if self._path_collection == None:
+            self._path_collection = [p_i[1:-1] for p_i in target_flow.paths]
+
+        # Select K paths, then select a single node on each of the paths.
+        if simulation_time & self._hop_period == 0:
+            k_paths = list(np.random.choice(range(len(self._path_collection)), 
+                self._K, replace=False))
+            monitored_nodes = {np.random.choice(p_i) 
+                    for p_i in [self._path_collection[k_path_idx] for k_path_idx in k_paths]}
+            self._monitored_nodes = monitored_nodes
+            self._hop_count += 1
+
+    def print_state(self):
+        captured_messages = self.reconstruct_captured_messages()
+        print("***************************** One Node per Path Attacker ***************")
+        print(f"The one node per path attacker recovered {len(self._captured_shares)} shares.")
+        print(f"The one node per path attacker recovered {len(captured_messages)} messages.")
+        print(f"The one node per path hopping attacker hopped {self._hop_count} times.")
+        print("************************************************************************")
+
+    @staticmethod
+    def create(N, K, G, flows, hop_period):
+        one_node_per_path_attacker = OneNodePerPathAttacker(N, K, hop_period, graph=G)
+        one_node_per_path_attacker.select_monitored_nodes(G.nodes, flows, 1)
+        return one_node_per_path_attacker
+
+class FixedAttacker(Attacker):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self._path_collection = None
+
+    def select_monitored_nodes(self, nodes, flows, simulation_time):
+        target_flow = flows[0]
+        if self._path_collection == None:
+            self._path_collection = [p_i[1:-1] for p_i in target_flow.paths]
+            k_paths = list(np.random.choice(range(len(self._path_collection)),
+                self._K, replace=False))
+            monitored_nodes = {np.random.choice(p_i)
+                    for p_i in [self._path_collection[k_path_idx] for k_path_idx in k_paths]}
+            self._monitored_nodes = monitored_nodes
+            self._hop_count = 1
+
+    @staticmethod
+    def create(N, K, G, flows, hop_period):
+        the_fixed_attacker = FixedAttacker(N, K, hop_period)
+        the_fixed_attacker.select_monitored_nodes(G.nodes, flows, 1)
+        return the_fixed_attacker
+
+    def print_state(self):
+        captured_messages = self.reconstruct_captured_messages()
+        print("*************************** Fixed Attacker *******************************")
+        print(f"The fixed attacker recovered {len(self._captured_shares)} shares.")
+        print(f"The fixed attacker recovered {len(captured_messages)} messages.")
+        print(f"The fixed attacker hopped {self._hop_count}.")
+        print("**************************************************************************")
+
+class PlannedAttacker(Attacker):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self._shares = {}
+        self._flows = kwargs["flows"]
+        self._nodes = kwargs["nodes"]
+        self._active_paths = set()
+        self._hop_index = 1
+
+    def select_monitored_nodes(self, nodes, flows, simulation_time):
+        target_flow = flows[0]
+        # if self._path_collection == None:
+        #     possible_nodes = [p_i[1] for p_i in target_flow.paths]
+        #     k_nodes = list(np.random.choice(possible_nodes, self._K, replace=False))
+        #     self._monitored_nodes = k_nodes
+        if self._hop_index == max([len(p_i) for p_i in target_flow.paths]):
+            self._hop_index = 1
+            self._active_paths = set()
+
+        possible_nodes = list({p_i[self._hop_index] for p_i in target_flow.paths} -
+                {p_i[self._hop_index] for p_i in [target_flow.paths[path_idx] 
+                    for path_idx in self._active_paths]})
+        
+        if len(possible_nodes) <= self._K:
+            self._monitored_nodes = possible_nodes
+        else:
+            # self._monitored_nodes = list(np.random.choice(possible_nodes, self._K, replace=False))
+            self._monitored_nodes = list(np.random.choice(possible_nodes, 5, replace=False))
+
+        self._hop_index += 1
+        
+    def capture_shares(self, node):
+        shares = node.vulnerable_shares()
+        if len(shares) > 0:
+            paths = self._flows[0].paths
+            corresponding_path = next(path_idx 
+                    for path_idx, p_i in enumerate(paths)
+                    if node.node_id in p_i)
+            self._active_paths.add(corresponding_path)
+        self._captured_shares.extend(node.vulnerable_shares())
+
+    @staticmethod
+    def create(N, K, G, flows, hop_period, nodes):
+        the_planned_attacker = PlannedAttacker(N, K, hop_period, flows=flows, nodes=nodes)
+        the_planned_attacker.select_monitored_nodes(G.nodes, flows, 1)
+        return the_planned_attacker
+        
+    def print_state(self):
+        captured_messages = self.reconstruct_captured_messages()
+        print("*************************** Planned Attacker *******************************")
+        print(f"The planned attacker recovered {len(self._captured_shares)} shares.")
+        print(f"The planned attacker recovered {len(captured_messages)} messages.")
+        print(f"The planned attacker hopped {self._hop_count}.")
+        print("**************************************************************************")
+

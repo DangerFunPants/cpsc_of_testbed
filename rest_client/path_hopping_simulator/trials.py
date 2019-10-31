@@ -4,9 +4,9 @@ import random                          as rand
 import nw_control.trial_provider       as trial_provider
 
 def varying_path_length():
-    NUMBER_OF_RUNS = 10
+    NUMBER_OF_RUNS = 1
 
-    the_trial_provider = trial_provider.TrialProvider("sim-path-length-slow-hops")
+    the_trial_provider = trial_provider.TrialProvider("sim-path-length-fast-hops")
     for path_length in range(1, 11):
         for run_idx, seed_number in enumerate([rand.randint(0, 2**32) 
             for _ in range(NUMBER_OF_RUNS)]):
@@ -15,7 +15,7 @@ def varying_path_length():
             the_trial.add_parameter("path-length", path_length)
             the_trial.add_parameter("K", 5)
             the_trial.add_parameter("N", 10)
-            the_trial.add_parameter("attacker-hop-period", 99)
+            the_trial.add_parameter("attacker-hop-period", 1)
             the_trial.add_parameter("seed-number", seed_number)
             the_trial.add_parameter("sim-duration", 100000)
             the_trial_provider.add_trial(the_trial)

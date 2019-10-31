@@ -70,7 +70,10 @@ def plot_share_delay_cdf(packets, **kwargs):
         inter_share_delays.append(inter_share_delay)
 
     inter_share_delays_ms = sorted([isd/1000 for isd in inter_share_delays])
-    helpers.plot_a_cdf(inter_share_delays_ms, plot_markers=False, **kwargs)
+    percentile_idx = int(len(inter_share_delays_ms) * 0.999)
+    print(f"99th percentile of CDF is {inter_share_delays_ms[percentile_idx]}")
+    helpers.plot_a_cdf(inter_share_delays_ms[:(percentile_idx+1)], plot_markers=False, **kwargs)
+    helpers.save_figure("inter-share-delay.pdf", num_cols=1)
 
 def plot_best_and_worst_paths_cdf(capture_name, packets, **kwargs):
     """

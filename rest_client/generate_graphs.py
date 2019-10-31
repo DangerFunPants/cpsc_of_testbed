@@ -145,49 +145,61 @@ def testbed_multiflow_plots():
     pre_process_trial_data(trial_provider)
     path_hopping.generate_computed_link_utilization_cdf(trial_provider)
 
-def print_statistics():
-    repo_path = path.Path("/home/cpsc-net-user/results-repositories/multiflow-results")
-    results_repository = rr.ResultsRepository.create_repository(repo_path,
-            ph_cfg.repository_schema, ph_cfg.repository_name)
-    trial_provider = results_repository.read_trial_provider("multiflow-tests-binomial")
-    pre_process_trial_data(trial_provider)
-    path_hopping.print_admitted_flow_statistics(trial_provider)
-
 def attacker_plots():
     results_repository = rr.ResultsRepository.create_repository(ph_cfg.base_repository_path,
             ph_cfg.repository_schema, ph_cfg.repository_name)
     # provider_name = "delta-values"
-    provider_name = "delta-values"
-    trial_provider = results_repository.read_trial_provider(provider_name)
-    computed_trial_provider = results_repository.read_trial_provider(provider_name + "-computed")
+    # provider_name = "delta-values"
+    # trial_provider = results_repository.read_trial_provider("k-values-delay")
+    k_values_trial_provider = results_repository.read_trial_provider(
+            "k-values-computed")
+    # delta_values_trial_provider = results_repository.read_trial_provider("delta-values-discrete-delay-computed")
     # path_hopping_attacker.display_statistics_for_fixed_attacker(trial_provider)
     # path_hopping_attacker.display_statistics_for_random_attacker(trial_provider)
     # path_hopping_attacker.display_capture_statistics(trial_provider)
     # path_hopping_attacker.display_statistics_for_synchronized_random_attacker(trial_provider)
-    # path_hopping_attacker.generate_data_recovery_data(trial_provider, "timestep")
-    # path_hopping_attacker.generate_data_recovery_versus_k_scatter(computed_trial_provider)
-    path_hopping_attacker.generate_data_recovery_versus_delta_scatter(computed_trial_provider)
+    # path_hopping_attacker.generate_data_recovery_data(trial_provider, "K")
+
+    path_hopping_attacker.generate_data_recovery_versus_k_scatter(k_values_trial_provider)
+    # path_hopping_attacker.generate_data_recovery_versus_delta_scatter(delta_values_trial_provider)
 
 def simulation_plots():
     results_repository = rr.ResultsRepository.create_repository(
         path.Path("/home/cpsc-net-user/results-repositories/path-hopping-simulations"),
         ph_cfg.repository_schema, "path-hopping-simulations")
 
-    # path_length_trial_provider = results_repository.read_trial_provider("sim-path-length")
+    path_length_trial_provider = results_repository.read_trial_provider("sim-path-length-fast-hops")
     # path_length_trial_provider = results_repository.read_trial_provider(
     #         "sim-path-length-slow-hops")
-    # path_hopping_sim.generate_data_recovery_vs_param_plot(path_length_trial_provider, 
-    #         "path-length", "Path length")
+    path_hopping_sim.generate_data_recovery_vs_param_plot(path_length_trial_provider, 
+            "path-length", "Path length")
+    # path_hopping_sim.generate_data_recovery_vs_time_cdf(path_length_trial_provider)
 
     # delta_trial_provider = results_repository.read_trial_provider("sim-hop-period")
     # delta_trial_provider = results_repository.read_trial_provider("sim-hop-period-long-paths")
     # path_hopping_sim.generate_data_recovery_vs_param_plot(delta_trial_provider,
     #         "attacker-hop-period", r"$\delta$")
 
-    path_count_trial_provider = results_repository.read_trial_provider("sim-number-of-paths")
-    path_hopping_sim.generate_data_recovery_vs_param_plot(path_count_trial_provider,
-            "N", r"$N$")
+    # path_count_trial_provider = results_repository.read_trial_provider("sim-number-of-paths")
+    # path_count_trial_provider = results_repository.read_trial_provider(
+    #         "sim-number-of-paths-slow-hops")
+    # path_hopping_sim.generate_data_recovery_vs_param_plot(path_count_trial_provider,
+    #         "N", r"$N$")
 
+def print_statistics():
+    results_repository = rr.ResultsRepository.create_repository(ph_cfg.base_repository_path,
+            ph_cfg.repository_schema, ph_cfg.repository_name)
+    trial_provider = results_repository.read_trial_provider("attacker-testing-latency")
+    path_hopping_attacker.display_capture_statistics(trial_provider)
+
+def latency_testing_plots():
+    results_repository = rr.ResultsRepository.create_repository(ph_cfg.base_repository_path,
+            ph_cfg.repository_schema, ph_cfg.repository_name)
+    trial_provider = results_repository.read_trial_provider("attacker-testing-latency")
+    the_trial = next(iter(trial_provider))
+    packets = the_trial.get_parameter("packet-dump")
+    security.plot_share_delay_cdf([p_i for p_i in packets
+        if p_i.source_ip == "10.10.0.1"])
 
 def main():
     # flow_mirroring_plots()
@@ -199,9 +211,10 @@ def main():
     # mininet_benchmark_plots()
     # test_plot()
     # testbed_multiflow_plots()
-    # print_statistics()
     # attacker_plots()
     simulation_plots()
+    # print_statistics()
+    # latency_testing_plots()
 
 if __name__ == "__main__":
     main()

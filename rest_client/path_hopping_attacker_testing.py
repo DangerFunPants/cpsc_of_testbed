@@ -3,6 +3,12 @@ import traceback                        as traceback
 import networkx                         as nx
 import time                             as time
 import pathlib                          as path
+import subprocess                       as subprocess
+import shlex                            as shlex
+import json                             as json
+import pprint                           as pp
+import numpy                            as np
+import random                           as rand 
 
 import virtual_hosts.virtual_host       as virtual_host
 import nw_control.topo_mapper           as topo_mapper
@@ -199,20 +205,74 @@ def conduct_path_hopping_trial(results_repository, the_trial):
 def test_virtual_host_installation():
     id_to_dpid = topo_mapper.get_and_validate_onos_topo_x(SUBSTRATE_TOPOLOGY)
     sender, receiver = None, None
+    # add_path_hopping_delays("ens192", 9, lambda: int(np.random.uniform(0, 1000)))
     while True:
         try:
             sender, receiver = create_sender_receiver_pair(id_to_dpid)
         except Exception as ex:
             print(ex)
             print("Failed to create sender or receiver")
-
+        input("Okay do stuff now...") 
         try:
             destroy_sender_receiver_pair(sender, receiver)
+            # remove_path_hopping_delays("ens192")
         except Exception:
             pass
-        input("Press enter to try again.") 
+        break
+        # input("Press enter to try again.") 
+
+def execute_shell_command(cmd_to_exec):
+    split_cmd = shlex.split(cmd_to_exec)
+    completed_process = subprocess.run(split_cmd, stdout=subprocess.PIPE)
+    cmd_output = completed_process.stdout.decode("utf-8")
+    return cmd_output
+
+def add_path_hopping_delays(iface_name, N, delay_fn):
+    def get_root_qdisc_handle(iface_name):
+        show_qdisc_cmd = f"tc qdisc show dev {iface_name}"
+        cmd_output = execute_shell_command(show_qdisc_cmd)
+        root_line = [line for line in cmd_output.splitlines()
+                if "root" in line][0]
+        qdisc_id = root_line.split(" ")[2][:-1]
+        return qdisc_id
+
+    # First create a classful qdisc as the root qdisc of the specified interface
+    create_classful_cmd = f"sudo tc qdisc add dev {iface_name} root prio bands {N} "\
+            f"priomap 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0"
+    execute_shell_command(create_classful_cmd)
+
+    # Retrieve the handle for the parent qdisc
+    classful_major = get_root_qdisc_handle(iface_name) 
+
+    # After the root qdisc is created we create children, each of which is a netem qdisc
+    for child_qdisc_id in range(1, N+1):
+        delay_ms = delay_fn()
+        create_child_qdisc_cmd = f"sudo tc qdisc add dev {iface_name} parent "\
+                f"{classful_major}:{child_qdisc_id} netem delay {delay_ms}ms"
+        execute_shell_command(create_child_qdisc_cmd)
+
+    # Once the child qdiscs have been created, we create filters to redirect packets with
+    # specific UDP ports to each of the child qdiscs.
+    udp_ports = [50200 + i for i in range(9)]
+    for child_qdisc_id, udp_port_num in zip(range(1, N+1), udp_ports):
+        create_filter_cmd = \
+                f"sudo tc filter add dev {iface_name} "\
+                f"parent {classful_major}:0 prio 99 protocol ip u32 match ip "\
+                f"sport {udp_port_num} 0xffff flowid {classful_major}:{child_qdisc_id}"
+        execute_shell_command(create_filter_cmd)
+
+def remove_path_hopping_delays(iface_name):
+    # To remove all the rules, we just need to delete the root qdisc
+    del_root_qdisc_cmd = f"sudo tc qdisc del dev {iface_name} root"
+    execute_shell_command(del_root_qdisc_cmd)
 
 def main():
+    # seed_number = 0xCAFE_BABE
+    # seed_number = rand.randint(0, 2**32)
+    seed_number = 93782813 
+    print(f"seed number is {seed_number}")
+    np.random.seed(seed_number)
+
     results_repository = rr.ResultsRepository.create_repository(ph_cfg.base_repository_path,
             ph_cfg.repository_schema, ph_cfg.repository_name)
 
@@ -220,13 +280,19 @@ def main():
     # trial_provider = trials.test_with_varying_k_values()
     trial_provider = trials.test_with_varying_delta_values()
 
+    # delay_fn = lambda : int(np.random.uniform(0, 500))
+    delay_fn = lambda : np.random.choice([0, 100, 200, 300])
+    add_path_hopping_delays("ens192", 9, delay_fn)
+
     for the_trial in trial_provider:
         print("Conducting trial with K = %d" % the_trial.get_parameter("K"))
         conduct_path_hopping_trial(None, the_trial)
         time.sleep(10)
 
+    remove_path_hopping_delays("ens192")
     schema_vars = {"provider-name": trial_provider.provider_name}
     results_repository.write_trial_provider(schema_vars, trial_provider, overwrite=True)
 
 if __name__ == "__main__":
     main()
+    # test_virtual_host_installation()

@@ -38,8 +38,9 @@ def display_capture_statistics(trial_provider):
     for trial in trial_provider:
         captured_packets = trial.get_parameter("packet-dump")
         print("Capture has %d packets" % len(captured_packets))
-        port_set = {p_i.source_port for p_i in captured_packets}
+        port_set = {p_i.destination_port for p_i in captured_packets}
         print("Capture has %d unique source ports" % len(port_set))
+        pp.pprint(port_set)
 
 def fixed_attacker(packets, K):
     ports = list({p_i.source_port 
@@ -82,6 +83,36 @@ def random_attacker(packets, K, timestep_ms, duration):
     return len([s_i for s_i in seq_num_to_share_count.values() 
         if len(s_i) == K
         # and all([t_i[1] == s_i[0][1] for t_i in s_i])
+        ])
+
+def perturbed_random_attacker(packets, K, timestep_ms, duration):
+    print(f"Performing random perturbed attack on trace with K = {K}, "\
+            "timestep = {timestep_ms} and duration = {duration}")
+    timestep_us = timestep_ms * 1000
+    ports = list({p_i.source_port
+        for p_i in packets if (p_i.source_port != 11111) and (p_i.source_ip == "10.10.0.1")})
+    ports_to_listen_on = np.random.choice(ports, K, replace=False)
+    seq_num_to_share_count = defaultdict(list)
+    interval_start_time = packets[0].timestamp
+    interval_id = 0
+    number_of_packets_from_sender = 0
+    perturbation_factor = np.random.uniform(-0.5, 0.5)
+    for p_i in packets:
+        if p_i.source_ip == "10.10.0.1":
+            number_of_packets_from_sender += 1
+
+        if p_i.source_ip == "10.10.0.1" and p_i.source_port in ports_to_listen_on:
+            seq_num_to_share_count[p_i.seq_num].append((p_i.share_num, interval_id))
+
+        if (p_i.timestamp - interval_start_time) > \
+                (timestep_us + (timestep_us * perturbation_factor)):
+            interval_id += 1
+            interval_start_time = p_i.timestamp
+            ports_to_listen_on = np.random.choice(ports, K, replace=False)
+            perturbation_factor = np.random.uniform(-0.5, 0.5)
+
+    return len([s_i for s_i in seq_num_to_share_count.values()
+        if len(s_i) == K
         ])
 
 def synchronized_random_attacker(packets, sender_hop_times, K, timestep_ms):
@@ -150,15 +181,11 @@ def display_active_paths_per_interval(trial, interval_duration):
     pp.pprint({k: v/len(active_paths_per_interval) 
         for k, v in Counter(active_paths_per_interval).items()})
 
-# def display_capture_statistics(trial_provider):
-#     for trial in trial_provider:
-#         print_capture_statistics(trial)
-#         display_active_paths_per_interval(trial, trial.get_parameter("timestep"))
-
 def generate_data_recovery_data(trial_provider, independent_variable):
-    random_attacker_scatter_points          = defaultdict(list)
-    fixed_attacker_scatter_points           = defaultdict(list)
-    random_synced_attacker_scatter_points   = defaultdict(list)
+    random_attacker_scatter_points              = defaultdict(list)
+    fixed_attacker_scatter_points               = defaultdict(list)
+    random_synced_attacker_scatter_points       = defaultdict(list)
+    random_perturbed_attacker_scatter_points    = defaultdict(list)
     unique_seq_nums = None
     for the_trial in trial_provider:
         packets             = the_trial.get_parameter("packet-dump")
@@ -171,15 +198,20 @@ def generate_data_recovery_data(trial_provider, independent_variable):
         for round_seed_number in [rand.randint(0, 2**32) for _ in range(10)]:
             unique_seq_nums = len({p_i.seq_num for p_i in packets if p_i.source_ip == "10.10.0.1"})
 
-            random_attacker_recovered_packets = random_attacker(packets, 
+            packets_at_receiver = [p_i for p_i in packets if p_i.source_ip == "10.10.0.1"]
+            random_attacker_recovered_packets = random_attacker(packets_at_receiver, 
                     k_value, timestep, elapsed_tx_time)
-            fixed_attacker_recovered_packets = fixed_attacker(packets, k_value)
-            random_synced_recovered_packets = synchronized_random_attacker(packets,
+            fixed_attacker_recovered_packets = fixed_attacker(packets_at_receiver, k_value)
+            random_synced_recovered_packets = synchronized_random_attacker(packets_at_receiver,
                     sender_hop_times, k_value, timestep)
+            random_perturbed_recovered_packets = perturbed_random_attacker(
+                    packets_at_receiver, k_value, timestep, elapsed_tx_time)
 
             random_attacker_scatter_points[x_value].append(random_attacker_recovered_packets)
             fixed_attacker_scatter_points[x_value].append(fixed_attacker_recovered_packets)
             random_synced_attacker_scatter_points[x_value].append(random_synced_recovered_packets)
+            random_perturbed_attacker_scatter_points[x_value].append(
+                    random_perturbed_recovered_packets)
     
     random_unsynchronized_attacker_data = [
             (iv_value, np.mean(recovered_packets), np.std(recovered_packets))
@@ -193,11 +225,17 @@ def generate_data_recovery_data(trial_provider, independent_variable):
             (iv_value, np.mean(recovered_packets), np.std(recovered_packets))
             for iv_value, recovered_packets in random_synced_attacker_scatter_points.items()]
 
+    random_perturbed_attacker_data = [
+            (iv_value, np.mean(recovered_packets), np.std(recovered_packets))
+            for iv_value, recovered_packets in random_perturbed_attacker_scatter_points.items()]
+
     trial_provider.add_metadata("random-unsynchronized-attacker-data",
             random_unsynchronized_attacker_data)
     trial_provider.add_metadata("fixed-attacker-data", fixed_attacker_data)
     trial_provider.add_metadata("random-synchronized-attacker-data",
             random_synchronized_attacker_data)
+    trial_provider.add_metadata("random-perturbed-attacker-data",
+            random_perturbed_attacker_data)
 
     results_repository = rr.ResultsRepository.create_repository(ph_cfg.base_repository_path,
             ph_cfg.repository_schema, ph_cfg.repository_name)
@@ -217,22 +255,65 @@ def generate_data_recovery_versus_k_scatter(trial_provider):
     fixed_attacker_data = trial_provider.get_metadata("fixed-attacker-data")
     random_synchronized_attacker_data = trial_provider.get_metadata(
             "random-synchronized-attacker-data")
+    random_perturbed_attacker_data = trial_provider.get_metadata("random-perturbed-attacker-data")
 
     packets = next(iter(trial_provider)).get_parameter("packet-dump")
-    unique_seq_nums = len({p_i.seq_num for p_i in packets if p_i.source_ip == "10.10.0.1"})
+    packets = [t_i.get_parameter("packet-dump") for t_i in trial_provider]
+    unique_seq_nums = max([
+        len({p_i.seq_num for p_i in packets_i if p_i.source_ip == "10.10.0.1"})
+        for packets_i in packets
+        ])
+    # unique_seq_nums = len({p_i.seq_num for p_i in packets if p_i.source_ip == "10.10.0.1"})
+
+    fig, ax = plt.subplots()
 
     helpers.plot_a_scatter(xs(random_unsynchronized_attacker_data), 
             ys(random_unsynchronized_attacker_data),
             idx=0, label="Random Unsynchronized Attacker", 
-            err=zs(random_unsynchronized_attacker_data))
-    helpers.plot_a_scatter(xs(fixed_attacker_data), 
-            ys(fixed_attacker_data),
-            idx=1, label="Fixed Attacker", err=zs(fixed_attacker_data))
-    helpers.plot_a_scatter(xs(random_synchronized_attacker_data), 
-            ys(random_synchronized_attacker_data), idx=2, label="Random Synchronized Attacker", 
-            err=zs(random_synchronized_attacker_data))
-    helpers.plot_a_scatter([2, 9], [unique_seq_nums]*2, label="Total Messages",
-            plot_markers=False, idx=3)
+            err=zs(random_unsynchronized_attacker_data),
+            axis_to_plot_on=ax)
+    # helpers.plot_a_scatter(xs(fixed_attacker_data), 
+    #         ys(fixed_attacker_data),
+    #         idx=1, label="Fixed Attacker", err=zs(fixed_attacker_data),
+    #         axis_to_plot_on=ax)
+    # helpers.plot_a_scatter(xs(random_synchronized_attacker_data), 
+    #         ys(random_synchronized_attacker_data), idx=2, label="Random Synchronized Attacker", 
+    #         err=zs(random_synchronized_attacker_data),
+    #         axis_to_plot_on=ax)
+    helpers.plot_a_scatter(xs(random_perturbed_attacker_data),
+            ys(random_perturbed_attacker_data), idx=1, label="Random Perturbed Attacker",
+            err=zs(random_perturbed_attacker_data),
+            axis_to_plot_on=ax)
+    helpers.plot_a_scatter([1, 9], [unique_seq_nums]*2, label="Total Messages",
+            plot_markers=False, idx=2,
+            axis_to_plot_on=ax)
+
+    inset_axis = ax.inset_axes([0.05, 0.5, 0.47, 0.37])
+    x1, x2, y1, y2 = 0.5, 8.5, -10, 30000
+    inset_axis.set_xlim(x1, x2)
+    inset_axis.set_ylim(y1, y2)
+    inset_axis.set_xticklabels("")
+    inset_axis.set_yticklabels("")
+
+    helpers.plot_a_scatter(xs(random_unsynchronized_attacker_data), 
+            ys(random_unsynchronized_attacker_data),
+            idx=0, label="Random Unsynchronized Attacker", 
+            err=zs(random_unsynchronized_attacker_data),
+            axis_to_plot_on=inset_axis)
+    # helpers.plot_a_scatter(xs(fixed_attacker_data), 
+    #         ys(fixed_attacker_data),
+    #         idx=1, label="Fixed Attacker", err=zs(fixed_attacker_data),
+    #         axis_to_plot_on=inset_axis)
+    # helpers.plot_a_scatter(xs(random_synchronized_attacker_data), 
+    #         ys(random_synchronized_attacker_data), idx=2, label="Random Synchronized Attacker", 
+    #         err=zs(random_synchronized_attacker_data),
+    #         axis_to_plot_on=inset_axis)
+    helpers.plot_a_scatter(xs(random_perturbed_attacker_data),
+            ys(random_perturbed_attacker_data), idx=1, label="Random Perturbed Attacker",
+            err=zs(random_perturbed_attacker_data),
+            axis_to_plot_on=inset_axis)
+
+    ax.indicate_inset_zoom(inset_axis, label=None)
 
     helpers.xlabel("$K$")
     helpers.ylabel("\# of Recovered Messages.")
@@ -265,4 +346,3 @@ def generate_data_recovery_versus_delta_scatter(trial_provider):
     helpers.xlabel(r"$\delta$")
     helpers.ylabel(r"\# of Recovered Messages.")
     helpers.save_figure("attacker-data-recovery-vs-delta.pdf", num_cols=2)
-

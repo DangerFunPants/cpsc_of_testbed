@@ -11,6 +11,9 @@ import path_hopping_simulator.trials        as trials
 from path_hopping_simulator.attackers       import RandomPathHoppingAttacker
 from path_hopping_simulator.attackers       import RandomNodeHoppingAttacker
 from path_hopping_simulator.attackers       import IdealRandomPathHoppingAttacker
+from path_hopping_simulator.attackers       import OneNodePerPathAttacker
+from path_hopping_simulator.attackers       import FixedAttacker
+from path_hopping_simulator.attackers       import PlannedAttacker
 
 def build_n_parallel_graph(number_of_paths, path_length):
     G = nx.Graph()
@@ -51,10 +54,21 @@ def conduct_path_hopping_simulation(the_trial):
             attacker_hop_period)
     ideal_random_path_hopping_attacker = IdealRandomPathHoppingAttacker.create(N, K, G, 
             simulation.flows, attacker_hop_period)
+    one_node_per_path_attacker = OneNodePerPathAttacker.create(N, K, G, simulation.flows, 
+            attacker_hop_period)
+    fixed_attacker = FixedAttacker.create(N, K, G, simulation.flows, 
+            attacker_hop_period)
+    planned_attacker = PlannedAttacker.create(N, K, G, simulation.flows, 
+            attacker_hop_period, simulation.nodes)
+
     attackers = [ random_path_hopping_attacker
                 , random_node_hopping_attacker
                 , ideal_random_path_hopping_attacker
+                , one_node_per_path_attacker
+                , fixed_attacker
+                , planned_attacker
                 ]
+
     for attacker in attackers:
         simulation.add_attacker(attacker)
 
@@ -63,8 +77,8 @@ def conduct_path_hopping_simulation(the_trial):
 
     simulation.print_state()
 
-    for attacker in attackers:
-        attacker.print_state()
+    # for attacker in attackers:
+    #     attacker.print_state()
 
     the_trial.add_parameter("random-path-hopping-attacker-recovered-messages",
             random_path_hopping_attacker.reconstruct_captured_messages())
@@ -72,15 +86,21 @@ def conduct_path_hopping_simulation(the_trial):
             random_node_hopping_attacker.reconstruct_captured_messages())
     the_trial.add_parameter("ideal-random-path-hopping-attacker-recovered-messages",
             ideal_random_path_hopping_attacker.reconstruct_captured_messages())
+    the_trial.add_parameter("one-node-per-path-attacker-recovered-messages",
+            one_node_per_path_attacker.reconstruct_captured_messages())
+    the_trial.add_parameter("fixed-attacker-recovered-messages",
+            fixed_attacker.reconstruct_captured_messages())
+    the_trial.add_parameter("planned-attacker-recovered-messages",
+            planned_attacker.reconstruct_captured_messages())
 
 def main():
     results_repository = rr.ResultsRepository.create_repository(
             path.Path("/home/cpsc-net-user/results-repositories/path-hopping-simulations"),
             ph_cfg.repository_schema, "path-hopping-simulations")
 
-    # trial_provider = trials.varying_path_length()
+    trial_provider = trials.varying_path_length()
     # trial_provider = trials.varying_hop_period()
-    trial_provider = trials.varying_number_of_paths()
+    # trial_provider = trials.varying_number_of_paths()
 
     for the_trial in trial_provider:
         conduct_path_hopping_simulation(the_trial)

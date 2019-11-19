@@ -168,17 +168,18 @@ def simulation_plots():
         path.Path("/home/cpsc-net-user/results-repositories/path-hopping-simulations"),
         ph_cfg.repository_schema, "path-hopping-simulations")
 
-    # path_length_trial_provider = results_repository.read_trial_provider("sim-path-length-fast-hops")
     # path_length_trial_provider = results_repository.read_trial_provider(
-    #         "sim-path-length-slow-hops")
-    # path_hopping_sim.generate_data_recovery_vs_param_plot(path_length_trial_provider, 
-    #         "path-length", "Path length")
+    #     "sim-path-length-fast-hops")
+    path_length_trial_provider = results_repository.read_trial_provider(
+            "sim-path-length-slow-hops")
+    path_hopping_sim.generate_data_recovery_vs_param_plot(path_length_trial_provider, 
+            "path_length", "Path length")
     # path_hopping_sim.generate_data_recovery_vs_time_cdf(path_length_trial_provider)
 
     # delta_trial_provider = results_repository.read_trial_provider("sim-hop-period")
-    delta_trial_provider = results_repository.read_trial_provider("sim-hop-period-long-paths")
-    path_hopping_sim.generate_data_recovery_vs_param_plot(delta_trial_provider,
-            "attacker-hop-period", r"$\delta$")
+    # delta_trial_provider = results_repository.read_trial_provider("sim-hop-period-long-paths")
+    # path_hopping_sim.generate_data_recovery_vs_param_plot(delta_trial_provider,
+    #         "attacker-hop-period", r"$\delta$")
 
     # path_count_trial_provider = results_repository.read_trial_provider("sim-number-of-paths")
     # path_count_trial_provider = results_repository.read_trial_provider(

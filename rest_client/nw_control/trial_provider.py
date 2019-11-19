@@ -43,6 +43,9 @@ class Trial:
         s += pp.pformat(self._parameters, indent=4)
         return s
 
+    def __iter__(self):
+        for property_name, property_value in self._parameters.items():
+            yield (property_name, property_value)
 
 class TrialProvider:
     def __init__(self, provider_name):

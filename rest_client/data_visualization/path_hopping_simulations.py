@@ -42,7 +42,7 @@ def generate_data_recovery_vs_param_plot(trial_provider, param_name, x_axis_labe
         param_group = list(param_group)
         ys = defaultdict(list)
         for trial in param_group:
-            total_messages_sent = trial.get_parameter("sim-duration")
+            total_messages_sent = trial.get_parameter("sim_duration")
             for attacker_type in attacker_types:
                 attacker_data[attacker_type] = trial.get_parameter(
                         f"{attacker_type}-attacker-recovered-messages")

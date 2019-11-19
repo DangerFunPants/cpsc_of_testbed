@@ -246,7 +246,7 @@ class PlannedAttacker(Attacker):
                 self._monitored_nodes = list(
                         np.random.choice(possible_nodes, self._K, replace=False))
 
-        self._hop_index += self._hop_period
+        self._hop_index += 1
         
     def capture_shares(self, node):
         shares = node.vulnerable_shares()

@@ -64,7 +64,10 @@ class ResultsRepository:
                 self.base_path)
         return output_path
 
-    def write_trial_results(self, schema_variables, results, overwrite=False):
+    def write_trial_results( self
+                           , schema_variables
+                           , results
+                           , overwrite          = False):
         # output_path_segments = [schema_variables[schema_label] for schema_label in 
         #         self.schema.split("/") if schema_label != ""]
         # output_path = reduce(lambda acc, v: acc.joinpath(path.Path(v)), output_path_segments,
@@ -75,7 +78,11 @@ class ResultsRepository:
             output_file = output_path.joinpath(file_name)
             output_file.write_text(results_data)
 
-    def write_trial_provider(self, schema_variables, trial_provider, overwrite=False):
+    def write_trial_provider( self
+                            , schema_variables
+                            , trial_provider
+                            , overwrite             = False
+                            , merge_existing        = False):
         output_path = self.build_output_path(schema_variables)
         output_path.mkdir(parents=True, exist_ok=True)
         provider_output_file = output_path / "trial-provider.p"
@@ -102,8 +109,9 @@ class ResultsRepository:
                 the_existing_provider.remove_all_trials_that_match(
                         lambda t: t.get_parameter("trial-name") == duplicated_name)
 
-            for t_i in the_existing_provider:
-                trial_provider.add_trial(t_i)
+            if merge_existing:
+                for t_i in the_existing_provider:
+                    trial_provider.add_trial(t_i)
 
         with provider_output_file.open("wb") as fd:
             pickle.dump(trial_provider, fd)

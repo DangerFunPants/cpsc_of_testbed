@@ -43,12 +43,12 @@ def conduct_path_hopping_simulation(the_trial):
     N = the_trial.get_parameter("N")
     K = the_trial.get_parameter("K")
     print(f"N = {N}, K = {K}")
-    np.random.seed(the_trial.get_parameter("seed-number")) 
-    G, source_id, sink_id = build_n_parallel_graph(N, the_trial.get_parameter("path-length"))
+    np.random.seed(the_trial.get_parameter("seed_number")) 
+    G, source_id, sink_id = build_n_parallel_graph(N, the_trial.get_parameter("path_length"))
     flows = {ph_sim.PathHoppingFlow.create_random_flow(G, N, K,
         source_node=source_id, sink_node=sink_id, flow_id=0)}
     simulation = ph_sim.PathHoppingSimulation.create(G, flows)
-    attacker_hop_period = the_trial.get_parameter("attacker-hop-period")
+    attacker_hop_period = the_trial.get_parameter("attacker_hop_period")
 
     random_path_hopping_attacker = RandomPathHoppingAttacker.create(N, K, G, simulation.flows,
             attacker_hop_period)
@@ -76,7 +76,7 @@ def conduct_path_hopping_simulation(the_trial):
     for attacker in attackers:
         simulation.add_attacker(attacker)
 
-    for _ in range(the_trial.get_parameter("sim-duration")):
+    for _ in range(the_trial.get_parameter("sim_duration")):
         simulation.step()
 
     simulation.print_state()
@@ -103,12 +103,15 @@ def main():
             path.Path("/home/cpsc-net-user/results-repositories/path-hopping-simulations"),
             ph_cfg.repository_schema, "path-hopping-simulations")
 
-    # trial_provider = trials.varying_path_length()
-    trial_provider = trials.varying_hop_period()
+    # trial_provdier = trials.varying_path_length_fast_hops()
+    trial_provider = trials.varying_path_length_slow_hops()
+    # trial_provider = trials.varying_hop_period_long_paths()
     # trial_provider = trials.varying_number_of_paths()
 
     for the_trial in trial_provider:
         conduct_path_hopping_simulation(the_trial)
+        # for param_name, param_value in the_trial:
+        #     print(f"{param_name}: {param_value}")
     schema_vars = {"provider-name": trial_provider.provider_name}
     results_repository.write_trial_provider(schema_vars, trial_provider, overwrite=True)
 

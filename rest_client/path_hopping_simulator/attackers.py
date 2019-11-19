@@ -222,44 +222,52 @@ class PlannedAttacker(Attacker):
         self._flows = kwargs["flows"]
         self._nodes = kwargs["nodes"]
         self._active_paths = set()
+        self._monitored_paths = set()
         self._hop_index = 1
 
     def select_monitored_nodes(self, nodes, flows, simulation_time):
-        target_flow = flows[0]
-        # if self._path_collection == None:
-        #     possible_nodes = [p_i[1] for p_i in target_flow.paths]
-        #     k_nodes = list(np.random.choice(possible_nodes, self._K, replace=False))
-        #     self._monitored_nodes = k_nodes
-        if self._hop_index == max([len(p_i) for p_i in target_flow.paths]):
-            self._hop_index = 1
-            self._active_paths = set()
+        target_flow = self._flows[0]
 
-        possible_nodes = list({p_i[self._hop_index] for p_i in target_flow.paths} -
-                {p_i[self._hop_index] for p_i in [target_flow.paths[path_idx] 
-                    for path_idx in self._active_paths]})
-        
-        if len(possible_nodes) <= self._K:
-            self._monitored_nodes = possible_nodes
-        else:
-            # self._monitored_nodes = list(np.random.choice(possible_nodes, self._K, replace=False))
-            self._monitored_nodes = list(np.random.choice(possible_nodes, 5, replace=False))
+        if (simulation_time % self._hop_period) == 0:
+            if (self._hop_index >= max([len(p_i) for p_i in target_flow.paths]) or \
+                    len(self._monitored_paths) == self._N):
+                self._hop_index = 1
+                self._active_paths = set()
+                self._monitored_paths = set()
 
-        self._hop_index += 1
+            nodes_at_hop = {p_i[self._hop_index] for p_i in target_flow.paths}
+            monitored_paths = [target_flow.paths[path_idx] for path_idx in self._monitored_paths]
+            monitored_nodes_at_hop = {p_i[self._hop_index] for p_i in monitored_paths}
+            possible_nodes = list(nodes_at_hop - monitored_nodes_at_hop)
+            
+            if len(possible_nodes) <= self._K:
+                self._monitored_nodes = possible_nodes
+            else:
+                self._monitored_nodes = list(
+                        np.random.choice(possible_nodes, self._K, replace=False))
+
+        self._hop_index += self._hop_period
         
     def capture_shares(self, node):
         shares = node.vulnerable_shares()
+        paths = self._flows[0].paths
+
+        path_idx_for_node = next(path_idx
+                for path_idx, p_i in enumerate(paths)
+                if node.node_id in p_i)
+        self._monitored_paths.add(path_idx_for_node)
+
         if len(shares) > 0:
-            paths = self._flows[0].paths
             corresponding_path = next(path_idx 
                     for path_idx, p_i in enumerate(paths)
                     if node.node_id in p_i)
             self._active_paths.add(corresponding_path)
-        self._captured_shares.extend(node.vulnerable_shares())
+        self._captured_shares.extend(shares)
 
     @staticmethod
     def create(N, K, G, flows, hop_period, nodes):
         the_planned_attacker = PlannedAttacker(N, K, hop_period, flows=flows, nodes=nodes)
-        the_planned_attacker.select_monitored_nodes(G.nodes, flows, 1)
+        the_planned_attacker.select_monitored_nodes(G.nodes, flows, 0)
         return the_planned_attacker
         
     def print_state(self):
@@ -270,3 +278,27 @@ class PlannedAttacker(Attacker):
         print(f"The planned attacker hopped {self._hop_count}.")
         print("**************************************************************************")
 
+class MatrixModelAttacker:
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self._nw_mat = kwargs["graph"]
+
+class TotalAttacker(Attacker):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self._node_collection = None
+
+    def select_monitored_nodes(self, nodes, flows, simulation_time): 
+        if len(self._monitored_nodes) == 0:
+            target_flow = flows[0]
+            self._monitored_nodes = {p_i[1] for p_i in target_flow.paths}
+
+    @staticmethod
+    def create(N, K, G, flows, hop_period):
+        the_total_attacker = TotalAttacker(N, K, hop_period)
+        the_total_attacker.select_monitored_nodes(G.nodes, flows, 1)
+        return the_total_attacker
+
+    def print_state(self):
+        captured_messages = self.reconstruct_captured_messages()
+        print(f"The total attacker recovered {len(captured_messages)} messages")

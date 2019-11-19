@@ -14,6 +14,7 @@ from path_hopping_simulator.attackers       import IdealRandomPathHoppingAttacke
 from path_hopping_simulator.attackers       import OneNodePerPathAttacker
 from path_hopping_simulator.attackers       import FixedAttacker
 from path_hopping_simulator.attackers       import PlannedAttacker
+from path_hopping_simulator.attackers       import TotalAttacker
 
 def build_n_parallel_graph(number_of_paths, path_length):
     G = nx.Graph()
@@ -41,6 +42,7 @@ def build_n_parallel_graph(number_of_paths, path_length):
 def conduct_path_hopping_simulation(the_trial):
     N = the_trial.get_parameter("N")
     K = the_trial.get_parameter("K")
+    print(f"N = {N}, K = {K}")
     np.random.seed(the_trial.get_parameter("seed-number")) 
     G, source_id, sink_id = build_n_parallel_graph(N, the_trial.get_parameter("path-length"))
     flows = {ph_sim.PathHoppingFlow.create_random_flow(G, N, K,
@@ -60,6 +62,7 @@ def conduct_path_hopping_simulation(the_trial):
             attacker_hop_period)
     planned_attacker = PlannedAttacker.create(N, K, G, simulation.flows, 
             attacker_hop_period, simulation.nodes)
+    total_attacker = TotalAttacker.create(N, K, G, simulation.flows, attacker_hop_period)
 
     attackers = [ random_path_hopping_attacker
                 , random_node_hopping_attacker
@@ -67,6 +70,7 @@ def conduct_path_hopping_simulation(the_trial):
                 , one_node_per_path_attacker
                 , fixed_attacker
                 , planned_attacker
+                , total_attacker
                 ]
 
     for attacker in attackers:
@@ -79,6 +83,7 @@ def conduct_path_hopping_simulation(the_trial):
 
     # for attacker in attackers:
     #     attacker.print_state()
+    planned_attacker.print_state()
 
     the_trial.add_parameter("random-path-hopping-attacker-recovered-messages",
             random_path_hopping_attacker.reconstruct_captured_messages())
@@ -98,8 +103,8 @@ def main():
             path.Path("/home/cpsc-net-user/results-repositories/path-hopping-simulations"),
             ph_cfg.repository_schema, "path-hopping-simulations")
 
-    trial_provider = trials.varying_path_length()
-    # trial_provider = trials.varying_hop_period()
+    # trial_provider = trials.varying_path_length()
+    trial_provider = trials.varying_hop_period()
     # trial_provider = trials.varying_number_of_paths()
 
     for the_trial in trial_provider:

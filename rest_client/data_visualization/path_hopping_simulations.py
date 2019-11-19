@@ -42,11 +42,13 @@ def generate_data_recovery_vs_param_plot(trial_provider, param_name, x_axis_labe
         param_group = list(param_group)
         ys = defaultdict(list)
         for trial in param_group:
+            total_messages_sent = trial.get_parameter("sim-duration")
             for attacker_type in attacker_types:
                 attacker_data[attacker_type] = trial.get_parameter(
                         f"{attacker_type}-attacker-recovered-messages")
-            for attacker_type, recovered_shares in attacker_data.items():
-                ys[attacker_type].append(len(recovered_shares))
+            for attacker_type, recovered_messages in attacker_data.items():
+                print(f"{attacker_type} recoverd {len(recovered_messages)} out of {total_messages_sent} messages")
+                ys[attacker_type].append((len(recovered_messages) / total_messages_sent) * 100)
 
         xs.append(param_value)
         for attacker_type, y_vals in ys.items():
@@ -76,7 +78,7 @@ def generate_data_recovery_vs_param_plot(trial_provider, param_name, x_axis_labe
     # ax.indicate_inset_zoom(axins, label=None)
 
     helpers.xlabel(x_axis_label)
-    helpers.ylabel(r"\# of recovered messages.")
+    helpers.ylabel(r"\% of recovered messages")
     helpers.save_figure("attacker-simulation.pdf", num_cols=3)
 
 def generate_data_recovery_vs_time_cdf(trial_provider):

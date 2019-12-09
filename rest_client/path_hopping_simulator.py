@@ -104,9 +104,11 @@ def main():
             ph_cfg.repository_schema, "path-hopping-simulations")
 
     # trial_provdier = trials.varying_path_length_fast_hops()
-    trial_provider = trials.varying_path_length_slow_hops()
+    # trial_provider = trials.varying_path_length_slow_hops()
     # trial_provider = trials.varying_hop_period_long_paths()
-    # trial_provider = trials.varying_number_of_paths()
+    trial_provider = trials.varying_number_of_paths_slow_hopping()
+    # trial_provider = trials.varying_number_of_paths_fast_hopping()
+    # trial_provider = trials.delay_to_hop_period_ratio_testing()
 
     for the_trial in trial_provider:
         conduct_path_hopping_simulation(the_trial)

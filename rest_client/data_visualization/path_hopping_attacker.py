@@ -244,8 +244,8 @@ def generate_data_recovery_data(trial_provider, independent_variable):
 
 def xs(ts):
     return [t_i[0] for t_i in ts]
-def ys(ts):
-    return [t_i[1] for t_i in ts]
+def ys(ts, norm=1.0):
+    return [(t_i[1]/norm)*100 for t_i in ts]
 def zs(ts):
     return [t_i[2] for t_i in ts]
 
@@ -262,44 +262,46 @@ def generate_data_recovery_versus_k_scatter(trial_provider):
     unique_seq_nums = max([
         len({p_i.seq_num for p_i in packets_i if p_i.source_ip == "10.10.0.1"})
         for packets_i in packets
-        ])
-    # unique_seq_nums = len({p_i.seq_num for p_i in packets if p_i.source_ip == "10.10.0.1"})
-
+    ])
     fig, ax = plt.subplots()
 
+    pp.pprint(random_unsynchronized_attacker_data)
     helpers.plot_a_scatter(xs(random_unsynchronized_attacker_data), 
-            ys(random_unsynchronized_attacker_data),
+            ys(random_unsynchronized_attacker_data, norm=unique_seq_nums),
             idx=0, label="Random Unsynchronized Attacker", 
-            err=zs(random_unsynchronized_attacker_data),
+            # err=zs(random_unsynchronized_attacker_data),
             axis_to_plot_on=ax)
-    # helpers.plot_a_scatter(xs(fixed_attacker_data), 
-    #         ys(fixed_attacker_data),
-    #         idx=1, label="Fixed Attacker", err=zs(fixed_attacker_data),
-    #         axis_to_plot_on=ax)
-    # helpers.plot_a_scatter(xs(random_synchronized_attacker_data), 
-    #         ys(random_synchronized_attacker_data), idx=2, label="Random Synchronized Attacker", 
-    #         err=zs(random_synchronized_attacker_data),
-    #         axis_to_plot_on=ax)
+    helpers.plot_a_scatter(xs(fixed_attacker_data), 
+            ys(fixed_attacker_data, norm=unique_seq_nums),
+            idx=1, label="Fixed Attacker", 
+            # err=zs(fixed_attacker_data),
+            axis_to_plot_on=ax)
+    helpers.plot_a_scatter(xs(random_synchronized_attacker_data), 
+            ys(random_synchronized_attacker_data, norm=unique_seq_nums), 
+            idx=2, label="Random Synchronized Attacker", 
+            # err=zs(random_synchronized_attacker_data),
+            axis_to_plot_on=ax)
     helpers.plot_a_scatter(xs(random_perturbed_attacker_data),
-            ys(random_perturbed_attacker_data), idx=1, label="Random Perturbed Attacker",
-            err=zs(random_perturbed_attacker_data),
+            ys(random_perturbed_attacker_data, norm=unique_seq_nums), 
+            idx=3, label="Random Perturbed Attacker",
+            # err=zs(random_perturbed_attacker_data),
             axis_to_plot_on=ax)
-    helpers.plot_a_scatter([1, 9], [unique_seq_nums]*2, label="Total Messages",
-            plot_markers=False, idx=2,
-            axis_to_plot_on=ax)
+    # helpers.plot_a_scatter([1, 9], [unique_seq_nums]*2, label="Total Messages",
+    #         plot_markers=False, idx=2,
+    #         axis_to_plot_on=ax)
 
-    inset_axis = ax.inset_axes([0.05, 0.5, 0.47, 0.37])
-    x1, x2, y1, y2 = 0.5, 8.5, -10, 30000
-    inset_axis.set_xlim(x1, x2)
-    inset_axis.set_ylim(y1, y2)
-    inset_axis.set_xticklabels("")
-    inset_axis.set_yticklabels("")
+    # inset_axis = ax.inset_axes([0.05, 0.5, 0.47, 0.37])
+    # x1, x2, y1, y2 = 0.5, 8.5, -10, 30000
+    # inset_axis.set_xlim(x1, x2)
+    # inset_axis.set_ylim(y1, y2)
+    # inset_axis.set_xticklabels("")
+    # inset_axis.set_yticklabels("")
 
-    helpers.plot_a_scatter(xs(random_unsynchronized_attacker_data), 
-            ys(random_unsynchronized_attacker_data),
-            idx=0, label="Random Unsynchronized Attacker", 
-            err=zs(random_unsynchronized_attacker_data),
-            axis_to_plot_on=inset_axis)
+    # helpers.plot_a_scatter(xs(random_unsynchronized_attacker_data), 
+    #         ys(random_unsynchronized_attacker_data),
+    #         idx=0, label="Random Unsynchronized Attacker", 
+    #         err=zs(random_unsynchronized_attacker_data),
+    #         axis_to_plot_on=inset_axis)
     # helpers.plot_a_scatter(xs(fixed_attacker_data), 
     #         ys(fixed_attacker_data),
     #         idx=1, label="Fixed Attacker", err=zs(fixed_attacker_data),
@@ -308,15 +310,15 @@ def generate_data_recovery_versus_k_scatter(trial_provider):
     #         ys(random_synchronized_attacker_data), idx=2, label="Random Synchronized Attacker", 
     #         err=zs(random_synchronized_attacker_data),
     #         axis_to_plot_on=inset_axis)
-    helpers.plot_a_scatter(xs(random_perturbed_attacker_data),
-            ys(random_perturbed_attacker_data), idx=1, label="Random Perturbed Attacker",
-            err=zs(random_perturbed_attacker_data),
-            axis_to_plot_on=inset_axis)
+    # helpers.plot_a_scatter(xs(random_perturbed_attacker_data),
+    #         ys(random_perturbed_attacker_data), idx=1, label="Random Perturbed Attacker",
+    #         err=zs(random_perturbed_attacker_data),
+    #         axis_to_plot_on=inset_axis)
 
-    ax.indicate_inset_zoom(inset_axis, label=None)
+    # ax.indicate_inset_zoom(inset_axis, label=None)
 
     helpers.xlabel("$K$")
-    helpers.ylabel("\# of Recovered Messages.")
+    helpers.ylabel("\% Data Recovery")
     helpers.save_figure("attacker-data-recovery-vs-k.pdf", num_cols=2)
 
 def generate_data_recovery_versus_delta_scatter(trial_provider):
@@ -325,24 +327,39 @@ def generate_data_recovery_versus_delta_scatter(trial_provider):
     fixed_attacker_data = trial_provider.get_metadata("fixed-attacker-data")
     random_synchronized_attacker_data = trial_provider.get_metadata(
             "random-synchronized-attacker-data")
+    random_perturbed_attacker_data = trial_provider.get_metadata("random-perturbed-attacker-data")
 
-    packets = next(iter(trial_provider)).get_parameter("packet-dump")
-    unique_seq_nums = len({p_i.seq_num for p_i in packets if p_i.source_ip == "10.10.0.1"})
+    packets = [t_i.get_parameter("packet-dump") for t_i in trial_provider]
+    unique_seq_nums = max([
+        len({p_i.seq_num for p_i in packets_i if p_i.source_ip == "10.10.0.1"})
+        for packets_i in packets
+    ])
 
     helpers.plot_a_scatter(xs(random_unsynchronized_attacker_data), 
-            ys(random_unsynchronized_attacker_data),
+            ys(random_unsynchronized_attacker_data, norm=unique_seq_nums),
             idx=0, label="Random Unsynchronized Attacker", 
-            err=zs(random_unsynchronized_attacker_data))
+            # err=zs(random_unsynchronized_attacker_data)
+            )
     helpers.plot_a_scatter(xs(fixed_attacker_data), 
-            ys(fixed_attacker_data),
-            idx=1, label="Fixed Attacker", err=zs(fixed_attacker_data))
+            ys(fixed_attacker_data, norm=unique_seq_nums),
+            idx=1, label="Fixed Attacker", 
+            # err=zs(fixed_attacker_data)
+            )
     helpers.plot_a_scatter(xs(random_synchronized_attacker_data), 
-            ys(random_synchronized_attacker_data), idx=2, 
+            ys(random_synchronized_attacker_data, norm=unique_seq_nums), 
+            idx=2, 
             label="Random Synchronized Attacker", 
-            err=zs(random_synchronized_attacker_data))
-    helpers.plot_a_scatter([min(xs(fixed_attacker_data)), max(xs(fixed_attacker_data))], 
-            [unique_seq_nums]*2, label="Total Messages", plot_markers=False, idx=3)
+            # err=zs(random_synchronized_attacker_data)
+            )
+    helpers.plot_a_scatter(xs(random_perturbed_attacker_data),
+            ys(random_perturbed_attacker_data, norm=unique_seq_nums),
+            idx=3,
+            label="Random Perturbed Attacker"
+            # err=zs(random_perturbed_attacker_data)
+            )
+    # helpers.plot_a_scatter([min(xs(fixed_attacker_data)), max(xs(fixed_attacker_data))], 
+    #         [unique_seq_nums]*2, label="Total Messages", plot_markers=False, idx=3)
 
     helpers.xlabel(r"$\delta$")
-    helpers.ylabel(r"\# of Recovered Messages.")
+    helpers.ylabel(r"\% Data Recovery")
     helpers.save_figure("attacker-data-recovery-vs-delta.pdf", num_cols=2)

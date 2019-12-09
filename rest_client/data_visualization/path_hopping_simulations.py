@@ -50,7 +50,7 @@ def generate_data_recovery_vs_param_plot(trial_provider, param_name, x_axis_labe
                 print(f"{attacker_type} recoverd {len(recovered_messages)} out of {total_messages_sent} messages")
                 ys[attacker_type].append((len(recovered_messages) / total_messages_sent) * 100)
 
-        xs.append(param_value)
+        xs.append(param_value / 5.0)
         for attacker_type, y_vals in ys.items():
             means[attacker_type].append(np.mean(y_vals))
             errs[attacker_type].append(np.std(y_vals))
@@ -78,6 +78,7 @@ def generate_data_recovery_vs_param_plot(trial_provider, param_name, x_axis_labe
     # ax.indicate_inset_zoom(axins, label=None)
 
     helpers.xlabel(x_axis_label)
+    helpers.xlabel("Delay to hop period ratio")
     helpers.ylabel(r"\% of recovered messages")
     helpers.save_figure("attacker-simulation.pdf", num_cols=3)
 

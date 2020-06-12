@@ -12,6 +12,7 @@ import pprint               as pp
 import pickle               as pickle
 import scipy.stats          as stats
 import json                 as json
+import operator             as op
 
 from enum               import Enum
 from functools          import reduce
@@ -205,7 +206,8 @@ def set_dscp(sock, dscp):
     sock.setsockopt(socket.SOL_IP, socket.IP_TOS, dscp)
 
 def get_args():
-    arg_str = sys.argv[1]
+    arg_str = reduce(op.add, sys.argv[1:])
+    print(arg_str)
     arg_dicts = json.loads(arg_str)
     pp.pprint(arg_dicts)
     for d in arg_dicts:

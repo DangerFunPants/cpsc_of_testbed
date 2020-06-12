@@ -1,3 +1,5 @@
+import pprint               as pp
+
 import dns.resolver         as dns
 import dns.reversename      as rev_name
 
@@ -7,7 +9,6 @@ from . import of_rest_client    as of
 from . import topo_mapper       as topo_mapper
 
 class HostMapper:
-
     def __init__(self, nameservers, host, port_no, domain='data.sdn.'):
         self.nameservers = nameservers
         self.host = host
@@ -106,3 +107,27 @@ class OnosMapper(HostMapper):
     def map_sw_to_dpid(self, sw_num):
         return self._switch_to_dpid_map[sw_num]
 
+class MininetHostMapper:
+    """
+    In the case that we're using Mininet we need a way of knowing what IP address to put in the
+    destination field of the IP header. There is no DNS server running on the network so
+    whatever application that is responsible for generating traffic will not be able to resolve
+    hostnames that way.
+
+    Instead we just ask the ONOS controller to tell us the IPs of all the hosts that it knows
+    about which lets as easily resolve host IPs.
+    """
+    def __init__(self):
+        self._connected_hosts = topo_mapper.get_nw_hosts()
+        pp.pprint(self._connected_hosts)
+
+    def find_host(self, switch_dpid):
+        try:
+            return next((host for host in self._connected_hosts 
+                if host["locations"][0]["elementId"] == switch_dpid))
+        except StopIteration:
+            raise ValueError(f"Could not find host attached to switch with DPID {switch_dpid}")
+
+    def get_ip_of_connected_host(self, switch_dpid):
+        attached_host = self.find_host(switch_dpid)
+        return attached_host["ipAddresses"][0]

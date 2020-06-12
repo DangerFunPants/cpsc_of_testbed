@@ -231,3 +231,5 @@ class TrafficGenHost(Host):
     def create_host(hostname, host_id):
         default_host = TrafficGenHost(hostname, "alexj", "cpsc", host_id)
         return default_host
+
+class MininetHost(TrafficGenerationHost

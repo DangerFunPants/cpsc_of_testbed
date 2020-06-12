@@ -11,13 +11,14 @@ import urllib.parse as url
 dns_server_ip = '10.0.0.1'
 
 # Openflow Controller address 
-of_controller_ip = '10.0.0.3'
+of_controller_ip = "127.0.0.1"
 
 # Openflow Controller REST API Port Number
 of_controller_port = 8181
 
 # Base URL for ONOS rest calls
-onos_url = url.urlparse("http://%s:%d/onos/" % (of_controller_ip, of_controller_port))
+# onos_url = url.urlparse("http://%s:%d/onos/" % (of_controller_ip, of_controller_port))
+onos_url = url.urlparse(f"http://{of_controller_ip}:{of_controller_port}/onos/")
 
 # IP Address of the collector host (for port mirroring)
 collector_host_ip = "10.10.0.18"

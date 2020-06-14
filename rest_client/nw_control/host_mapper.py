@@ -134,4 +134,4 @@ class MininetHostMapper:
     # TODO: This will break in many obvious and trivial scenarios but for mininet it should work
     # since we can control IP allocation.
     def resolve_hostname(self, hostname):
-        return f"10.0.0.{hostname[1:]}"
+        return f"10.0.0.{int(hostname[1:])+1}"

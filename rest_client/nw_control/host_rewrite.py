@@ -132,7 +132,9 @@ class MininetHost(Host):
     def start_traffic_generation_client(self):
         if len(self.configured_flows) == 0:
             return
-        args = f"{str(MininetHost.TRAFFIC_GEN_BIN_PATH)} {json.dumps(self.configured_flows)}"
+        args = f"{str(MininetHost.TRAFFIC_GEN_BIN_PATH)} '{json.dumps(self.configured_flows)}'"
+        print("client args:")
+        print(args)
         self.client_proc = self.run_async(args)
 
     def stop_traffic_generation_client(self):

@@ -4,6 +4,8 @@
 import time                             as time
 import pprint                           as pp
 import pathlib                          as path
+import traceback                        as traceback
+import sys                              as sys
 from collections                        import defaultdict
 
 # Libraries installed via pip
@@ -125,7 +127,7 @@ def create_mininet_hosts(id_to_dpid):
     for host_id, switch_dpid in id_to_dpid.items():
         host_ip = host_mapper.get_ip_of_connected_host(switch_dpid)
         print(f"IP of host connected to {switch_dpid} is {host_ip}")
-        # hosts[host_id] = MininetHost(host_id, host_ip)
+        hosts[host_id] = MininetHost(f"h{host_id}", "alexj", "password", host_id, host_mapper)
     return hosts
 
 def scale_flow_tx_rate(normalized_flow_tx_rate):
@@ -171,11 +173,11 @@ def conduct_mininet_trial(results_repository, the_trial):
 
     try:
         id_to_dpid  = topo_mapper.get_and_validate_onos_topo_x(EXPECTED_TOPO)
+        pp.pprint(id_to_dpid)
         hosts       = create_mininet_hosts(id_to_dpid)
 
         for host in hosts.values():
-            # Start traffic generation servers.
-            pass
+            host.start_traffic_generation_server()
         
         for flow in flows:
             source, destination_node, flow_tx_rate = (flow.source_node, flow.destination_node, 
@@ -186,18 +188,32 @@ def conduct_mininet_trial(results_repository, the_trial):
 
             # Probably won't use this for now but it might be handy later. 
             scaled_flow_tx_rate = scale_flow_tx_rate(flow_tx_rate)
-            
+            hosts[flow.destination_node].configure_flow(scaled_flow_tx_rate, 0.0, "uniform",
+                    hosts[flow.source_node].host_ip, 50000, flow.splitting_ratio, 1, tag_values_for_flow)
+
+             
         traffic_monitor = stat_monitor.OnMonitor(cfg.of_controller_ip, cfg.of_controller_port)
         traffic_monitor.start_monitor()
 
+        for host in hosts.values():
+            host.start_traffic_generation_client()
+
         # time.sleep(the_trial.get_parameter("duration"))
         input("Press enter to continue...")
+
+        for host in hosts.values():
+            host.stop_traffic_generation_client()
+        for host in hosts.values():
+            host.stop_traffic_generation_server()
+
         traffic_monitor.stop_monitor()
         utilization_results = traffic_monitor.get_monitor_statistics()
         the_trial.add_parameter("byte-counts-over-time", utilization_results)
         pp.pprint(utilization_results)
     except Exception as ex:
         print(ex)
+        exc_type, exc_value, exc_traceback = sys.exc_info()
+        traceback.print_tb(exc_traceback, limit=3, file=sys.stdout)
     finally:
         destroy_all_mininet_hosts(hosts)
         remove_all_flows(flow_tokens)
@@ -213,8 +229,8 @@ def main():
 def host_testing():
     try:
         mapper = MininetHostMapper()
-        h1 = MininetHost("h1", "alexj", "47Ye#Qh7eigtsY!", 1, mapper)
-        h2 = MininetHost("h2", "alexj", "47Ye#Qh7eigtsY!", 2, mapper)
+        h1 = MininetHost("h1", "alexj", "password", 1, mapper)
+        h2 = MininetHost("h2", "alexj", "password", 2, mapper)
         input("Created hosts...")
 
         h1.start_traffic_generation_server()
@@ -237,8 +253,6 @@ def host_testing():
         h1.stop_traffic_generation_server()
         h2.stop_traffic_generation_client()
 
-
-
 if __name__ == "__main__":
-    # main()
-    host_testing()
+    main()
+    # host_testing()

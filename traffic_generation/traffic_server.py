@@ -29,9 +29,9 @@ def handle_sig_int(signum, frame):
     # the communication becomes dependent on the structure of the host filesystem.
     # The IPC mechanism should ideally work across machine boundaries as well as on 
     # the same machine.
-    # with open("/home/alexj/packet_counts/receiver_%d.p" % args, "wb") as fd:
-    #     pickle.dump(pkts_recv, fd)
-    pp.pprint(packets_received)
+    with open("/tmp/receiver_%d.p" % args, "wb") as fd:
+        pickle.dump(packets_received, fd)
+    # pp.pprint(packets_received)
     exit()
 
 def inc_pkt_counts(src, bc):

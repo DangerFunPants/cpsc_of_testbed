@@ -244,33 +244,6 @@ def main():
         conduct_mininet_trial(results_repository, the_trial)
         print(f"Trial {the_trial.name} has {flow_count} flow(s)")
 
-def host_testing():
-    try:
-        mapper = MininetHostMapper()
-        h1 = MininetHost("h1", "alexj", "password", 1, mapper)
-        h2 = MininetHost("h2", "alexj", "password", 2, mapper)
-        input("Created hosts...")
-
-        h1.start_traffic_generation_server()
-        print(f"PID of traffic_server process is {h1.server_proc.pid}")
-        input("Press enter to start client process...")
-
-        h2.configure_flow(131072, 0, "uniform", "10.0.0.1", 50000, [1.0], 50, [0])
-        h2.start_traffic_generation_client()
-        print(f"PID of traffic_gen process is {h2.client_proc.pid}")
-        input("Press enter to shut everything down...")
-
-        h2.stop_traffic_generation_client()
-        h1.stop_traffic_generation_server()
-        print("Stopped traffic generation server...")
-
-        print("h2 output:")
-        print(h2.client_proc.read_stderr())
-    except Exception as ex:
-        print(f"Failed:\n{ex}")
-        h1.stop_traffic_generation_server()
-        h2.stop_traffic_generation_client()
-
 if __name__ == "__main__":
     main()
     # host_testing()

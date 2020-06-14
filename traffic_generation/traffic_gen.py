@@ -207,9 +207,7 @@ def set_dscp(sock, dscp):
 
 def get_args():
     arg_str = reduce(op.add, sys.argv[1:])
-    print(arg_str)
     arg_dicts = json.loads(arg_str)
-    pp.pprint(arg_dicts)
     for d in arg_dicts:
         d['traffic_model'] = TrafficModels.from_str(d['traffic_model'])
     fp_list = { i: FlowParameters(**d) for i, d in enumerate(arg_dicts) }
@@ -267,7 +265,6 @@ def generate_traffic(flow_params):
         for i, fp in flow_params.items():
             r = select_tx_rate(fp, fp.tx_rate, rvs[i])
             mbps = (r * 8) / float(10**6)
-            print('TX: %s' % str(mbps))
             ipd_list.append(compute_inter_pkt_delay(fp.packet_len, r))
         transmit(socks, ipd_list, flow_params[0].time_slice, flow_params)
 
@@ -281,9 +278,7 @@ def handle_sig_int(signum, frame):
         flow_info[flow_num]['dst_ip'] = fp.dest_addr
         src_host_id = fp.src_host # TODO: Store canonical src_host id
 
-    file_path = '/home/alexj/packet_counts/sender_%d.p' % src_host_id
-    with open(file_path, 'wb') as fd:
-        pickle.dump(flow_info, fd)
+    print(json.dumps(flow_info))
     exit()
 
 def register_handlers():
@@ -298,7 +293,6 @@ def main():
     global src_port
     flow_params = get_args()
     
-    print('ARGS:\n%s' % pp.pformat(str(flow_params)))
     generate_traffic(flow_params)
 
 if __name__ == '__main__':

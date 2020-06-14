@@ -3,6 +3,7 @@
 # python3 standard library imports
 import time                             as time
 import pprint                           as pp
+import pathlib                          as path
 from collections                        import defaultdict
 
 # Libraries installed via pip
@@ -18,6 +19,7 @@ import nw_control.params                as cfg
 import nw_control.stat_monitor          as stat_monitor
 from nw_control.results_repository      import ResultsRepository
 from nw_control.host_mapper             import MininetHostMapper
+from nw_control.host_rewrite            import Host, MininetHost
 
 import mp_routing.onos_route_adder      as onos_route_adder
 
@@ -96,7 +98,8 @@ class FlowSet:
 def build_mininet_test_trial_provider():
 
     id_to_dpid = topo_mapper.get_and_validate_onos_topo_x(EXPECTED_TOPO)
-    source_node, destination_node = np.random.choice(EXPECTED_TOPO.nodes, 2, replace=False)
+    source_node, destination_node = (0, 1) 
+    print(source_node, destination_node)
     disjoint_paths = list(node_disjoint_paths(EXPECTED_TOPO, source_node, destination_node))
     the_trial_provider = trial_provider.TrialProvider("mininet-trial")
     flow_set = FlowSet()
@@ -193,8 +196,6 @@ def conduct_mininet_trial(results_repository, the_trial):
         utilization_results = traffic_monitor.get_monitor_statistics()
         the_trial.add_parameter("byte-counts-over-time", utilization_results)
         pp.pprint(utilization_results)
-
-
     except Exception as ex:
         print(ex)
     finally:
@@ -209,6 +210,35 @@ def main():
         conduct_mininet_trial(results_repository, the_trial)
         print(f"Trial {the_trial.name} has {flow_count} flow(s)")
 
+def host_testing():
+    try:
+        mapper = MininetHostMapper()
+        h1 = MininetHost("h1", "alexj", "47Ye#Qh7eigtsY!", 1, mapper)
+        h2 = MininetHost("h2", "alexj", "47Ye#Qh7eigtsY!", 2, mapper)
+        input("Created hosts...")
+
+        h1.start_traffic_generation_server()
+        print(f"PID of traffic_server process is {h1.server_proc.pid}")
+        input("Press enter to start client process...")
+
+        h2.configure_flow(131072, 0, "uniform", "10.0.0.1", 50000, [1.0], 50, [0])
+        h2.start_traffic_generation_client()
+        print(f"PID of traffic_gen process is {h2.client_proc.pid}")
+        input("Press enter to shut everything down...")
+
+        h2.stop_traffic_generation_client()
+        h1.stop_traffic_generation_server()
+        print("Stopped traffic generation server...")
+
+        print("h2 output:")
+        print(h2.client_proc.read_stderr())
+    except Exception as ex:
+        print(f"Failed:\n{ex}")
+        h1.stop_traffic_generation_server()
+        h2.stop_traffic_generation_client()
+
+
 
 if __name__ == "__main__":
-    main()
+    # main()
+    host_testing()

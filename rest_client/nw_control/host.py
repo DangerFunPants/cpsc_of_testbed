@@ -22,7 +22,8 @@ class Host:
                 , rem_uname
                 , rem_pw
                 , host_id
-                , ssh_port=22 ):
+                , ssh_port=22 
+                , mapper=None):
         self.host_name      = host_name
         self.ssh_port       = ssh_port
         self.rem_uname      = rem_uname
@@ -33,8 +34,9 @@ class Host:
         if util.is_ip_addr(host_name):
             self.host_ip = host_name
         else:
-            mapper = hm.HostMapper([cfg.man_net_dns_ip], 
-                cfg.of_controller_ip, cfg.of_controller_port, domain='hosts.sdn.')
+            if not mapper:
+                mapper = hm.HostMapper([cfg.man_net_dns_ip], 
+                    cfg.of_controller_ip, cfg.of_controller_port, domain='hosts.sdn.')
             self.host_ip = mapper.resolve_hostname(self.host_name)
 
     def connect(self):
@@ -81,6 +83,7 @@ class TrafficGenHost(Host):
         comm_str = 'rm -f %s*.%s' % (path, ext)
         self.exec_command(comm_str)
     
+    # This needs to change.
     def start_client( self
                     , mu
                     , sigma
@@ -108,6 +111,7 @@ class TrafficGenHost(Host):
         comm_str += ' &'
         return self.exec_command(comm_str)
 
+    # This will kill every client process
     def stop_client(self):
         command_str = (
             'ps ax | grep -i traffic_gen.py | grep -v grep | awk \'{print $1}\' | xargs -n1 -I {} kill -s SIGINT {}'
@@ -123,17 +127,20 @@ class TrafficGenHost(Host):
         comm_str += ' &'
         return self.exec_command(comm_str)
 
+    # This will kill every server process. 
     def stop_server(self):
         command_str = (
             'ps ax | grep -i traffic_server.py | grep -v grep | awk \'{print $1}\' | xargs -n1 -I {} kill -s SIGINT {}'
         )
         return self.exec_command(command_str)
 
+    # This won't work in mininet
     def retrieve_client_files(self, dst_dir):
         local_ip = self.get_local_ip()
         command = 'sshpass -pubuntu scp -o StrictHostKeyChecking=no -r %ssender_*.p ubuntu@%s:%s' % (self.COUNT_DIR, local_ip, dst_dir)
         self.exec_command(command)
 
+    # This won't work in mininet.
     def retrieve_server_files(self, dst_dir):
         local_ip = self.get_local_ip()
         command = 'sshpass -pubuntu scp -o StrictHostKeyChecking=no -r %sreceiver_*.p ubuntu@%s:%s' % (self.COUNT_DIR, local_ip, dst_dir)
@@ -168,12 +175,14 @@ class TrafficGenHost(Host):
 
         return modified_receiver_results, dict(sender_results)
 
+    # This isn't going to work in mininet.
     def get_local_ip(self):
         mapper = hm.HostMapper([cfg.man_net_dns_ip], cfg.of_controller_ip,
             cfg.of_controller_port, domain='hosts.sdn.')
         local_ip = mapper.resolve_hostname('sdn.cpscopenflow1')
         return local_ip
 
+    # Needs to change
     def configure_client( self
                         , mu 
                         , sigma
@@ -198,6 +207,7 @@ class TrafficGenHost(Host):
                       }
         self._add_client(client_args)
 
+    # Needs to change
     def configure_precomputed_client( self
                                     , rate_list
                                     , destination_ip
@@ -218,7 +228,8 @@ class TrafficGenHost(Host):
                       , "tag_value"         : tag_values
                       }
         self._add_client(client_args)
-
+    
+    # Needs to change
     def start_clients(self):
         command_args = '\"%s\"' % str(self._clients)
         start_comm = '%s/traffic_gen.py' % TrafficGenHost.BIN_DIR
@@ -232,4 +243,8 @@ class TrafficGenHost(Host):
         default_host = TrafficGenHost(hostname, "alexj", "cpsc", host_id)
         return default_host
 
-class MininetHost(TrafficGenerationHost
+class MininetHost(Host):
+    def __init__(self, hostname, remote_username, remote_password, ssh_port=22):
+        pass
+
+

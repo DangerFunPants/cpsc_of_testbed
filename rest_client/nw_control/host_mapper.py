@@ -119,7 +119,6 @@ class MininetHostMapper:
     """
     def __init__(self):
         self._connected_hosts = topo_mapper.get_nw_hosts()
-        pp.pprint(self._connected_hosts)
 
     def find_host(self, switch_dpid):
         try:
@@ -131,3 +130,8 @@ class MininetHostMapper:
     def get_ip_of_connected_host(self, switch_dpid):
         attached_host = self.find_host(switch_dpid)
         return attached_host["ipAddresses"][0]
+
+    # TODO: This will break in many obvious and trivial scenarios but for mininet it should work
+    # since we can control IP allocation.
+    def resolve_hostname(self, hostname):
+        return f"10.0.0.{hostname[1:]}"

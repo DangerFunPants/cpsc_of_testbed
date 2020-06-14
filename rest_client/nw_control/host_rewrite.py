@@ -1,6 +1,7 @@
 
 import pathlib      as path
 import json         as json
+import pickle       as pickle
 
 import nw_control.params        as cfg
 import nw_control.host_mapper   as hm
@@ -70,17 +71,17 @@ class Host:
 
     def run_async(self, command_str):
         stdin, stdout, stderr = self.exec_on_remote(f"( {command_str} ) & echo $! > /tmp/last-proc.pid") 
-        pid = int(self.get_file(path.Path("/tmp/last-proc.pid")))
+        pid = int(self.get_file(path.Path("/tmp/last-proc.pid"), lambda fp: fp.read_text()))
         return CommandResult(stdin, stdout, stderr, pid)
 
-    def get_file(self, path_like):
+    def get_file(self, path_like, reader):
         if not self.ssh_tunnel:
             self.connect()
 
         scp_client = scp.SCPClient(self.ssh_tunnel.get_transport())
         scp_client.get(str(path_like))
-        file_contents = path.Path(path_like.name).read_text()
-        return file_contents
+        # file_contents = path.Path(path_like.name).read_text()
+        return reader(path.Path() / path_like.name)
 
     def ping(self, remote_host_ip, count=4):
         ping_command = f"ping -c {count} {remote_host_ip}"
@@ -140,4 +141,18 @@ class MininetHost(Host):
     def stop_traffic_generation_client(self):
         if self.client_proc:
             self.run(f"kill -s SIGINT {self.client_proc.pid}")
+
+    def get_sender_results(self):
+        sender_file_path = path.Path(f"/tmp/sender_{self.host_id}.p")
+        try:
+            sender_results = self.get_file(sender_file_path, lambda fp: pickle.load(fp.open("rb")))
+        except Exception:
+            raise ValueError("Couldn't find file {str(sender_file_path)} on host with IP Address {self.host_ip}.")
+        return sender_results
+
+    def get_receiver_results(self):
+        receiver_file_path = path.Path(f"/tmp/receiver_{self.host_id}.p")
+        receiver_results = self.get_file(receiver_file_path, lambda fp: pickle.load(fp.open("rb")))
+        return receiver_results
+        
 

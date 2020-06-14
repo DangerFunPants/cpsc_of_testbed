@@ -98,7 +98,6 @@ def conduct_onos_trial( the_vle_trial
                       , results_repository
                       , trial_type):
     # remove_all_count_files(route_adder)
-    # Will probably need to update this to work with mininet
     mapper = host_mapper.OnosMapper(cfg.dns_server_ip, cfg.of_controller_ip, 
             cfg.of_controller_port, ABILENE_TOPO_FILE_PATH.read_text())
 

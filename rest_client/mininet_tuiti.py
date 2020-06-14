@@ -130,6 +130,21 @@ def create_mininet_hosts(id_to_dpid):
         hosts[host_id] = MininetHost(f"h{host_id}", "alexj", "password", host_id, host_mapper)
     return hosts
 
+def collect_end_host_results(hosts):
+    results_map = {}
+    for host_id, host in hosts.items():
+        receiver_results = host.get_receiver_results()
+        try:
+            sender_results = host.get_sender_results()
+        except ValueError:
+            sender_results = None
+            
+        results_dict = { "receiver" : receiver_results
+                       , "sender"   : sender_results
+                       }
+        results_map[host_id] = results_dict
+    return results_map
+
 def scale_flow_tx_rate(normalized_flow_tx_rate):
     """
     Converts from a unitless normalized flow tx rate in the range [0.0, 1.0)
@@ -191,7 +206,6 @@ def conduct_mininet_trial(results_repository, the_trial):
             hosts[flow.destination_node].configure_flow(scaled_flow_tx_rate, 0.0, "uniform",
                     hosts[flow.source_node].host_ip, 50000, flow.splitting_ratio, 1, tag_values_for_flow)
 
-             
         traffic_monitor = stat_monitor.OnMonitor(cfg.of_controller_ip, cfg.of_controller_port)
         traffic_monitor.start_monitor()
 
@@ -207,13 +221,17 @@ def conduct_mininet_trial(results_repository, the_trial):
             host.stop_traffic_generation_server()
 
         traffic_monitor.stop_monitor()
+        
         utilization_results = traffic_monitor.get_monitor_statistics()
+        end_host_results = collect_end_host_results(hosts)
+        pp.pprint(end_host_results)
+
         the_trial.add_parameter("byte-counts-over-time", utilization_results)
-        pp.pprint(utilization_results)
+        # pp.pprint(utilization_results)
     except Exception as ex:
         print(ex)
         exc_type, exc_value, exc_traceback = sys.exc_info()
-        traceback.print_tb(exc_traceback, limit=3, file=sys.stdout)
+        traceback.print_tb(exc_traceback, limit=10, file=sys.stdout)
     finally:
         destroy_all_mininet_hosts(hosts)
         remove_all_flows(flow_tokens)

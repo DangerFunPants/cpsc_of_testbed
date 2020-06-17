@@ -81,7 +81,6 @@ class Host:
         scp_client = scp.SCPClient(self.ssh_tunnel.get_transport())
         output_path = path.Path("/tmp") / "cpsc-of-testbed-remote-transfer-file.dat"
         scp_client.get(str(path_like), local_path=output_path)
-        # file_contents = path.Path(path_like.name).read_text()
         return reader(output_path)
 
     def ping(self, remote_host_ip, count=4):

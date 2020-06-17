@@ -130,6 +130,27 @@ class MininetHost(Host):
                       }
         self.configured_flows.append(client_args)
 
+    def configure_flow_with_precomputed_transmit_rates( self
+                                                      , rate_list
+                                                      , destination_ip
+                                                      , destination_port_number
+                                                      , k_matrix
+                                                      , host_number
+                                                      , time_slice_duration
+                                                      , tag_values
+                                                      , packet_length = 1066):
+        client_args = { "dest_port"         : destination_port_number
+                      , "dest_addr"         : destination_ip
+                      , "prob_mat"          : k_matrix
+                      , "transmit_rates"    : rate_list
+                      , "traffic_model"     : "precomputed"
+                      , "packet_len"        : packet_length
+                      , "src_host"          : host_number
+                      , "time_slice"        : time_slice_duration
+                      , "tag_value"         : tag_values
+                      }
+        self.configured_flows.append(client_args)
+
     def start_traffic_generation_client(self):
         if len(self.configured_flows) == 0:
             return
@@ -147,12 +168,16 @@ class MininetHost(Host):
         try:
             sender_results = self.get_file(sender_file_path, lambda fp: pickle.load(fp.open("rb")))
         except Exception:
-            raise ValueError("Couldn't find file {str(sender_file_path)} on host with IP Address {self.host_ip}.")
+            raise ValueError(f"Couldn't find file {str(sender_file_path)} on host with IP Address {self.host_ip}.")
         return sender_results
 
     def get_receiver_results(self):
         receiver_file_path = path.Path(f"/tmp/receiver_{self.host_id}.p")
-        receiver_results = self.get_file(receiver_file_path, lambda fp: pickle.load(fp.open("rb")))
+        try:
+            receiver_results = self.get_file(receiver_file_path, lambda fp: pickle.load(fp.open("rb")))
+        except Exception:
+            raise ValueError(
+                    f"Couldn't find file {str(receiver_file_path)} on host with IP Address {self.host_ip}.")
         return receiver_results
         
 

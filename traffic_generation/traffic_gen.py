@@ -217,7 +217,9 @@ def inc_pkt_count(flow_num):
     global pkt_count
     pkt_count[flow_num] = pkt_count[flow_num] + 10
 
-def compute_inter_pkt_delay(pkt_len, tx_rate):
+def compute_inter_pkt_delay(pkt_len, tx_rate, time_slice_duration):
+    if tx_rate == 0.0:
+        return time_slice_duration
     return (float(pkt_len) / float(tx_rate)) * 10.0
 
 def wait(t):
@@ -265,7 +267,7 @@ def generate_traffic(flow_params):
         for i, fp in flow_params.items():
             r = select_tx_rate(fp, fp.tx_rate, rvs[i])
             mbps = (r * 8) / float(10**6)
-            ipd_list.append(compute_inter_pkt_delay(fp.packet_len, r))
+            ipd_list.append(compute_inter_pkt_delay(fp.packet_len, r, fp.time_slice))
         transmit(socks, ipd_list, flow_params[0].time_slice, flow_params)
 
 def handle_sig_int(signum, frame):

@@ -110,7 +110,76 @@ class TrialProvider:
     def __len__(self):
         return len(self.trials)
 
+class Flow:
+    """
+    Represents a flow with 
+        * Source node
+        * Destination node
+        * Transmission rate
+        * A set of paths through the substrate network. 
+    """
+    def __init__( self
+                , source_node       = None
+                , destination_node  = None
+                , flow_tx_rate      = None
+                , paths             = None
+                , splitting_ratio   = None):
+        self._source_node       = source_node
+        self._destination_node  = destination_node
+        self._flow_tx_rate      = flow_tx_rate
+        self._paths             = paths
+        self._splitting_ratio   = splitting_ratio
 
+    @property
+    def source_node(self):
+        return self._source_node
+
+    @property
+    def destination_node(self):
+        return self._destination_node
+
+    @property
+    def flow_tx_rate(self):
+        return self._flow_tx_rate
+
+    @property
+    def paths(self):
+        return self._paths
+
+    @property
+    def splitting_ratio(self):
+        return self._splitting_ratio
+
+class FlowSet:
+    """
+    Encapsulates a set of flows. Typically the set of flows will comprise a trial.
+    """
+    def __init__(self):
+        self._flows     = []
+
+    @property
+    def flows(self):
+        return self._flows
+
+    def add_flow(self, flow):
+        self._flows.append(flow)
+
+    def add_flows(self, flows):
+        self._flows.extend(flows)
+
+    def __iter__(self):
+        for flow in self.flows:
+            yield flow
+
+    def __str__(self):
+        s = "Flow set with %d flows." % len(self.flows)
+        return s
+
+    def __repr__(self):
+        return str(self)
+
+    def __len__(self):
+        return len(self.flows)
 
 
 

@@ -73,17 +73,32 @@ class FlowParameters:
                 , transmit_rates    = None
                 , source_addr       = None
                 ):
+        # UDP destination port of the flow
         self.dest_port          = dest_port
+        # String representation of the flow destination IP
         self.dest_addr          = dest_addr
+        # Flow splitting ratios for each of the paths
         self.prob_mat           = prob_mat
+        # Transmission rate of the flow in mbps.
         self.tx_rate            = tx_rate
+        # Variance of the flow transmission rate. This parameter is interpreted differently
+        # depending on which probability distribution is being used to generate the flow
+        # transmission rates.
         self.variance           = variance
+        # Specifies which probability distribution to sample transmission rates from.
         self.traffic_model      = traffic_model
+        # Length in bytes of each UDP packet (not? including headers)
         self.packet_len         = packet_len
+        # Host ID of the flow source (i.e. the host id of this instance of the traffic generator)
         self.src_host           = src_host
+        # The transmission flow rate sampling period.
         self.time_slice         = time_slice
+        # The DSCP tags to use for each of the paths (i.e. if there are N paths this should be a 
+        # list with N entries, where the n_{th} entry is the DSCP value to use for the n_{th} path.
         self.tag_value          = tag_value
+        # List of transmission rates to use, only applicable when traffic_model is "precomputed"
         self.transmit_rates     = transmit_rates
+        # The local IP address to bind to.
         self.source_addr        = source_addr
 
     def __str__(self):
@@ -218,12 +233,18 @@ def inc_pkt_count(flow_num):
     pkt_count[flow_num] = pkt_count[flow_num] + 10
 
 def compute_inter_pkt_delay(pkt_len, tx_rate, time_slice_duration):
+    """
+    Doesn't actually compute the inter-packet delay, computes the delay that would 
+    be required to allow 10 packets to be transmitted.
+    """
     if tx_rate == 0.0:
         return time_slice_duration
     return (float(pkt_len) / float(tx_rate)) * 10.0
 
 def wait(t):
     start = time.perf_counter()
+    # @TODO: It's probably fine that the traffic gen application pretty much consumes a core, but
+    # it might be worth looking into making this more efficient.
     while (time.perf_counter() - start) < t:
         pass
 

@@ -24,7 +24,7 @@ def get_args():
 
 def handle_sig_int(signum, frame):
     global args
-    packets_received = { s : (bc // 1024) for s, bc in byte_counts.items() }
+    packets_received = { s : bc for s, bc in byte_counts.items() }
     # Should decide on a better IPC mechanism than just named files since
     # the communication becomes dependent on the structure of the host filesystem.
     # The IPC mechanism should ideally work across machine boundaries as well as on 
@@ -35,7 +35,8 @@ def handle_sig_int(signum, frame):
     exit()
 
 def inc_pkt_counts(src, bc):
-    byte_counts[src] = byte_counts[src] + bc
+    # byte_counts[src] = byte_counts[src] + bc
+    byte_counts[src] += 1
 
 def main():
     global args

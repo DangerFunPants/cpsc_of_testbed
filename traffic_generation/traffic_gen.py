@@ -13,6 +13,7 @@ import pickle               as pickle
 import scipy.stats          as stats
 import json                 as json
 import operator             as op
+import pathlib              as path
 
 from enum               import Enum
 from functools          import reduce
@@ -79,7 +80,7 @@ class FlowParameters:
         self.dest_addr          = dest_addr
         # Flow splitting ratios for each of the paths
         self.prob_mat           = prob_mat
-        # Transmission rate of the flow in mbps.
+        # Transmission rate of the flow in bytes per second.
         self.tx_rate            = tx_rate
         # Variance of the flow transmission rate. This parameter is interpreted differently
         # depending on which probability distribution is being used to generate the flow
@@ -100,6 +101,8 @@ class FlowParameters:
         self.transmit_rates     = transmit_rates
         # The local IP address to bind to.
         self.source_addr        = source_addr
+        # The payload that will be sent in each packet.
+        self.data_str           = b"x" * self.packet_len
 
     def __str__(self):
         str_rep = [ "Dest. Port: %d"        % self.dest_port
@@ -120,16 +123,6 @@ class FlowParameters:
     
     def __repr__(self):
         return str(self)
-
-# Default UDP payload length in bytes. 
-DEF_PCKT_LEN = 1024
-
-# Test data
-DATA_STR = b'x' * DEF_PCKT_LEN
-
-# Define the sampling rate for Tx rate selection: 
-#           F_s = 1 / SLICE_DURATION.
-SLICE_DURATION = 1
 
 pkt_count = defaultdict(int)
 flow_params = None
@@ -221,11 +214,14 @@ def set_dscp(sock, dscp):
     sock.setsockopt(socket.SOL_IP, socket.IP_TOS, dscp)
 
 def get_args():
-    arg_str = reduce(op.add, sys.argv[1:])
-    arg_dicts = json.loads(arg_str)
-    for d in arg_dicts:
+    path_to_args_file = path.Path(reduce(op.add, sys.argv[1:]))
+    with path_to_args_file.open("r") as fd:
+        argument_dicts = json.load(fd)
+
+    # arg_dicts = json.loads(arg_str)
+    for d in argument_dicts:
         d['traffic_model'] = TrafficModels.from_str(d['traffic_model'])
-    fp_list = { i: FlowParameters(**d) for i, d in enumerate(arg_dicts) }
+    fp_list = { i: FlowParameters(**d) for i, d in enumerate(argument_dicts) }
     return fp_list
 
 def inc_pkt_count(flow_num):
@@ -249,6 +245,11 @@ def wait(t):
         pass
 
 def transmit(sock_list, ipd_list, duration, flow_params):
+    # for idx, flow in enumerate(flow_params.values()):
+    #     ipd_set = ipd_list[idx]
+    #     for _ in range(10):
+    #         sock_list[idx].sendto(flow.data_str, (flow.dest_addr, flow.dest_port))
+
     ipds = { i : (sock_list[i], ipd_list[i]) for i in range(len(ipd_list)) }
     start_time = time.time()
     wait_time = min(ipds.values(), key=lambda t : t[1])
@@ -261,7 +262,7 @@ def transmit(sock_list, ipd_list, duration, flow_params):
             for _ in range(10):
                 dscp_val = select_dscp(flow_params[i].prob_mat, flow_params[i].tag_value)
                 set_dscp(flow[0], dscp_val)
-                flow[0].sendto(DATA_STR, (flow_params[i].dest_addr, flow_params[i].dest_port))
+                flow[0].sendto(flow_params[i].data_str, (flow_params[i].dest_addr, flow_params[i].dest_port))
             inc_pkt_count(i)
             ipds[i] = (ipds[i][0], ipd_list[i])
         t_offset = max(0.0, time.perf_counter() - loop_start)
@@ -287,9 +288,12 @@ def generate_traffic(flow_params):
         ipd_list = []
         for i, fp in flow_params.items():
             r = select_tx_rate(fp, fp.tx_rate, rvs[i])
-            mbps = (r * 8) / float(10**6)
             ipd_list.append(compute_inter_pkt_delay(fp.packet_len, r, fp.time_slice))
         transmit(socks, ipd_list, flow_params[0].time_slice, flow_params)
+
+    # while True:
+    #     for i, fp in flow_params.items():
+    #         socks[i].sendto(fp.data_str, (fp.dest_addr, fp.dest_port))
 
 def handle_sig_int(signum, frame):
     flow_info = defaultdict(dict)

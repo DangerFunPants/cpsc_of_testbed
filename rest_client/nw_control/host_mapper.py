@@ -123,7 +123,9 @@ class MininetHostMapper:
     def find_host(self, switch_dpid):
         try:
             return next((host for host in self._connected_hosts 
-                if host["locations"][0]["elementId"] == switch_dpid))
+                if host["locations"][0]["elementId"] == switch_dpid
+                and len(host["ipAddresses"]) > 0
+                and "10.123.123.1" not in host["ipAddresses"]))
         except StopIteration:
             raise ValueError(f"Could not find host attached to switch with DPID {switch_dpid}")
 

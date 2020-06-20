@@ -2,6 +2,7 @@
 import pathlib      as path
 import json         as json
 import pickle       as pickle
+import time         as time
 
 import nw_control.params        as cfg
 import nw_control.host_mapper   as hm
@@ -54,6 +55,8 @@ class Host:
                 password = self.remote_password)
 
     def disconnect(self):
+        self.stop_traffic_generation_server()
+        self.stop_traffic_generation_client()
         if self.ssh_tunnel:
             self.ssh_tunnel.close()
         self.ssh_tunnel = None
@@ -71,6 +74,7 @@ class Host:
 
     def run_async(self, command_str):
         stdin, stdout, stderr = self.exec_on_remote(f"( {command_str} ) & echo $! > /tmp/last-proc.pid") 
+        time.sleep(3)
         pid = int(self.get_file(path.Path("/tmp/last-proc.pid"), lambda fp: fp.read_text()))
         return CommandResult(stdin, stdout, stderr, pid)
 
@@ -83,6 +87,12 @@ class Host:
         scp_client.get(str(path_like), local_path=output_path)
         return reader(output_path)
 
+    def put_file(self, path_like, output_path):
+        if not self.ssh_tunnel:
+            self.connect()
+        scp_client = scp.SCPClient(self.ssh_tunnel.get_transport())
+        scp_client.put(path_like, output_path)
+
     def ping(self, remote_host_ip, count=4):
         ping_command = f"ping -c {count} {remote_host_ip}"
         return self.run(ping_command)
@@ -92,8 +102,9 @@ class MininetHost(Host):
     TRAFFIC_SERVER_BIN_PATH = TRAFFIC_GEN_ROOT_DIR / "traffic_server.py"
     TRAFFIC_GEN_BIN_PATH = TRAFFIC_GEN_ROOT_DIR / "traffic_gen.py"
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, host_ip, *args, **kwargs):
         super().__init__(*args, **kwargs)
+        self.host_ip = host_ip
         self.server_proc = None
         self.client_proc = None
         self.configured_flows = []
@@ -154,9 +165,11 @@ class MininetHost(Host):
     def start_traffic_generation_client(self):
         if len(self.configured_flows) == 0:
             return
-        args = f"{str(MininetHost.TRAFFIC_GEN_BIN_PATH)} '{json.dumps(self.configured_flows)}'"
-        print("client args:")
-        print(args)
+        
+        args_file_path = path.Path(f"/tmp/host-{self.host_id}-traffic-gen-args.json")
+        args = f"{str(MininetHost.TRAFFIC_GEN_BIN_PATH)} {str(args_file_path)}"
+        args_file_path.write_text(json.dumps(self.configured_flows))
+        self.put_file(str(args_file_path), str(args_file_path))
         self.client_proc = self.run_async(args)
 
     def stop_traffic_generation_client(self):

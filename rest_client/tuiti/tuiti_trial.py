@@ -5,13 +5,14 @@ from trial_parameters   import TrialParameters, EbTrialParameters
 import pickle       as pickle
 import pprint       as pp
 
+import numpy        as np
+
 from networkx.algorithms.connectivity.disjoint_paths    import node_disjoint_paths
 from collections                                        import defaultdict
 
 class TuitiTrial:
     @staticmethod
     def prune_flow_allocations_list(flow_allocations, flow_admissions):
-        # aggregated_flow_allocations :: path_id -> list of tx rates indexed by timeslot
         traffic_for_path_in_timeslot = {}
         for path_id in range(len(flow_allocations)):
             traffic_for_path_in_timeslot[path_id] = defaultdict(float)
@@ -35,9 +36,10 @@ class TuitiTrial:
         with open(path_like, "rb") as fd:
             trial_parameters = pickle.load(fd)
 
-        # flow_allocations :: path_id -> timeslot_number -> tx_rate
+        # flow_allocations :: path_id -> timeslot_number -> volume of data per timeslot duration
         flow_allocations = TuitiTrial.prune_flow_allocations_list(trial_parameters.flow_allocations, 
                 trial_parameters.flow_admissions)
+        # path_capacities :: path_id -> time (in seconds) -> volume of data per second
         path_capacities = TuitiTrial.prune_path_capacity_list(trial_parameters.path_capacities)
 
         source_node, destination_node = (0, 1)
@@ -47,7 +49,6 @@ class TuitiTrial:
                               f"Trial requests {trial_parameters.number_of_paths} but the network "
                               f"only has {len(disjoint_paths)} paths"))
 
-        flow_set = trial.FlowSet()
         the_trial = trial.Trial(f"{trial_parameters.trial_type}")
         the_trial.add_parameter("duration", trial_parameters.trial_duration)
         the_trial.add_parameter("seed-number", "1234")
@@ -63,18 +64,64 @@ class TuitiTrial:
         if isinstance(trial_parameters, EbTrialParameters):
             the_trial.add_parameter("confidence-interval", trial_parameters.confidence_interval)
 
+        total_path_volume_per_second = (50 / 8) * 2**20
+        total_path_volume = total_path_volume_per_second * trial_parameters.number_of_timeslots * \
+                trial_parameters.duration_of_timeslot_in_seconds
+        total_volume = total_path_volume_per_second * trial_parameters.number_of_timeslots * \
+                trial_parameters.duration_of_timeslot_in_seconds * trial_parameters.number_of_paths
+        total_bulk_transfer_volume = sum((sum(tx_rate_list) for tx_rate_list in flow_allocations.values()))
+        total_remaining_capacity = sum((sum(tx_rate_list) for tx_rate_list in path_capacities.values()))
+
+        scaling_factors = {}
+        for path_id in flow_allocations.keys():
+            max_remaining_capacity = max(path_capacities[path_id])
+            trial_duration = trial_parameters.duration_of_timeslot_in_seconds * \
+                    trial_parameters.number_of_timeslots
+            total_remaining_capacity = max_remaining_capacity * trial_duration
+            scaling_factor = (0.85 * total_path_volume) / total_remaining_capacity
+            scaling_factors[path_id] = scaling_factor
+
+        # The flow transmission rates are traffic volume per timeslot duration.
+        flow_set = trial.FlowSet()
         for path_id, tx_rate_list in flow_allocations.items():
-            the_flow = trial.Flow(source_node, destination_node, tx_rate_list, disjoint_paths,
+            # Each rate should be in bytes per second now I think
+            # scaled_tx_rate_list = [(tx_rate * scaling_factors[path_id]) / \
+            #         trial_parameters.duration_of_timeslot_in_seconds for tx_rate in tx_rate_list]
+            scaled_tx_rate_list = []
+            for tx_rate in tx_rate_list:
+                entries_for_this_rate = [(tx_rate * scaling_factors[path_id]) / trial_parameters.duration_of_timeslot_in_seconds] * \
+                        trial_parameters.duration_of_timeslot_in_seconds
+                scaled_tx_rate_list.extend(entries_for_this_rate)
+
+            the_flow = trial.Flow(source_node, destination_node, scaled_tx_rate_list, disjoint_paths,
                     [0]*trial_parameters.number_of_paths)
             flow_set.add_flow(the_flow)
         the_trial.add_parameter("flow-set", flow_set)
 
+        # The background traffic transmission rates are remaining path capacity per second
         background_traffic_flow_set = trial.FlowSet()
         for path_id, tx_rate_list in path_capacities.items():
-            the_flow = trial.Flow(source_node, destination_node, tx_rate_list, disjoint_paths, 
+            scaled_tx_rate_list = []
+            max_capacity = max(tx_rate_list)
+            min_capacity = min(tx_rate_list)
+            if (max_capacity * scaling_factors[path_id]) > total_path_volume_per_second:
+                print(f"Bad scaling on path with id {path_id} with max capacity of {max_capacity}")
+
+            # print(f"Old tx rate list min: {min(tx_rate_list)}, max: {max(tx_rate_list)}")
+            for tx_rate in tx_rate_list:
+                scaled_tx_rate_list.append(total_path_volume_per_second - (tx_rate * scaling_factors[path_id]))
+            
+            # scaled_tx_rate_list = [total_path_volume_per_second - (tx_rate * scaling_factors[path_id])
+            #         for tx_rate in tx_rate_list]
+            the_flow = trial.Flow(source_node, destination_node, scaled_tx_rate_list, disjoint_paths, 
                     [0]*trial_parameters.number_of_paths)
             background_traffic_flow_set.add_flow(the_flow)
         the_trial.add_parameter("background-traffic-flow-set", background_traffic_flow_set)
+        the_trial.add_parameter("transfer-volume-scaling-factor", scaling_factor)
+        the_trial.add_parameter("expected-path-bandwidth-in-bytes-per-second", total_path_volume_per_second)
+        # the_trial.add_parameter("mean-background-traffic-tx-rate", mean_background_traffic_tx_rate)
+        # the_trial.add_parameter("mean-bulk-transfer-tx-rate", mean_bulk_transfer_tx_rate)
+
 
         return the_trial
 

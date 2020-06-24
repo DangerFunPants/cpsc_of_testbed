@@ -10,6 +10,7 @@ from collections                        import defaultdict
 # Libraries installed via pip
 import numpy                            as np
 import networkx                         as nx
+import progressbar                      as progressbar
 
 from networkx.algorithms.connectivity.disjoint_paths    import node_disjoint_paths
 
@@ -18,11 +19,11 @@ import nw_control.trial_provider        as trial_provider
 import nw_control.topo_mapper           as topo_mapper
 import nw_control.params                as cfg
 import nw_control.stat_monitor          as stat_monitor
-import tuiti.tuiti_trial                as tuiti_trial
 import tuiti.config                     as tuiti_config
 from nw_control.results_repository      import ResultsRepository
 from nw_control.host_mapper             import MininetHostMapper
 from nw_control.host_rewrite            import Host, MininetHost
+from tuiti.tuiti_trial                  import TuitiTrial
 
 import mp_routing.onos_route_adder      as onos_route_adder
 
@@ -67,11 +68,18 @@ def build_tuiti_trial_provider():
     source_node, destination_node = (0, 1)
     disjoint_paths = list(node_disjoint_paths(EXPECTED_TOPO, source_node, destination_node))
     the_trial_provider = trial_provider.TrialProvider("tuiti-trial-provider")
-    flow_set = trial_provider.FlowSet()
-    the_trial = tuiti_trial.TuitiTrial.from_solver_file(path.Path(
-        "/home/alexj/repos/inter-dc/trial-parameters/eb_P-5_ARRI-5_DUR-12_DEM-100_MV-40_99.p"), 
-        id_to_dpid, EXPECTED_TOPO)
-    the_trial_provider.add_trial(the_trial)
+    # trials_to_add = [ "eb_TS-3_P-5_ARRI-5_DUR-12_DEM-100_MV-40_95.p"
+    #                 , "ot_TS-3_P-5_ARRI-5_DUR-12_DEM-100_MV-40.p"
+    #                 , "eb_TS-3_P-5_ARRI-5_DUR-12_DEM-100_MV-40_90.p"
+    #                 , "eb_TS-3_P-5_ARRI-5_DUR-12_DEM-100_MV-40_99.p"
+    #                 , "avg_TS-3_P-5_ARRI-5_DUR-12_DEM-100_MV-40.p"
+    #                 , "ts_TS-3_P-5_ARRI-5_DUR-12_DEM-100_MV-40.p"
+    #                 , "ts-ks_TS-3_P-5_ARRI-5_DUR-12_DEM-100_MV-40.p"
+    #                 ]
+    trial_file_directory = path.Path("/home/alexj/repos/inter-dc/trial-parameters/")
+    trials = TuitiTrial.batch_from_directory(trial_file_directory, id_to_dpid, EXPECTED_TOPO)
+    for the_trial in trials:
+        the_trial_provider.add_trial(the_trial)
     return the_trial_provider
 
 def create_mininet_hosts(id_to_dpid, host_ids):
@@ -80,7 +88,7 @@ def create_mininet_hosts(id_to_dpid, host_ids):
     for host_id in host_ids:
         switch_dpid = id_to_dpid[host_id]
         host_ip = host_mapper.get_ip_of_connected_host(switch_dpid)
-        print(f"IP of host connected to {switch_dpid} is {host_ip}")
+        # print(f"IP of host connected to {switch_dpid} is {host_ip}")
         hosts[host_id] = MininetHost(host_ip, f"h{host_id}", "alexj", "password", host_id, host_mapper)
     return hosts
 
@@ -119,7 +127,7 @@ def simple_paths_to_flow_json(simple_paths, tag_values, id_to_dpid):
         tag_values_for_flow.append(tag_values[source_node, destination_node])
         tag_values[source_node, destination_node] += 1
         path_dicts.append(path_dict)
-    print(f"Source: {source_node}, Destination: {destination_node}")
+    # print(f"Source: {source_node}, Destination: {destination_node}")
     flow_json = {"paths": path_dicts}
     return flow_json, tag_values_for_flow
 
@@ -144,7 +152,7 @@ def conduct_mininet_trial(results_repository, the_trial):
 
     try:
         id_to_dpid  = topo_mapper.get_and_validate_onos_topo_x(EXPECTED_TOPO)
-        pp.pprint(id_to_dpid)
+        # pp.pprint(id_to_dpid)
         hosts       = create_mininet_hosts(id_to_dpid, [0, 1])
 
         for host in hosts.values():
@@ -175,8 +183,8 @@ def conduct_mininet_trial(results_repository, the_trial):
                     1, tag_values_for_flow)
             k_matrix[flow_id] = 0.0
 
-            print(f"Flow source node: {flow.source_node}. Flow destination node: {flow.destination_node}")
-            print(f"Flow source IP: {hosts[flow.source_node].host_ip}, Flow destination IP: {hosts[flow.destination_node].host_ip}")
+            # print(f"Flow source node: {flow.source_node}. Flow destination node: {flow.destination_node}")
+            # print(f"Flow source IP: {hosts[flow.source_node].host_ip}, Flow destination IP: {hosts[flow.destination_node].host_ip}")
 
         for flow_id, background_flow in enumerate(the_trial.get_parameter("background-traffic-flow-set")):
             source, destination, flow_tx_rate_list = (background_flow.source_node, 
@@ -215,7 +223,11 @@ def conduct_mininet_trial(results_repository, the_trial):
 
         traffic_generation_pid = hosts[0].client_proc.pid
         print(f"PID of traffic generation process: {traffic_generation_pid}")  
-        time.sleep(the_trial.get_parameter("duration"))
+        # time.sleep(the_trial.get_parameter("duration"))
+        # trial_duration = the_trial.get_parameter("duration")
+        trial_duration = 30
+        for idx in progressbar.progressbar(range(int(the_trial.get_parameter("duration")))):
+            time.sleep(1.0)
         # time.sleep(180)
         # input("Press enter to continue...")
 
@@ -253,10 +265,13 @@ def main():
     results_repository = ResultsRepository.create_repository(tuiti_config.base_repository_path,
             tuiti_config.repository_schema, tuiti_config.repository_name)
     trial_provider = build_tuiti_trial_provider()
-    for the_trial in trial_provider:
+    total_trials = len(trial_provider)
+    for trial_idx, the_trial in enumerate(trial_provider):
         flow_count = len(the_trial.get_parameter("flow-set"))
         print(f"Trial {the_trial.name} has {flow_count} flow(s)")
+        print(f"Executing trial {trial_idx+1} out of {total_trials}")
         conduct_mininet_trial(results_repository, the_trial)
+        time.sleep(30)
     schema_vars = {"provider-name": trial_provider.provider_name}
     results_repository.write_trial_provider(schema_vars, trial_provider, overwrite=True)
 
@@ -271,7 +286,7 @@ def test_main():
 def serialization_testing():
     dir_path = path.Path("/home/alexj/repos/inter-dc/trial-parameters")
     id_to_dpid = topo_mapper.get_and_validate_onos_topo_x(EXPECTED_TOPO)
-    trials = tuiti_trial.TuitiTrial.batch_from_directory(dir_path, id_to_dpid, EXPECTED_TOPO)
+    trials = TuitiTrial.batch_from_directory(dir_path, id_to_dpid, EXPECTED_TOPO)
     for trial in trials:
         # if trial.name == "eb":
         #     confidence_interval = trial.get_parameter("confidence-interval")
@@ -286,56 +301,73 @@ def serialization_testing():
 def looking_at_trials():
     trial_provider = build_tuiti_trial_provider()
     the_trial = next(iter(trial_provider))
-    flow_count = len(the_trial.get_parameter("flow-set"))
-    background_flow_count = len(the_trial.get_parameter("background-traffic-flow-set"))
-    print(f"Number of flows: {flow_count}")
-    print(f"Number of background flows: {background_flow_count}")
-    number_of_timeslots = the_trial.get_parameter("number-of-timeslots")
-    print(f"Number of timeslots: {number_of_timeslots}")
-    timeslot_duration = the_trial.get_parameter("timeslot-duration")
-    print(f"Timeslot duration: {timeslot_duration}")
-    trial_duration = number_of_timeslots * timeslot_duration
+    for the_trial in trial_provider:
+        print(f"*************************************** {the_trial.name} ******************************************")
+        flow_count = len(the_trial.get_parameter("flow-set"))
+        background_flow_count = len(the_trial.get_parameter("background-traffic-flow-set"))
+        number_of_admitted_flows = the_trial.get_parameter("number-of-admitted-flows")
+        number_of_successful_flows = the_trial.get_parameter("number-of-successful-flows")
+        print(f"Number of flows: {flow_count}")
+        print(f"Number of admitted flows: {number_of_admitted_flows}")
+        print(f"Number of successful flows: {number_of_successful_flows}")
+        print(f"Flow success rate: {number_of_successful_flows / number_of_admitted_flows}")
+        print(f"Number of background flows: {background_flow_count}")
+        number_of_timeslots = the_trial.get_parameter("number-of-timeslots")
+        print(f"Number of timeslots: {number_of_timeslots}")
+        timeslot_duration = the_trial.get_parameter("timeslot-duration")
+        print(f"Timeslot duration: {timeslot_duration}")
+        trial_duration = number_of_timeslots * timeslot_duration
 
-    tx_rates = []
-    bulk_transfer_total_volume = 0.0
-    for flow in the_trial.get_parameter("flow-set"):
-        bulk_transfer_total_volume += sum(flow.flow_tx_rate)
+        tx_rates = []
+        bulk_transfer_total_volume = 0.0
+        for flow in the_trial.get_parameter("flow-set"):
+            bulk_transfer_total_volume += sum(flow.flow_tx_rate)
 
-    background_traffic_total_volume = 0.0
-    for flow in the_trial.get_parameter("background-traffic-flow-set"):
-        background_traffic_total_volume += sum(flow.flow_tx_rate)
-    
-    total_volume = bulk_transfer_total_volume + background_traffic_total_volume
-    mean_tx_rate = (total_volume * 8) / (number_of_timeslots * timeslot_duration * 2**20)
-    duration_of_trial_in_minutes = (trial_duration) / 60
-    print(f"Total transmission volume: {total_volume}")
-    print(f"Mean transmission rate: {mean_tx_rate} Mibps")
-    print(f"Duration of trial: {duration_of_trial_in_minutes}")
-    
-    bulk_transfer_mean_tx_rate = (bulk_transfer_total_volume * 8) / (trial_duration * 2**20)
-    print(f"Mean transmission rate of bulk transfers: {bulk_transfer_mean_tx_rate}")
-    background_traffic_mean_tx_rate = (background_traffic_total_volume * 8) / (trial_duration * 2**20)
-    print(f"Mean transmission rate of background traffic: {background_traffic_mean_tx_rate}")
+        background_traffic_total_volume = 0.0
+        for flow in the_trial.get_parameter("background-traffic-flow-set"):
+            background_traffic_total_volume += sum(flow.flow_tx_rate)
+        
+        total_volume = bulk_transfer_total_volume + background_traffic_total_volume
+        mean_tx_rate = (total_volume * 8) / (number_of_timeslots * timeslot_duration * 2**20)
+        duration_of_trial_in_minutes = (trial_duration) / 60
+        print(f"Total transmission volume: {total_volume}")
+        print(f"Mean transmission rate: {mean_tx_rate} Mibps")
+        print(f"Duration of trial: {duration_of_trial_in_minutes}")
+        
+        bulk_transfer_mean_tx_rate = (bulk_transfer_total_volume * 8) / (trial_duration * 2**20)
+        print(f"Mean transmission rate of bulk transfers: {bulk_transfer_mean_tx_rate}")
+        background_traffic_mean_tx_rate = (background_traffic_total_volume * 8) / (trial_duration * 2**20)
+        print(f"Mean transmission rate of background traffic: {background_traffic_mean_tx_rate}")
 
-    bulk_transfer_proportion = bulk_transfer_total_volume / total_volume
-    print(f"Bulk transfer proportion: {bulk_transfer_proportion}")
-    background_traffic_proportion = background_traffic_total_volume / total_volume
-    print(f"Background traffic proportion: {background_traffic_proportion}")
+        bulk_transfer_proportion = bulk_transfer_total_volume / total_volume
+        print(f"Bulk transfer proportion: {bulk_transfer_proportion}")
+        background_traffic_proportion = background_traffic_total_volume / total_volume
+        print(f"Background traffic proportion: {background_traffic_proportion}")
 
-    for flow_idx, flow in enumerate(the_trial.get_parameter("flow-set")):
-        total_volume_for_flow = sum(flow.flow_tx_rate)
-        mean_tx_rate_for_flow = (total_volume_for_flow * 8) / (trial_duration * 2**20)
-        print(f"Mean transmission rate for bulk transfer on path {flow_idx}: {mean_tx_rate_for_flow}")
-        print(f"Number of negative transmission rates: %d" %
-                len([tx_rate for tx_rate in flow.flow_tx_rate if tx_rate < 0]))
-    print("")
+        for flow_idx, flow in enumerate(the_trial.get_parameter("flow-set")):
+            total_volume_for_flow = sum(flow.flow_tx_rate)
+            mean_tx_rate_for_flow = (total_volume_for_flow * 8) / (trial_duration * 2**20)
+            number_of_negative_transmission_rates = \
+                    len([tx_rate for tx_rate in flow.flow_tx_rate if tx_rate < 0])
+            print(f"Mean transmission rate for bulk transfers on path {flow_idx}: {mean_tx_rate_for_flow}",
+                    f"Number of negative transmission rates: {number_of_negative_transmission_rates}")
+        print("")
 
-    for flow_idx, flow in enumerate(the_trial.get_parameter("background-traffic-flow-set")):
-        total_volume_for_flow = sum(flow.flow_tx_rate)
-        mean_tx_rate_for_flow = (total_volume_for_flow * 8) / (trial_duration * 2**20)
-        print(f"Mean transmission rate for real time traffic on path {flow_idx}: {mean_tx_rate_for_flow}")
-        print(f"Number of negative transmission rates: %d" %
-                len([tx_rate for tx_rate in flow.flow_tx_rate if tx_rate < 0]))
+        for flow_idx, flow in enumerate(the_trial.get_parameter("background-traffic-flow-set")):
+            total_volume_for_flow = sum(flow.flow_tx_rate)
+            mean_tx_rate_for_flow = (total_volume_for_flow * 8) / (trial_duration * 2**20)
+            number_of_negative_transmission_rates = \
+                    len([tx_rate for tx_rate in flow.flow_tx_rate if tx_rate < 0])
+            print(f"Mean transmission rate for real time traffic on path {flow_idx}: {mean_tx_rate_for_flow}",
+                    f"Number of negative transmission rates: {number_of_negative_transmission_rates}")
+        print("\n")
+
+        for path_idx, path_capacities in enumerate(the_trial.get_parameter("remaining-capacities")):
+            total_remaining_capacity = sum(path_capacities)
+            mean_remaining_capacity = (total_remaining_capacity * 8) / (trial_duration * 2**20)
+            print(f"Mean remaining capacity on path {path_idx}: {mean_remaining_capacity}")
+
+        print(f"***************************************************************************************************")
 
 def conduct_test_mininet_trial(results_reposity, the_trial):
     hosts                           = {}
@@ -354,7 +386,7 @@ def conduct_test_mininet_trial(results_reposity, the_trial):
             # print(f"PID of server on host with IP {host.host_ip} is {host.server_proc.pid}")
         
         source_node, destination_node = (0, 1)
-        flow_rate_list = [131072]*300
+        flow_rate_list = [1310720]*300
         hosts[source_node].configure_flow_with_precomputed_transmit_rates(flow_rate_list,
                 hosts[destination_node].host_ip, 50000, [1.0, 0.0, 0.0, 0.0, 0.0], hosts[source_node].host_id,
                 10, [0, 0, 0, 0, 0])

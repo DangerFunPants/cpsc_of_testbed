@@ -11,6 +11,8 @@ from networkx.algorithms.connectivity.disjoint_paths    import node_disjoint_pat
 from collections                                        import defaultdict
 
 class TuitiTrial:
+    TX_RATE_SCALING_FACTOR = 10000
+
     @staticmethod
     def prune_flow_allocations_list(flow_allocations, flow_admissions):
         traffic_for_path_in_timeslot = {}
@@ -19,7 +21,7 @@ class TuitiTrial:
             for request_id in range(len(flow_allocations[path_id])):
                 for timeslot in range(len(flow_allocations[path_id][request_id])):
                     traffic_for_path_in_timeslot[path_id][timeslot] += \
-                            flow_allocations[path_id][request_id][timeslot]
+                            TuitiTrial.TX_RATE_SCALING_FACTOR * flow_allocations[path_id][request_id][timeslot]
 
         return {path_id: [rate for rate in timeslot_to_rate.values()] 
                 for path_id, timeslot_to_rate in traffic_for_path_in_timeslot.items()}
@@ -28,7 +30,7 @@ class TuitiTrial:
     def prune_path_capacity_list(path_capacities):
         capacity_for_path_in_timeslot = {}
         for path_id in range(len(path_capacities)):
-            capacity_for_path_in_timeslot[path_id] = path_capacities[path_id]
+            capacity_for_path_in_timeslot[path_id] = [tx_rate * TuitiTrial.TX_RATE_SCALING_FACTOR for tx_rate in path_capacities[path_id]]
         return capacity_for_path_in_timeslot
 
     @staticmethod
@@ -60,6 +62,11 @@ class TuitiTrial:
         the_trial.add_parameter("mean-flow-duration", trial_parameters.mean_flow_duration)
         the_trial.add_parameter("mean-flow-demand", trial_parameters.mean_flow_demand)
         the_trial.add_parameter("number-of-admitted-flows", trial_parameters.number_of_admitted_flows)
+        the_trial.add_parameter("number-of-successful-flows", trial_parameters.number_of_successful_flows)
+        the_trial.add_parameter("number-of-paths", trial_parameters.number_of_paths)
+        the_trial.add_parameter("flow-bandwidth-requirements", 
+                {flow_id: trial_parameters.flow_bandwidth_requirements[flow_id]
+                    for flow_id in range(len(trial_parameters.flow_bandwidth_requirements))})
 
         if isinstance(trial_parameters, EbTrialParameters):
             the_trial.add_parameter("confidence-interval", trial_parameters.confidence_interval)
@@ -79,7 +86,8 @@ class TuitiTrial:
                     trial_parameters.number_of_timeslots
             total_remaining_capacity = max_remaining_capacity * trial_duration
             scaling_factor = (0.85 * total_path_volume) / total_remaining_capacity
-            scaling_factors[path_id] = scaling_factor
+            # scaling_factors[path_id] = scaling_factor
+            scaling_factors[path_id] = 1.0
 
         # The flow transmission rates are traffic volume per timeslot duration.
         flow_set = trial.FlowSet()
@@ -100,16 +108,26 @@ class TuitiTrial:
 
         # The background traffic transmission rates are remaining path capacity per second
         background_traffic_flow_set = trial.FlowSet()
+        # print(f"TOTAL PATH VOLUME PER SECOND: {total_path_volume_per_second}")
+        remaining_capacities = []
         for path_id, tx_rate_list in path_capacities.items():
             scaled_tx_rate_list = []
             max_capacity = max(tx_rate_list)
             min_capacity = min(tx_rate_list)
-            if (max_capacity * scaling_factors[path_id]) > total_path_volume_per_second:
-                print(f"Bad scaling on path with id {path_id} with max capacity of {max_capacity}")
+            # if (max_capacity * scaling_factors[path_id]) > total_path_volume_per_second:
+            #     print(f"Bad scaling on path with id {path_id} with max capacity of {max_capacity}")
 
             # print(f"Old tx rate list min: {min(tx_rate_list)}, max: {max(tx_rate_list)}")
+            scaled_remaining_capacities = []
             for tx_rate in tx_rate_list:
-                scaled_tx_rate_list.append(total_path_volume_per_second - (tx_rate * scaling_factors[path_id]))
+                scaled_capacity = (tx_rate * scaling_factors[path_id]) / \
+                        trial_parameters.duration_of_timeslot_in_seconds
+                scaled_tx_rate_list.extend(
+                        [total_path_volume_per_second - scaled_capacity] * \
+                                trial_parameters.duration_of_timeslot_in_seconds)
+                scaled_remaining_capacities.extend([scaled_capacity] * \
+                        trial_parameters.duration_of_timeslot_in_seconds)
+            remaining_capacities.append(scaled_remaining_capacities)
             
             # scaled_tx_rate_list = [total_path_volume_per_second - (tx_rate * scaling_factors[path_id])
             #         for tx_rate in tx_rate_list]
@@ -119,6 +137,7 @@ class TuitiTrial:
         the_trial.add_parameter("background-traffic-flow-set", background_traffic_flow_set)
         the_trial.add_parameter("transfer-volume-scaling-factor", scaling_factor)
         the_trial.add_parameter("expected-path-bandwidth-in-bytes-per-second", total_path_volume_per_second)
+        the_trial.add_parameter("remaining-capacities", remaining_capacities)
         # the_trial.add_parameter("mean-background-traffic-tx-rate", mean_background_traffic_tx_rate)
         # the_trial.add_parameter("mean-bulk-transfer-tx-rate", mean_bulk_transfer_tx_rate)
 

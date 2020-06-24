@@ -202,8 +202,6 @@ def conduct_path_hopping_trial(results_repository, the_trial):
                 compute_link_utilization_over_time(utilization_results))
         the_trial.add_parameter("measured-link-utilization", 
                 compute_mean_link_utilization(utilization_results))
-        
-
     except Exception as ex:
         traceback.print_exc()
         print(ex)

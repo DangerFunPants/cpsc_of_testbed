@@ -85,6 +85,8 @@ def compute_mean_link_utilization(link_byte_counts):
 
 class OnMonitor:
 
+    MONITOR_PERIOD = 10 # Seconds
+
     def __init__(self, onos_controller_ip, onos_controller_port):
         self._onos_controller_ip        = onos_controller_ip
         self._onos_controller_port      = onos_controller_port

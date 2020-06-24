@@ -16,7 +16,6 @@ import port_mirroring.params                        as pm_cfg
 import mp_routing.params                            as mp_cfg
 import simulations.params                           as sim_cfg
 import path_hopping.params                          as ph_cfg   
-import tuiti.config                                 as tuiti_config
 
 # def flow_mirroring_plots():
 #     # results-5 : Multi provider that ran for five minutes
@@ -206,11 +205,6 @@ def latency_testing_plots():
     security.plot_share_delay_cdf([p_i for p_i in packets
         if p_i.source_ip == "10.10.0.1"])
 
-def tuiti_plots():
-    results_repository = rr.ResultsRepository.create_reposiotry(tuiti_config.base_repository_path,
-            tuiti_config.repository_schema, tuiti_config.repository_name)
-    print(f"Opened results repository maybe.")
-
 def main():
     # flow_mirroring_plots()
     # port_mirroring_plots()
@@ -222,10 +216,9 @@ def main():
     # test_plot()
     # testbed_multiflow_plots()
     # attacker_plots()
-    # simulation_plots()
+    simulation_plots()
     # print_statistics()
     # latency_testing_plots()
-    tuiti_plots()
 
 if __name__ == "__main__":
     main()

@@ -8,8 +8,8 @@ def tuiti_plots():
             tuiti_config.repository_schema, tuiti_config.repository_name)
     provider_name = "tuiti-trial-provider"
     trial_provider = results_repository.read_trial_provider(provider_name)
-    # tuiti_graphing.generate_link_utilization_cdf(trial_provider)
-    # tuiti_graphing.generate_link_utilization_box_plot(trial_provider)
+    tuiti_graphing.generate_link_utilization_cdf(trial_provider)
+    tuiti_graphing.generate_link_utilization_box_plot(trial_provider)
     tuiti_graphing.generate_link_utilization_over_time_plot(trial_provider)
     tuiti_graphing.generate_packet_loss_cdf(trial_provider)
     tuiti_graphing.generate_mean_throughput_over_time_plot(trial_provider)

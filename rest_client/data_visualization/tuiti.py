@@ -53,7 +53,9 @@ def generate_link_utilization_cdf(trial_provider):
         print(f"Number of links based on utilization results: {len(links)}")
 
         mean_network_utilization = trial.get_parameter("measured-link-utilization")
-        link_utilizations = sorted([min(1.0, link_throughput / link_capacity) for link_throughput in mean_network_utilization.values()])
+        link_utilizations = sorted([link_throughput / link_capacity 
+                for link_throughput 
+                in mean_network_utilization.values()])
         helpers.plot_a_cdf(link_utilizations, label=trial.name, idx=idx)
 
     plt.xlabel("Link Utilization")
@@ -122,8 +124,6 @@ def generate_packet_loss_cdf(trial_provider):
             total_transmitted_data[link_tuple] = 0.0
             total_lost_data[link_tuple] = 0.0
             for util_val in utilization_values:
-                if util_val > link_capacity:
-                    total_lost_data[link_tuple] += (util_val - link_capacity) * OnMonitor.MONITOR_PERIOD
                 total_transmitted_data[link_tuple] += util_val * OnMonitor.MONITOR_PERIOD
         loss_rates_for_links = []
         for link_tuple, data_transmitted in total_transmitted_data.items():

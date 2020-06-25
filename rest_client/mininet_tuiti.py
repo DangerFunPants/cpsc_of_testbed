@@ -246,13 +246,11 @@ def conduct_mininet_trial(results_repository, the_trial):
         path.Path("./mean-link-utilization.txt").write_text(pp.pformat(mean_link_utilization))
         path.Path("./raw-utilization-results.txt").write_text(pp.pformat(utilization_results))
         path.Path("./host-utilization-results.txt").write_text(pp.pformat(end_host_results))
-        pp.pprint(end_host_results)
 
         the_trial.add_parameter("byte-counts-over-time", utilization_results)
         the_trial.add_parameter("link-utilization-over-time", link_utilization_over_time)
         the_trial.add_parameter("measured-link-utilization", mean_link_utilization)
-
-        # pp.pprint(utilization_results)
+        the_trial.add_parameter("end-host-results", end_host_results)
     except Exception as ex:
         print(ex)
         exc_type, exc_value, exc_traceback = sys.exc_info()

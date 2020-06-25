@@ -251,6 +251,7 @@ def conduct_mininet_trial(results_repository, the_trial):
         the_trial.add_parameter("link-utilization-over-time", link_utilization_over_time)
         the_trial.add_parameter("measured-link-utilization", mean_link_utilization)
         the_trial.add_parameter("end-host-results", end_host_results)
+        results_repository.write_trial_provider(schema_vars, trial_provider, overwrite=True)
     except Exception as ex:
         print(ex)
         exc_type, exc_value, exc_traceback = sys.exc_info()
@@ -264,13 +265,13 @@ def main():
             tuiti_config.repository_schema, tuiti_config.repository_name)
     trial_provider = build_tuiti_trial_provider()
     total_trials = len(trial_provider)
+    schema_vars = {"provider-name": trial_provider.provider_name}
     for trial_idx, the_trial in enumerate(trial_provider):
         flow_count = len(the_trial.get_parameter("flow-set"))
         print(f"Trial {the_trial.name} has {flow_count} flow(s)")
         print(f"Executing trial {trial_idx+1} out of {total_trials}")
-        conduct_mininet_trial(results_repository, the_trial)
+        conduct_mininet_trial(results_repository, schema_vars, the_trial)
         time.sleep(30)
-    schema_vars = {"provider-name": trial_provider.provider_name}
     results_repository.write_trial_provider(schema_vars, trial_provider, overwrite=True)
 
 def test_main():
@@ -367,7 +368,7 @@ def looking_at_trials():
 
         print(f"***************************************************************************************************")
 
-def conduct_test_mininet_trial(results_reposity, the_trial):
+def conduct_test_mininet_trial(results_reposity, schema_vars, the_trial):
     hosts                           = {}
     flow_allocation_seed_number     = the_trial.get_parameter("seed-number")
     flows                           = the_trial.get_parameter("flow-set")

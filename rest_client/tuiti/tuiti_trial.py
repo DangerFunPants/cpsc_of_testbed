@@ -38,9 +38,12 @@ class TuitiTrial:
         with open(path_like, "rb") as fd:
             trial_parameters = pickle.load(fd)
 
+        # This would need to change to:
+        #       flow_allocations :: request_id -> path_id -> timeslot_number -> data volume
         # flow_allocations :: path_id -> timeslot_number -> volume of data per timeslot duration
         flow_allocations = TuitiTrial.prune_flow_allocations_list(trial_parameters.flow_allocations, 
                 trial_parameters.flow_admissions)
+        # This can stay the same.
         # path_capacities :: path_id -> time (in seconds) -> volume of data per second
         path_capacities = TuitiTrial.prune_path_capacity_list(trial_parameters.path_capacities)
 

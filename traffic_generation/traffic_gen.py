@@ -37,6 +37,7 @@ class TrafficModels(Enum):
     TRUNC_NORM_SYMMETRIC    = 3
     GAMMA                   = 4
     PRECOMPUTED             = 5
+    REQUEST_BASED           = 6
 
     @staticmethod
     def from_str(string_rep):
@@ -54,6 +55,8 @@ class TrafficModels(Enum):
             e_val = TrafficModels.GAMMA
         elif string_rep == "precomputed":
             e_val = TrafficModels.PRECOMPUTED
+        elif string_rep == "request-based":
+            e_val = TrafficModels.REQUEST_BASED
         else:
             raise ValueError('Could not parse string: %s' % string_rep)
         
@@ -123,6 +126,41 @@ class FlowParameters:
     
     def __repr__(self):
         return str(self)
+
+class BulkTransferRequest:
+    def __init__( self
+                , request_transmit_rates
+                , request_deadline
+                , total_data_volume
+                , dest_addr
+                , dest_port
+                , prob_mat
+                , traffic_model
+                , packet_len
+                , src_host
+                , time_slice
+                , tag_value):
+        # request_transmit_rates :: timeslot_id -> path_id -> volume of data on path in timeslot
+        self.request_transmit_rates     = request_transmit_rates
+        # The deadline of the request specified as a timeslot
+        self.request_deadline           = request_deadline
+        # The total amount of data that must be received in order to consider the request successful
+        self.total_data_volume = total_data_volume
+        # The destination IP Address
+        self.destination_address = dest_addr
+        # The destination UDP port
+        self.destiation_port = dest_ort
+        # The amount of traffic to send over each of the paths.
+        # self.prob_mat = prob_mat
+        # The length of packet to send
+        self.packet_length = packet_len
+        # The host id of this traffic generation instance
+        self.source_host = src_host
+        # The duration of the timeslice (i.e. the duration of a timeslot)
+        self.time_slice_duration = time_slice
+        # The DSCP tag values to use for each path.
+        self.tag_values = tag_value
+
 
 pkt_count = defaultdict(int)
 flow_params = None
@@ -221,7 +259,13 @@ def get_args():
     # arg_dicts = json.loads(arg_str)
     for d in argument_dicts:
         d['traffic_model'] = TrafficModels.from_str(d['traffic_model'])
-    fp_list = { i: FlowParameters(**d) for i, d in enumerate(argument_dicts) }
+
+    for flow_arguments in argument_dicts:
+        if flow_arguments["traffic_model"] == TrafficModels.REQUEST_BASED:
+            fp_list = {i: BulkTransferRequest(**d) for i, d in enumerate(argument_dicts)}
+        else:
+            fp_list = {i: FlowParameters(**d) for i, d in enumerate(argument_dicts)}
+
     return fp_list
 
 def inc_pkt_count(flow_num):
@@ -262,6 +306,10 @@ def transmit(sock_list, ipd_list, duration, flow_params):
             for _ in range(10):
                 dscp_val = select_dscp(flow_params[i].prob_mat, flow_params[i].tag_value)
                 set_dscp(flow[0], dscp_val)
+                # header_for_packet = next(flow_params[i].headers)
+                # headers would be a list of all the headers that need to be sent over this path in
+                # this timeslot (could be from different requests, and so would have different request ids
+                # in the header.
                 flow[0].sendto(flow_params[i].data_str, (flow_params[i].dest_addr, flow_params[i].dest_port))
             inc_pkt_count(i)
             ipds[i] = (ipds[i][0], ipd_list[i])
@@ -291,10 +339,6 @@ def generate_traffic(flow_params):
             ipd_list.append(compute_inter_pkt_delay(fp.packet_len, r, fp.time_slice))
         transmit(socks, ipd_list, flow_params[0].time_slice, flow_params)
 
-    # while True:
-    #     for i, fp in flow_params.items():
-    #         socks[i].sendto(fp.data_str, (fp.dest_addr, fp.dest_port))
-
 def handle_sig_int(signum, frame):
     flow_info = defaultdict(dict)
     src_host_id = None
@@ -317,12 +361,35 @@ def set_log_level(log_level):
     # lg.basicConfig(log_level=log_level)
     pass
 
+# Rather than configuring flows we want to configure requests.
+#   * Each request must transfer a certain amount of data per timeslot, these amounts are provided in the 
+#     form of a list.
+#   * The reciever needs to be able to discern data from different transfers (i.e. we need to put a header in 
+#     the packet which is fine). 
+#   * I think the way this currently works, transfers are already routed over the right paths so that should 
+#     be fine aslong as the receiver can demux the requests.
+#   * What information do we need for every request:
+#       - The path_id -> timeslot_id -> volume dict (i.e. what rate to transmit at)
+#       - the total bw requirement of the request. 
+#       - We need to know the deadline.
+#       - Deadlines are per timeslot (i.e. as long as the request is done before the timeslot specified
+#         is over then the request is considered a success. So we should tag the data we send with the time
+#         slot that it was sent in? This creates a big problem, we need retransmits. I don't think this is 
+#         going to be all that easy. Could just not do retransmits and say that if a transfer isn't successful
+#         that's fine. Doing retransmits is trick because it interferes with the scheduling in subsequent
+#         timeslots.
 def main():
     global flow_params
     global src_port
     flow_params = get_args()
-    
-    generate_traffic(flow_params)
+    if flow_params[0]["traffic_model"] == TrafficModels.REQUEST_BASED:
+        if  any(lambda fp: fp["traffic_model"] != TrafficModels.REQUEST_BASED, flow_params):
+            exit()
+        do_request_transmission(flow_params)
+    else:
+        if any(lambda fp: fp["traffic_model"] == TrafficModels.REQUEST_BASED, flow_params):
+            exit()
+        generate_traffic(flow_params)
 
 if __name__ == '__main__':
     set_log_level(lg.INFO)

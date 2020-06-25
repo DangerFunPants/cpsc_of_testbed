@@ -162,6 +162,33 @@ class MininetHost(Host):
                       }
         self.configured_flows.append(client_args)
 
+    def configure_bulk_transfer_request( self
+                                       , request_transmit_rates
+                                       , request_deadline
+                                       , total_data_volume
+                                       , destination_ip
+                                       , destination_port_number
+                                       , k_matrix
+                                       , host_number
+                                       , time_slice_duration
+                                       , tag_values
+                                       , packet_length = 1066):
+        client_args = { "request_transmit_rates"    : request_transmit_rates
+                      , "request_deadline"          : request_deadline
+                      , "total_data_volume"         : total_data_volume
+                      , "dest_addr"                 : destination_ip
+                      , "dest_port"                 : destination_port_number
+                      , "prob_mat"                  : k_matrix
+                      , "traffic_model"             : "request-based"
+                      , "packet_len"                : packet_length
+                      , "src_host"                  : host_number
+                      , "time_slice"                : time_slice_duration
+                      , "tag_value"                 : tag_values
+                      }
+        self.configured_flows.append(client_args)
+
+                                       
+
     def start_traffic_generation_client(self):
         if len(self.configured_flows) == 0:
             return

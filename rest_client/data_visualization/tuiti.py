@@ -3,6 +3,7 @@ matplotlib.use("Agg")
 
 import pathlib                      as path
 import pprint                       as pp
+import itertools                    as itertools
 from operator                       import itemgetter
 from collections                    import defaultdict
 
@@ -106,36 +107,43 @@ def generate_link_utilization_over_time_plot(trial_provider):
 
         helpers.save_figure("over-time.pdf", no_legend=True)
 
-def generate_packet_loss_cdf(trial_provider):
+def generate_per_path_packet_loss_cdf(trial_provider):
     """
     For each trial generate a cdf of total packet loss 
     ((i.e. total packets sent - total packets received) / total packets sent)
     """
-    link_capacity = 50.0
     for trial_idx, the_trial in enumerate(trial_provider):
-        link_utilization_over_time = the_trial.get_parameter("link-utilization-over-time")
-        data_for_links = link_tuple_to_util_list(link_utilization_over_time)
+        end_host_results = the_trial.get_parameter("end-host-results")
+        sender_results = end_host_results[0]["sender"]
+        # print("Sender results:\n")
+        # pp.pprint(sender_results)
 
-        # total_transmitted_data :: link_id -> total_data_transmitted_over_link
-        total_transmitted_data = {}
-        # total_lost_data :: link_id -> total_data_lost_over_link
-        total_lost_data = {}
-        for link_tuple, utilization_values in data_for_links.items():
-            total_transmitted_data[link_tuple] = 0.0
-            total_lost_data[link_tuple] = 0.0
-            for util_val in utilization_values:
-                total_transmitted_data[link_tuple] += util_val * OnMonitor.MONITOR_PERIOD
-        loss_rates_for_links = []
-        for link_tuple, data_transmitted in total_transmitted_data.items():
-            data_lost = total_lost_data[link_tuple]
-            data_loss_rate = data_lost / data_transmitted
-            loss_rates_for_links.append(data_loss_rate)
-        ys = sorted(loss_rates_for_links)
-        helpers.plot_a_cdf(ys, label=the_trial.name, idx=trial_idx)
+        receiver_results = end_host_results[1]["receiver"]
+        # print("Receiver results:\n")
+        # pp.pprint(receiver_results)
 
-    plt.xlabel(helpers.axis_label_font("Percent data loss"))
-    plt.ylabel(helpers.axis_label_font("$\mathbb{P}\{x \leq \mathcal{X}\}$"))
-    helpers.save_figure("loss-rate-cdf.pdf", num_cols=len(trial_provider))
+        link_loss_rates = []
+        flow_id_selector = lambda ss: ss["flow_id"]
+        sender_results = sorted(list(sender_results.values()), key=flow_id_selector)
+        for flow_id, flows_with_id in itertools.groupby(sender_results, flow_id_selector):
+            total_sender_packets_for_path = 0
+            total_receiver_packets_for_path = 0
+            for the_flow in flows_with_id:
+                source_port = the_flow["src_port"]
+                total_sender_packets_for_path += the_flow["pkt_count"]
+                total_receiver_packets_for_path += sum([packet_count 
+                        for receiver_info, packet_count
+                        in receiver_results.items()
+                        if receiver_info[1] == source_port])
+            link_loss_rate = (total_sender_packets_for_path - total_receiver_packets_for_path) \
+                    / total_sender_packets_for_path
+            link_loss_rates.append(link_loss_rate)
+
+        helpers.plot_a_cdf(sorted(link_loss_rates), idx=trial_idx, label=the_trial.name)
+
+    plt.xlabel(helpers.axis_label_font("Packet Loss Rate"))
+    plt.ylabel(helpers.axis_label_font(r"$\mathbb{P}\{x \leq \mathcal{X}\}$"))
+    helpers.save_figure("per-path-loss-cdf.pdf")
 
 def generate_mean_throughput_over_time_plot(trial_provider):
     """

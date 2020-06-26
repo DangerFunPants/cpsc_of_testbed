@@ -149,6 +149,7 @@ class MininetHost(Host):
                                                       , host_number
                                                       , time_slice_duration
                                                       , tag_values
+                                                      , flow_id = 0
                                                       , packet_length = 1066):
         client_args = { "dest_port"         : destination_port_number
                       , "dest_addr"         : destination_ip
@@ -159,6 +160,7 @@ class MininetHost(Host):
                       , "src_host"          : host_number
                       , "time_slice"        : time_slice_duration
                       , "tag_value"         : tag_values
+                      , "flow_id"           : flow_id
                       }
         self.configured_flows.append(client_args)
 
@@ -168,6 +170,7 @@ class MininetHost(Host):
         
         args_file_path = path.Path(f"/tmp/host-{self.host_id}-traffic-gen-args.json")
         args = f"{str(MininetHost.TRAFFIC_GEN_BIN_PATH)} {str(args_file_path)}"
+        traffic_gen_args = {}
         args_file_path.write_text(json.dumps(self.configured_flows))
         self.put_file(str(args_file_path), str(args_file_path))
         self.client_proc = self.run_async(args)

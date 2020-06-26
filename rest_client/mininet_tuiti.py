@@ -68,14 +68,6 @@ def build_tuiti_trial_provider():
     source_node, destination_node = (0, 1)
     disjoint_paths = list(node_disjoint_paths(EXPECTED_TOPO, source_node, destination_node))
     the_trial_provider = trial_provider.TrialProvider("tuiti-trial-provider")
-    # trials_to_add = [ "eb_TS-3_P-5_ARRI-5_DUR-12_DEM-100_MV-40_95.p"
-    #                 , "ot_TS-3_P-5_ARRI-5_DUR-12_DEM-100_MV-40.p"
-    #                 , "eb_TS-3_P-5_ARRI-5_DUR-12_DEM-100_MV-40_90.p"
-    #                 , "eb_TS-3_P-5_ARRI-5_DUR-12_DEM-100_MV-40_99.p"
-    #                 , "avg_TS-3_P-5_ARRI-5_DUR-12_DEM-100_MV-40.p"
-    #                 , "ts_TS-3_P-5_ARRI-5_DUR-12_DEM-100_MV-40.p"
-    #                 , "ts-ks_TS-3_P-5_ARRI-5_DUR-12_DEM-100_MV-40.p"
-    #                 ]
     trial_file_directory = path.Path("/home/alexj/repos/inter-dc/trial-parameters/")
     trials = TuitiTrial.batch_from_directory(trial_file_directory, id_to_dpid, EXPECTED_TOPO)
     for the_trial in trials:
@@ -143,7 +135,7 @@ def remove_all_flows(flow_tokens):
             print("Failed to remove flow with token %s." % flow_token)
             print(ex)
 
-def conduct_mininet_trial(results_repository, the_trial):
+def conduct_mininet_trial(results_repository, schema_vars, the_trial_provider, the_trial):
     hosts                           = {}
     flow_allocation_seed_number     = the_trial.get_parameter("seed-number")
     flows                           = the_trial.get_parameter("flow-set")
@@ -180,7 +172,7 @@ def conduct_mininet_trial(results_repository, the_trial):
             hosts[flow.source_node].configure_flow_with_precomputed_transmit_rates(
                     flow_tx_rate_list, hosts[flow.destination_node].host_ip, 50000, 
                     pycopy.copy(k_matrix), hosts[flow.source_node].host_id, 
-                    1, tag_values_for_flow)
+                    1, tag_values_for_flow, flow_id)
             k_matrix[flow_id] = 0.0
 
             # print(f"Flow source node: {flow.source_node}. Flow destination node: {flow.destination_node}")
@@ -209,7 +201,7 @@ def conduct_mininet_trial(results_repository, the_trial):
             hosts[background_flow.source_node].configure_flow_with_precomputed_transmit_rates(
                     flow_tx_rate_list, hosts[background_flow.destination_node].host_ip, 50000,
                     pycopy.copy(k_matrix), hosts[background_flow.source_node].host_id,
-                    1, tag_values_for_flow)
+                    1, tag_values_for_flow, flow_id)
             k_matrix[flow_id] = 0.0
 
 
@@ -223,12 +215,8 @@ def conduct_mininet_trial(results_repository, the_trial):
 
         traffic_generation_pid = hosts[0].client_proc.pid
         print(f"PID of traffic generation process: {traffic_generation_pid}")  
-        # time.sleep(the_trial.get_parameter("duration"))
-        # trial_duration = the_trial.get_parameter("duration")
-        trial_duration = 30
         for idx in progressbar.progressbar(range(int(the_trial.get_parameter("duration")))):
             time.sleep(1.0)
-        # time.sleep(180)
         # input("Press enter to continue...")
 
         for host in hosts.values():
@@ -251,7 +239,6 @@ def conduct_mininet_trial(results_repository, the_trial):
         the_trial.add_parameter("link-utilization-over-time", link_utilization_over_time)
         the_trial.add_parameter("measured-link-utilization", mean_link_utilization)
         the_trial.add_parameter("end-host-results", end_host_results)
-        results_repository.write_trial_provider(schema_vars, trial_provider, overwrite=True)
     except Exception as ex:
         print(ex)
         exc_type, exc_value, exc_traceback = sys.exc_info()
@@ -270,7 +257,7 @@ def main():
         flow_count = len(the_trial.get_parameter("flow-set"))
         print(f"Trial {the_trial.name} has {flow_count} flow(s)")
         print(f"Executing trial {trial_idx+1} out of {total_trials}")
-        conduct_mininet_trial(results_repository, schema_vars, the_trial)
+        conduct_mininet_trial(results_repository, schema_vars, trial_provider, the_trial)
         time.sleep(30)
     results_repository.write_trial_provider(schema_vars, trial_provider, overwrite=True)
 
@@ -368,7 +355,7 @@ def looking_at_trials():
 
         print(f"***************************************************************************************************")
 
-def conduct_test_mininet_trial(results_reposity, schema_vars, the_trial):
+def conduct_test_mininet_trial(results_reposity, the_trial):
     hosts                           = {}
     flow_allocation_seed_number     = the_trial.get_parameter("seed-number")
     flows                           = the_trial.get_parameter("flow-set")

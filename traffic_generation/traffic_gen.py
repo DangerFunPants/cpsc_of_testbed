@@ -73,6 +73,7 @@ class FlowParameters:
                 , tag_value         = None
                 , transmit_rates    = None
                 , source_addr       = None
+                , flow_id           = 0
                 ):
         # UDP destination port of the flow
         self.dest_port          = dest_port
@@ -103,20 +104,24 @@ class FlowParameters:
         self.source_addr        = source_addr
         # The payload that will be sent in each packet.
         self.data_str           = b"x" * self.packet_len
+        # The ID of this particular flow
+        self.flow_id            = flow_id
 
     def __str__(self):
-        str_rep = [ "Dest. Port: %d"        % self.dest_port
-                  , "Dest. Addr: %s"        % self.dest_addr
-                  , "Prob. Mat: %s"         % self.prob_mat
-                  , "Tx Rate: %d"           % self.tx_rate
-                  , "Variance: %d"          % self.variance
-                  , "Traffic Model: %s"     % self.traffic_model
-                  , "Packet Length: %d"     % self.packet_len
-                  , "Source Host: %d"       % self.src_host
-                  , "Time Slice: %d"        % self.time_slice
-                  , "Tag Value: %s"         % str(self.tag_value)
-                  , "Transmit Rates: %s"    % self.transmit_rates
-                  , "Source Address: %s"    % self.source_addr
+        s = ""
+        str_rep = [ f"Dest. Port     : {self.dest_port}"
+                  , f"Dest. Addr     : {self.dest_addr}"
+                  , f"Prob. Mat      : {self.prob_mat}"
+                  , f"Tx Rate        : {self.tx_rate}"
+                  , f"Variance       : {self.variance}"
+                  , f"Traffic Model  : {self.traffic_model}"
+                  , f"Packet Length  : {self.packet_len}"
+                  , f"Source Host    : {self.src_host}"
+                  , f"Time Slice     : {self.time_slice}"
+                  , f"Tag Value      : {str(self.tag_value)}"
+                  , f"Transmit Rates : {self.transmit_rates}"
+                  , f"Source Address : {self.source_addr}"
+                  , f"Flow ID        : {self.flow_id}"
                   ]
         s = reduce(lambda s1, s2 : s1 + "\n" + s2, str_rep)
         return s
@@ -291,22 +296,20 @@ def generate_traffic(flow_params):
             ipd_list.append(compute_inter_pkt_delay(fp.packet_len, r, fp.time_slice))
         transmit(socks, ipd_list, flow_params[0].time_slice, flow_params)
 
-    # while True:
-    #     for i, fp in flow_params.items():
-    #         socks[i].sendto(fp.data_str, (fp.dest_addr, fp.dest_port))
-
 def handle_sig_int(signum, frame):
-    flow_info = defaultdict(dict)
+    flow_info = {}
     src_host_id = None
     for flow_num, fp in flow_params.items():
-        flow_info[flow_num]['pkt_count'] = pkt_count[flow_num]
-        flow_info[flow_num]['src_port'] = sock_dict[flow_num].getsockname()[1]
-        flow_info[flow_num]['src_host'] = fp.src_host
-        flow_info[flow_num]['dst_ip'] = fp.dest_addr
+        flow_info[flow_num] = {}
+        flow_info[flow_num]["pkt_count"]    = pkt_count[flow_num]
+        flow_info[flow_num]["src_port"]     = sock_dict[flow_num].getsockname()[1]
+        flow_info[flow_num]["src_host"]     = fp.src_host
+        flow_info[flow_num]["dst_ip"]       = fp.dest_addr
+        flow_info[flow_num]["flow_id"]      = fp.flow_id
         src_host_id = fp.src_host # TODO: Store canonical src_host id
 
     file_path = f"/tmp/sender_{src_host_id}.p"
-    with open(file_path, 'wb') as fd:
+    with open(file_path, "wb") as fd:
         pickle.dump(flow_info, fd)
     exit()
 

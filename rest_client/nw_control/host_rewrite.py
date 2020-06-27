@@ -166,8 +166,10 @@ class MininetHost(Host):
                                        , request_transmit_rates
                                        , request_deadline
                                        , total_data_volume
+                                       , number_of_timeslots
                                        , destination_ip
                                        , destination_port_number
+                                       , source_ip_address
                                        , k_matrix
                                        , host_number
                                        , time_slice_duration
@@ -176,8 +178,10 @@ class MininetHost(Host):
         client_args = { "request_transmit_rates"    : request_transmit_rates
                       , "request_deadline"          : request_deadline
                       , "total_data_volume"         : total_data_volume
+                      , "number_of_timeslots"       : number_of_timeslots
                       , "dest_addr"                 : destination_ip
                       , "dest_port"                 : destination_port_number
+                      , "source_ip_address"         : source_ip_address
                       , "prob_mat"                  : k_matrix
                       , "traffic_model"             : "request-based"
                       , "packet_len"                : packet_length

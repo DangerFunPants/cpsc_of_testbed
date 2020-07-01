@@ -20,7 +20,7 @@ def axis_label_font(phrase):
     return huge(phrase)
 
 def xlabel(phrase):
-    plt.xlabel(axis_label_font(phrase))
+    plt.xlabel(axis_label_font(phrase), **cfg.AXIS_LABELS)
 
 def ylabel(phrase):
     plt.ylabel(axis_label_font(phrase))
@@ -66,6 +66,9 @@ def bar_color(idx):
 
 def bar_texture(idx):
     return idx_list_circular(idx, cfg.BAR_PLOT_TEXTURES)
+
+def fill_style(idx):
+    return idx_list_circular(idx, cfg.MARKER_FILL_STYLES)
 
 def save_figure( figure_name
                , num_cols           = 1
@@ -152,20 +155,21 @@ def plot_a_cdf( sorted_cdf_data
               , plot_markers    = True
               , axis_to_plot_on = None
               , label_data      = True):
-    print("CDF data length %d" % len(sorted_cdf_data))
+    # print("CDF data length %d" % len(sorted_cdf_data))
     if label == None:
         label = "CDF %d" % idx
     xs = [0.0]
     ys = [0.0]
     for ctr, d_i in enumerate(sorted_cdf_data):
         xs.append(d_i)
-        ys.append(ctr / len(sorted_cdf_data))
+        ys.append((ctr + 1)/ len(sorted_cdf_data))
 
     if axis_to_plot_on == None:
         axis_to_plot_on = plt
 
     plot_kwargs = { "linestyle"     : line_style(idx)
                   , "color"         : line_color(idx)
+                  , "fillstyle"     : fill_style(idx)
                   }
 
     if plot_markers:
@@ -173,6 +177,10 @@ def plot_a_cdf( sorted_cdf_data
 
     if label_data:
         plot_kwargs["label"] = label
+
+    a = gca()
+    a.set_xticklabels(a.get_xticks(), fontProperties)
+    a.set_yticklabels(a.get_yticks(), fontProperties)
 
     axis_to_plot_on.plot(xs, ys, **plot_kwargs)
 

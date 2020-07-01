@@ -132,6 +132,7 @@ class FlowParameters:
 pkt_count = defaultdict(int)
 flow_params = None
 sock_dict = None
+BURST_COUNT = 10
 
 # Considers the list of flows to be zero indexed and takes into account
 # that test flows use DSCP values in the range [1, 2**6)
@@ -231,7 +232,7 @@ def get_args():
 
 def inc_pkt_count(flow_num):
     global pkt_count
-    pkt_count[flow_num] = pkt_count[flow_num] + 10
+    pkt_count[flow_num] = pkt_count[flow_num] + BURST_COUNT
 
 def compute_inter_pkt_delay(pkt_len, tx_rate, time_slice_duration):
     """
@@ -240,7 +241,7 @@ def compute_inter_pkt_delay(pkt_len, tx_rate, time_slice_duration):
     """
     if tx_rate == 0.0:
         return time_slice_duration
-    return (float(pkt_len) / float(tx_rate)) * 10.0
+    return (float(pkt_len) / float(tx_rate)) * float(BURST_COUNT)
 
 def wait(t):
     start = time.perf_counter()
@@ -264,7 +265,7 @@ def transmit(sock_list, ipd_list, duration, flow_params):
         for i in expired:
             flow = ipds[i]
 
-            for _ in range(10):
+            for _ in range(BURST_COUNT):
                 dscp_val = select_dscp(flow_params[i].prob_mat, flow_params[i].tag_value)
                 set_dscp(flow[0], dscp_val)
                 flow[0].sendto(flow_params[i].data_str, (flow_params[i].dest_addr, flow_params[i].dest_port))

@@ -47,6 +47,9 @@ class Trial:
         for property_name, property_value in self._parameters.items():
             yield (property_name, property_value)
 
+    def __lt__(self, other):
+        return self.name < other.name
+
 class TrialProvider:
     def __init__(self, provider_name):
         self._provider_name     = provider_name
@@ -180,15 +183,3 @@ class FlowSet:
 
     def __len__(self):
         return len(self.flows)
-
-
-
-
-
-
-
-
-
-
-
-

@@ -70,7 +70,10 @@ def build_tuiti_trial_provider():
     the_trial_provider = trial_provider.TrialProvider("tuiti-trial-provider")
     trial_file_directory = path.Path("/home/alexj/repos/inter-dc/trial-parameters/")
     trials = TuitiTrial.batch_from_directory(trial_file_directory, id_to_dpid, EXPECTED_TOPO)
-    for the_trial in trials:
+    for the_trial in [t for t in trials 
+            # if t.get_parameter("maximum-bandwidth-variation") == 50
+            # and t.name == "eb-99"
+            ]:
         the_trial_provider.add_trial(the_trial)
     return the_trial_provider
 
@@ -302,6 +305,8 @@ def looking_at_trials():
         print(f"Number of timeslots: {number_of_timeslots}")
         timeslot_duration = the_trial.get_parameter("timeslot-duration")
         print(f"Timeslot duration: {timeslot_duration}")
+        maximum_variation = the_trial.get_parameter("maximum-bandwidth-variation")
+        print(f"Maximum variation: {maximum_variation}")
         trial_duration = number_of_timeslots * timeslot_duration
 
         tx_rates = []

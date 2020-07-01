@@ -25,6 +25,7 @@ matplotlib.rcParams['text.latex.preamble']  = [ r"\usepackage{amsmath}"
                                               ]
 matplotlib.rcParams["xtick.direction"]      = "in"
 matplotlib.rcParams["ytick.direction"]      = "in"
+matplotlib.rcParams["font.family"]      = "sans-serif"
 
 def link_tuple_to_util_list(link_utilization_over_time):
     data_for_links = defaultdict(list)
@@ -42,16 +43,17 @@ def get_link_set(util_results):
             link_set.add((results_set["destinationSwitchId"], results_set["sourceSwitchId"]))
     return link_set
 
-def generate_link_utilization_cdf(trial_provider):
+def generate_link_utilization_cdf(parameter_name, parameter_value, trials):
     """
     Generate a CDF that shows the mean utilization of each link for every trial in the
     provider.
     """
     link_capacity = 50.0 # Mi-bps
-    for idx, trial in enumerate(trial_provider):
+    for idx, trial in enumerate(trials):
+        print(f"generate_link_utilization_cdf: {idx}, {trial.name}")
         utilization_results = trial.get_parameter("byte-counts-over-time")
         links = get_link_set(utilization_results)
-        print(f"Number of links based on utilization results: {len(links)}")
+        # print(f"Number of links based on utilization results: {len(links)}")
 
         mean_network_utilization = trial.get_parameter("measured-link-utilization")
         link_utilizations = sorted([link_throughput / link_capacity 
@@ -59,12 +61,12 @@ def generate_link_utilization_cdf(trial_provider):
                 in mean_network_utilization.values()])
         helpers.plot_a_cdf(link_utilizations, label=trial.name, idx=idx)
 
-    plt.xlabel("Link Utilization")
-    plt.ylabel(r"$\mathbb{P}\{x < \mathcal{X}$\}")
-    plt.legend(ncol=len(trial_provider), **cfg.LEGEND)
-    helpers.save_figure("cdf.pdf", no_legend=True)
+    helpers.xlabel(helpers.axis_label_font("Link Utilization"))
+    helpers.ylabel(helpers.axis_label_font(r"$\mathbb{P}\{x < \mathcal{X}$\}"))
+    plt.legend(ncol=len(trials), **cfg.LEGEND)
+    helpers.save_figure(f"link-utilization-cdf-{parameter_name}-{parameter_value}.pdf", no_legend=True)
 
-def generate_link_utilization_box_plot(trial_provider):
+def generate_link_utilization_box_plot(parameter_name, parameter_value, trials):
     """
     Generate a box and whisker blot that shows the mean utilization of every link for every
     trial in the provider.
@@ -78,13 +80,15 @@ def generate_link_utilization_box_plot(trial_provider):
 
     box_plot_data = []
     labels = []
-    for the_trial in trial_provider:
-        labels.append(the_trial.name)
+    for trial_idx, the_trial in enumerate(trials):
+        print(f"generate_link_utilization_box_plot: {trial_idx}, {the_trial.name}")
+        labels.append(helpers.axis_label_font(the_trial.name))
         mean_link_utilization = the_trial.get_parameter("measured-link-utilization")
         box_plot_data.append(list(mean_link_utilization.values()))
 
     plot_a_box_plot(box_plot_data, labels)
-    helpers.save_figure("box-plot.pdf")
+    helpers.save_figure(f"link-utilization-box-plot-{parameter_name}-{parameter_value}.pdf",
+            no_legend=True)
 
 def generate_link_utilization_over_time_plot(trial_provider):
     """
@@ -93,7 +97,6 @@ def generate_link_utilization_over_time_plot(trial_provider):
     data_to_plot = []
     xs = []
     for the_trial in [t for t in trial_provider if t.name == "avg"]:
-        print(f"Graphing trial with name: {the_trial.name}")
         link_utilization_over_time = the_trial.get_parameter("link-utilization-over-time")
         data_for_links = {link_tuple: util_list 
                             for link_tuple, util_list 
@@ -107,12 +110,13 @@ def generate_link_utilization_over_time_plot(trial_provider):
 
         helpers.save_figure("over-time.pdf", no_legend=True)
 
-def generate_per_path_packet_loss_cdf(trial_provider):
+def generate_per_path_packet_loss_cdf(parameter_name, parameter_value, trials):
     """
     For each trial generate a cdf of total packet loss 
     ((i.e. total packets sent - total packets received) / total packets sent)
     """
-    for trial_idx, the_trial in enumerate(trial_provider):
+    for trial_idx, the_trial in enumerate(trials):
+        print(f"generate_per_packet_loss_cdf: {trial_idx}, {the_trial.name}")
         end_host_results = the_trial.get_parameter("end-host-results")
         sender_results = end_host_results[0]["sender"]
         # print("Sender results:\n")
@@ -141,17 +145,19 @@ def generate_per_path_packet_loss_cdf(trial_provider):
 
         helpers.plot_a_cdf(sorted(link_loss_rates), idx=trial_idx, label=the_trial.name)
 
-    plt.xlabel(helpers.axis_label_font("Packet Loss Rate"))
-    plt.ylabel(helpers.axis_label_font(r"$\mathbb{P}\{x \leq \mathcal{X}\}$"))
-    helpers.save_figure("per-path-loss-cdf.pdf")
+    helpers.xlabel(helpers.axis_label_font("Packet Loss Rate"))
+    helpers.ylabel(helpers.axis_label_font(r"$\mathbb{P}\{x \leq \mathcal{X}\}$"))
+    helpers.save_figure(f"per-path-loss-cdf-{parameter_name}-{parameter_value}.pdf",
+            num_cols=3)
 
-def generate_mean_throughput_over_time_plot(trial_provider):
+def generate_mean_throughput_over_time_plot(parameter_name, parameter_value, trials):
     """
     Generate a graph that shows the mean throughput across all the links over time for 
     each trial in trial provider.
     """
     path_capacity = 50.0
-    for trial_idx, the_trial in enumerate(trial_provider):
+    for trial_idx, the_trial in enumerate(trials):
+        print(f"generate_mean_throughput_over_time: {trial_idx}, {the_trial.name}")
         # number_of_paths = the_trial.get_parameter("number-of-paths")
         link_utilization_over_time = the_trial.get_parameter("link-utilization-over-time")
         data_for_links = {link_tuple: util_list
@@ -167,17 +173,18 @@ def generate_mean_throughput_over_time_plot(trial_provider):
         xs = [idx for idx in range(len(next(iter(data_for_links.values()))))]
         helpers.plot_a_scatter(xs, throughputs_over_time, idx=trial_idx, label=the_trial.name)
 
-    plt.xlabel(helpers.axis_label_font("Time"))
-    plt.ylabel(helpers.axis_label_font("Mean throughput (Mi-bps)"))
-    helpers.save_figure("throughput-over-time.pdf", num_cols=len(trial_provider))
+    helpers.xlabel(helpers.axis_label_font("Time"))
+    helpers.ylabel(helpers.axis_label_font("Mean throughput (Mi-bps)"))
+    helpers.save_figure(f"throughput-over-time-{parameter_name}-{parameter_value}.pdf", num_cols=3)
 
-def generate_mean_link_utilization_over_time_plot(trial_provider):
+def generate_mean_link_utilization_over_time_plot(parameter_name, parameter_value, trials):
     """
     Generate a graph that shows the mean utilization across all the links over time
     for each trial in the trial provider
     """
     path_capacity = 50.0
-    for trial_idx, the_trial in enumerate(trial_provider):
+    for trial_idx, the_trial in enumerate(trials):
+        print(f"generate_mean_utilization_over_time_plot: {trial_idx}, {the_trial.name}")
         link_utilization_over_time = the_trial.get_parameter("link-utilization-over-time")
         data_for_links = {link_tuple: util_list
                 for link_tuple, util_list
@@ -194,7 +201,40 @@ def generate_mean_link_utilization_over_time_plot(trial_provider):
         helpers.plot_a_scatter(xs, throughputs_over_time, idx=trial_idx, label=the_trial.name)
 
 
-    plt.xlabel(helpers.axis_label_font("Time"))
-    plt.ylabel(helpers.axis_label_font("Mean link utilization"))
-    helpers.save_figure("mean-utilization-over-time.pdf", num_cols=len(trial_provider))
+    helpers.xlabel(helpers.axis_label_font("Time"))
+    helpers.ylabel(helpers.axis_label_font("Mean link utilization"))
+    helpers.save_figure(f"mean-utilization-over-time-{parameter_name}-{parameter_value}.pdf", num_cols=3)
 
+def generate_number_of_successful_requests_bar_plot(parameter_name, parameter_value, trials):
+    """
+    Generate a bar plot showing the number of requests that completed successfully in each of 
+    the trials.
+    """
+    bar_width = 0.2
+    bar_x_locations = np.arange(0.0, 1.0 + bar_width, bar_width)
+    bar_labels = [helpers.legend_font(the_trial.name) for the_trial in trials]
+    for idx, the_trial in enumerate(trials):
+        print(f"generate_number_of_successful_requests_bar_plot: {idx}, {the_trial.name}")
+        y_value = the_trial.get_parameter("number-of-successful-flows")
+        helpers.plot_a_bar(bar_x_locations[idx], y_value, label=bar_labels[idx], bar_width=bar_width, idx=idx)
+    plt.xticks(bar_x_locations, bar_labels)
+    helpers.save_figure(f"successful-requests-bar-{parameter_name}-{parameter_value}.pdf", no_legend=True)
+
+        
+def print_tx_rate_of_sender(trials):
+    for trial_idx, the_trial in enumerate(trials):
+        end_host_results = the_trial.get_parameter("end-host-results")
+        sender_results = end_host_results[0]["sender"]
+        receiver_results = end_host_results[1]["receiver"]
+        # print("Sender results:")
+        # pp.pprint(sender_results)
+        # print("Receiver results:")
+        # pp.pprint(receiver_results)
+
+        total_sender_packets = sum(results["pkt_count"] for results in sender_results.values())
+        total_receiver_packets = sum(packet_count for packet_count in receiver_results.values())
+        print(f"Total sender packets: {total_sender_packets}")
+        mean_transmission_rate = (total_sender_packets * 1066 * 8) / (2**20 * 12.5 * 60)
+        mean_receiver_transmission_rate = (total_receiver_packets * 1066 * 8) / (2**20 * 12.5 * 60)
+        print(f"Average sender transmission rate for trial {the_trial.name}: {mean_transmission_rate} Mi-bps")
+        print(f"Average receiver transmission rate for trial {the_trial.name}: {mean_receiver_transmission_rate}")

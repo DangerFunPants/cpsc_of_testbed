@@ -2,7 +2,7 @@
 import pathlib as path
 
 # output path used in "save_figure" calls
-FIGURE_OUTPUT_PATH = path.Path("/home/alexj/")
+FIGURE_OUTPUT_PATH = path.Path("/home/alexj/plots/")
 
 # Location of the legend for plots.
 LEGEND_HEIGHT = 1.125
@@ -23,16 +23,18 @@ BAR_PLOT_COLORS         = ["palegreen", "skyblue", "lightpink", "silver"]
 # BAR_PLOT_TEXTURES       = ["//", "O", "x", "*", "|"]
 BAR_PLOT_TEXTURES       = ["//", ".", "*", "\\", "|"]
 
-MARKER_STYLE            = ["x", "^", "o", "+", "1", "s"]
+MARKER_STYLE            = ["x", "o", "^", "v", (5, 0, 360/5)]
 MARKER_COLOR            = ["red", "lime", "palegreen"]
+MARKER_FILL_STYLES      = ["none"]
 # LINE_STYLE              = ["--", "-", "-."]
-LINE_STYLE              = ["-", "-.", "--"]
-LINE_COLOR              = ["lime", "royalblue", "red", "blue", "saddlebrown", "darkorange"]
-FONT                    = { "family"        : "serif"
+# LINE_STYLE              = ["-", "-.", "--"]
+LINE_STYLE              = ["-"]
+LINE_COLOR              = ["red", "darkviolet", "orange", "green", "tab:brown"]
+FONT                    = { "family"        : "sans serif"
                           , "size"          : 16
                           }
 
-TICK_FONT               = { "family"        : "sans-serif"
+TICK_FONT               = { "family"        : "sans serif"
                           , "size"          : 10
                           }
 
@@ -48,7 +50,7 @@ LEGEND                  = { "shadow"            : False
                           }
 
 AXIS_LABELS             = { "fontsize"  : 22
-                          , "family"    : "serif"
+                          , "family"    : "sans serif"
                           }
 
 BOX_WIDTH               = 0.75

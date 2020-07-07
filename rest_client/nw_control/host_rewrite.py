@@ -106,7 +106,7 @@ class MininetHost(Host):
         super().__init__(*args, **kwargs)
         self.host_ip = host_ip
         self.server_proc = None
-        self.client_proc = None
+        self.client_procs = []
         self.configured_flows = []
 
     def start_traffic_generation_server(self):
@@ -168,24 +168,51 @@ class MininetHost(Host):
         if len(self.configured_flows) == 0:
             return
         
-        args_file_path = path.Path(f"/tmp/host-{self.host_id}-traffic-gen-args.json")
-        args = f"{str(MininetHost.TRAFFIC_GEN_BIN_PATH)} {str(args_file_path)}"
-        traffic_gen_args = {}
-        args_file_path.write_text(json.dumps(self.configured_flows))
-        self.put_file(str(args_file_path), str(args_file_path))
-        self.client_proc = self.run_async(args)
+        # args_file_path = path.Path(f"/tmp/host-{self.host_id}-traffic-gen-args.json")
+        # args = f"{str(MininetHost.TRAFFIC_GEN_BIN_PATH)} {str(args_file_path)}"
+        # traffic_gen_args = {}
+        # args_file_path.write_text(json.dumps(self.configured_flows))
+        # self.put_file(str(args_file_path), str(args_file_path))
+        # self.client_proc = self.run_async(args)
+        flow_count = len(self.configured_flows) // 2
+        flow_groups = []
+        flow_groups.append(self.configured_flows[:flow_count])
+        flow_groups.append(self.configured_flows[flow_count:])
+        for flow_idx, flow_group in enumerate(flow_groups):
+            args_file_path = path.Path(f"/tmp/host-{self.host_id}-instance-{flow_idx}-traffic-gen-args.json")
+            args = f"{str(MininetHost.TRAFFIC_GEN_BIN_PATH)} {str(args_file_path)}"
+            args_file_path.write_text(json.dumps(flow_group))
+            self.put_file(str(args_file_path), str(args_file_path))
+            self.client_procs.append(self.run_async(args))
 
     def stop_traffic_generation_client(self):
-        if self.client_proc:
-            self.run(f"kill -s SIGINT {self.client_proc.pid}")
+        for proc in self.client_procs:
+            self.run(f"kill -s SIGINT {proc.pid}")
 
     def get_sender_results(self):
-        sender_file_path = path.Path(f"/tmp/sender_{self.host_id}.p")
-        try:
-            sender_results = self.get_file(sender_file_path, lambda fp: pickle.load(fp.open("rb")))
-        except Exception:
-            raise ValueError(f"Couldn't find file {str(sender_file_path)} on host with IP Address {self.host_ip}.")
-        return sender_results
+        sender_results = []
+        for instance_id, sender_proc in enumerate(self.client_procs):
+            sender_file_path = path.Path(f"/tmp/sender_{self.host_id}-{instance_id}.p")    
+            try:
+                sender_results.append(self.get_file(sender_file_path, lambda fp: pickle.load(fp.open("rb"))))
+            except Exception:
+                raise ValueError(
+                        f"Couldn't find file {str(sender_file_path)} on host with IP Address {self.host_ip}.")
+        result_idx = 0
+        aggregate_results = {}
+        for sender_info in sender_results:
+            for results in sender_info.values():
+                aggregate_results[result_idx] = results
+                result_idx += 1
+        return aggregate_results
+
+
+        # sender_file_path = path.Path(f"/tmp/sender_{self.host_id}-{.p)
+        # try:
+        #     sender_results = self.get_file(sender_file_path, lambda fp: pickle.load(fp.open("rb")))
+        # except Exception:
+        #     raise ValueError(f"Couldn't find file {str(sender_file_path)} on host with IP Address {self.host_ip}.")
+        # return sender_results
 
     def get_receiver_results(self):
         receiver_file_path = path.Path(f"/tmp/receiver_{self.host_id}.p")

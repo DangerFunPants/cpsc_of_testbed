@@ -216,9 +216,11 @@ def conduct_mininet_trial(results_repository, schema_vars, the_trial_provider, t
         for host in hosts.values():
             host.start_traffic_generation_client()
 
-        traffic_generation_pid = hosts[0].client_proc.pid
-        print(f"PID of traffic generation process: {traffic_generation_pid}")  
-        for idx in progressbar.progressbar(range(int(the_trial.get_parameter("duration")))):
+        traffic_generation_pids = [proc.pid for proc in hosts[0].client_procs]
+        print(f"PIDs of traffic generation process': {traffic_generation_pids}")  
+        trial_duration = the_trial.get_parameter("duration")
+        # trial_duration = 10
+        for idx in progressbar.progressbar(range(int(trial_duration))):
             time.sleep(1.0)
         # input("Press enter to continue...")
 
@@ -296,6 +298,7 @@ def looking_at_trials():
         background_flow_count = len(the_trial.get_parameter("background-traffic-flow-set"))
         number_of_admitted_flows = the_trial.get_parameter("number-of-admitted-flows")
         number_of_successful_flows = the_trial.get_parameter("number-of-successful-flows")
+        deviation_mode = the_trial.get_parameter("deviation-mode")
         print(f"Number of flows: {flow_count}")
         print(f"Number of admitted flows: {number_of_admitted_flows}")
         print(f"Number of successful flows: {number_of_successful_flows}")
@@ -307,7 +310,7 @@ def looking_at_trials():
         print(f"Timeslot duration: {timeslot_duration}")
         maximum_variation = the_trial.get_parameter("maximum-bandwidth-variation")
         print(f"Maximum variation: {maximum_variation}")
-        trial_duration = number_of_timeslots * timeslot_duration
+        print(f"Deviation mode: {deviation_mode}")
 
         tx_rates = []
         bulk_transfer_total_volume = 0.0
@@ -320,6 +323,7 @@ def looking_at_trials():
         
         total_volume = bulk_transfer_total_volume + background_traffic_total_volume
         mean_tx_rate = (total_volume * 8) / (number_of_timeslots * timeslot_duration * 2**20)
+        trial_duration = number_of_timeslots * timeslot_duration
         duration_of_trial_in_minutes = (trial_duration) / 60
         print(f"Total transmission volume: {total_volume}")
         print(f"Mean transmission rate: {mean_tx_rate} Mibps")

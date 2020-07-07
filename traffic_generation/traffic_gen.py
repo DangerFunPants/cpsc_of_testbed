@@ -133,6 +133,7 @@ pkt_count = defaultdict(int)
 flow_params = None
 sock_dict = None
 BURST_COUNT = 10
+INSTANCE_ID = None
 
 # Considers the list of flows to be zero indexed and takes into account
 # that test flows use DSCP values in the range [1, 2**6)
@@ -221,6 +222,9 @@ def set_dscp(sock, dscp):
 
 def get_args():
     path_to_args_file = path.Path(reduce(op.add, sys.argv[1:]))
+    # TODO: Pass the instance id explicitly
+    global INSTANCE_ID
+    INSTANCE_ID = int(str(path_to_args_file).split("-")[3])
     with path_to_args_file.open("r") as fd:
         argument_dicts = json.load(fd)
 
@@ -309,7 +313,7 @@ def handle_sig_int(signum, frame):
         flow_info[flow_num]["flow_id"]      = fp.flow_id
         src_host_id = fp.src_host # TODO: Store canonical src_host id
 
-    file_path = f"/tmp/sender_{src_host_id}.p"
+    file_path = f"/tmp/sender_{src_host_id}-{INSTANCE_ID}.p"
     with open(file_path, "wb") as fd:
         pickle.dump(flow_info, fd)
     exit()

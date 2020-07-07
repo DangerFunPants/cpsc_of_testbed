@@ -63,7 +63,7 @@ def generate_link_utilization_cdf(parameter_name, parameter_value, trials):
 
     helpers.xlabel(helpers.axis_label_font("Link Utilization"))
     helpers.ylabel(helpers.axis_label_font(r"$\mathbb{P}\{x < \mathcal{X}$\}"))
-    plt.legend(ncol=len(trials), **cfg.LEGEND)
+    plt.legend(ncol=len(trials)//2, **cfg.LEGEND)
     helpers.save_figure(f"link-utilization-cdf-{parameter_name}-{parameter_value}.pdf", no_legend=True)
 
 def generate_link_utilization_box_plot(parameter_name, parameter_value, trials):
@@ -211,8 +211,8 @@ def generate_number_of_successful_requests_bar_plot(parameter_name, parameter_va
     the trials.
     """
     bar_width = 0.2
-    bar_x_locations = np.arange(0.0, 1.0 + bar_width, bar_width)
-    bar_labels = [helpers.legend_font(the_trial.name) for the_trial in trials]
+    bar_x_locations = np.arange(0.0, (len(trials)+1)*2*bar_width, 2*bar_width)
+    bar_labels = [the_trial.name.replace("-approximate", "") for the_trial in trials]
     for idx, the_trial in enumerate(trials):
         print(f"generate_number_of_successful_requests_bar_plot: {idx}, {the_trial.name}")
         y_value = the_trial.get_parameter("number-of-successful-flows")
@@ -226,15 +226,16 @@ def print_tx_rate_of_sender(trials):
         end_host_results = the_trial.get_parameter("end-host-results")
         sender_results = end_host_results[0]["sender"]
         receiver_results = end_host_results[1]["receiver"]
-        # print("Sender results:")
-        # pp.pprint(sender_results)
-        # print("Receiver results:")
-        # pp.pprint(receiver_results)
+        print("Sender results:")
+        pp.pprint(sender_results)
+        print("Receiver results:")
+        pp.pprint(receiver_results)
 
         total_sender_packets = sum(results["pkt_count"] for results in sender_results.values())
         total_receiver_packets = sum(packet_count for packet_count in receiver_results.values())
         print(f"Total sender packets: {total_sender_packets}")
-        mean_transmission_rate = (total_sender_packets * 1066 * 8) / (2**20 * 12.5 * 60)
-        mean_receiver_transmission_rate = (total_receiver_packets * 1066 * 8) / (2**20 * 12.5 * 60)
+        trial_duration_in_minutes = 7.5
+        mean_transmission_rate = (total_sender_packets * 1066 * 8) / (2**20 * trial_duration_in_minutes* 60)
+        mean_receiver_transmission_rate = (total_receiver_packets * 1066 * 8) / (2**20 * trial_duration_in_minutes* 60)
         print(f"Average sender transmission rate for trial {the_trial.name}: {mean_transmission_rate} Mi-bps")
         print(f"Average receiver transmission rate for trial {the_trial.name}: {mean_receiver_transmission_rate}")

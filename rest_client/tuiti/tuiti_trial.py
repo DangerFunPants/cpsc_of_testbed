@@ -47,7 +47,7 @@ class TuitiTrial:
         source_node, destination_node = (0, 1)
         disjoint_paths = list(node_disjoint_paths(network_topology, source_node, destination_node))
         if len(disjoint_paths) < trial_parameters.number_of_paths:
-            raise ValueError((f"Not enough paths in the network to conduct the trial. "
+            raise ValueError((f"Not enough paths in the network to conduct trial {trial_parameters.trial_type}. "
                               f"Trial requests {trial_parameters.number_of_paths} but the network "
                               f"only has {len(disjoint_paths)} paths"))
 
@@ -67,6 +67,7 @@ class TuitiTrial:
         the_trial.add_parameter("flow-bandwidth-requirements", 
                 {flow_id: trial_parameters.flow_bandwidth_requirements[flow_id]
                     for flow_id in range(len(trial_parameters.flow_bandwidth_requirements))})
+        the_trial.add_parameter("deviation-mode", trial_parameters.deviation_mode)
 
         if isinstance(trial_parameters, EbTrialParameters):
             the_trial.add_parameter("confidence-interval", trial_parameters.confidence_interval)

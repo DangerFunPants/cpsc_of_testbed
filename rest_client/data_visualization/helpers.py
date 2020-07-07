@@ -178,9 +178,9 @@ def plot_a_cdf( sorted_cdf_data
     if label_data:
         plot_kwargs["label"] = label
 
-    a = gca()
-    a.set_xticklabels(a.get_xticks(), fontProperties)
-    a.set_yticklabels(a.get_yticks(), fontProperties)
+    # a = plt.gca()
+    # a.set_xticklabels(a.get_xticks(), fontProperties)
+    # a.set_yticklabels(a.get_yticks(), fontProperties)
 
     axis_to_plot_on.plot(xs, ys, **plot_kwargs)
 
@@ -203,7 +203,7 @@ def plot_a_bar( bar_x_locations
                   }
 
     if label_data:
-        plot_kwargs["label"] = label
+        plot_kwargs["label"] = r"\tiny{%s}" % label
 
     axis_to_plot_on.bar(bar_x_locations, bar_y_values, **plot_kwargs)
     

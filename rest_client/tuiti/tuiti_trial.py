@@ -68,6 +68,7 @@ class TuitiTrial:
                 {flow_id: trial_parameters.flow_bandwidth_requirements[flow_id]
                     for flow_id in range(len(trial_parameters.flow_bandwidth_requirements))})
         the_trial.add_parameter("deviation-mode", trial_parameters.deviation_mode)
+        the_trial.add_parameter("profit", trial_parameters.profit)
 
         if isinstance(trial_parameters, EbTrialParameters):
             the_trial.add_parameter("confidence-interval", trial_parameters.confidence_interval)

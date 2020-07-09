@@ -299,6 +299,7 @@ def looking_at_trials():
         number_of_admitted_flows = the_trial.get_parameter("number-of-admitted-flows")
         number_of_successful_flows = the_trial.get_parameter("number-of-successful-flows")
         deviation_mode = the_trial.get_parameter("deviation-mode")
+        profit = the_trial.get_parameter("profit")
         print(f"Number of flows: {flow_count}")
         print(f"Number of admitted flows: {number_of_admitted_flows}")
         print(f"Number of successful flows: {number_of_successful_flows}")
@@ -311,6 +312,7 @@ def looking_at_trials():
         maximum_variation = the_trial.get_parameter("maximum-bandwidth-variation")
         print(f"Maximum variation: {maximum_variation}")
         print(f"Deviation mode: {deviation_mode}")
+        print(f"Profit: {sum(profit)}")
 
         tx_rates = []
         bulk_transfer_total_volume = 0.0
@@ -443,7 +445,7 @@ def conduct_test_mininet_trial(results_reposity, the_trial):
         remove_all_flows(flow_tokens)
     
 if __name__ == "__main__":
-    main()
+    # main()
     # test_main()
     # serialization_testing()
-    # looking_at_trials()
+    looking_at_trials()

@@ -181,7 +181,7 @@ class BulkTransferRequest:
         # The length of packet to send
         self.packet_length = packet_len
         # The host id of this traffic generation instance
-        self.source_host = src_host
+        self.source_host_id = src_host
         # The duration of the timeslice (i.e. the duration of a timeslot)
         self.time_slice_duration = time_slice
         # The DSCP tag values to use for each path.
@@ -194,7 +194,7 @@ class BulkTransferRequest:
                                 , f"Destination Port        : {self.destination_port}"
                                 , f"Source IP Address       : {self.source_ip_address}"
                                 , f"Packet Length           : {self.packet_length}"
-                                , f"Source Host             : {self.source_host}"
+                                , f"Source Host             : {self.source_host_id}"
                                 , f"Time Slice Duration     : {self.time_slice_duration}"
                                 , f"Tag Values              : {self.tag_values}"
                                 ]
@@ -320,14 +320,14 @@ def inc_pkt_count(flow_num):
     global pkt_count
     pkt_count[flow_num] = pkt_count[flow_num] + 10
 
-def compute_inter_pkt_delay(pkt_len, tx_rate, time_slice_duration):
+def compute_inter_pkt_delay(pkt_len, tx_rate, time_slice_duration, burst_count):
     """
     Doesn't actually compute the inter-packet delay, computes the delay that would 
-    be required to allow 10 packets to be transmitted.
+    be required to allow $burst_count packets to be transmitted.
     """
     if tx_rate == 0.0:
         return time_slice_duration
-    return (float(pkt_len) / float(tx_rate)) * 10.0
+    return (float(pkt_len) / float(tx_rate)) * burst_count
 
 def wait(t):
     start = time.perf_counter()
@@ -380,19 +380,25 @@ def generate_traffic(flow_params):
         ipd_list = []
         for i, fp in flow_params.items():
             r = select_tx_rate(fp, fp.tx_rate, rvs[i])
-            ipd_list.append(compute_inter_pkt_delay(fp.packet_len, r, fp.time_slice))
+            ipd_list.append(compute_inter_pkt_delay(fp.packet_len, r, fp.time_slice, 10))
         transmit(socks, ipd_list, flow_params[0].time_slice, flow_params)
 
 def handle_sig_int(signum, frame):
-    flow_info = defaultdict(dict)
-    src_host_id = None
-    for flow_num, fp in flow_params.items():
-        flow_info[flow_num]['pkt_count'] = pkt_count[flow_num]
-        flow_info[flow_num]['src_port'] = sock_dict[flow_num].getsockname()[1]
-        flow_info[flow_num]['src_host'] = fp.src_host
-        flow_info[flow_num]['dst_ip'] = fp.dest_addr
-        src_host_id = fp.src_host # TODO: Store canonical src_host id
+    if OPERATION_MODE == TrafficModels.REQUEST_BASED:
+        flow_info = request_statistics
+    else:
+        flow_info = defaultdict(dict)
+        src_host_id = None
+        for flow_num, fp in flow_params.items():
+            flow_info[flow_num]['pkt_count'] = pkt_count[flow_num]
+            flow_info[flow_num]['src_port'] = sock_dict[flow_num].getsockname()[1]
+            flow_info[flow_num]['src_host'] = fp.src_host
+            flow_info[flow_num]['dst_ip'] = fp.dest_addr
 
+    if type(flow_params[0]) == BulkTransferRequest:
+        src_host_id = flow_params[0].source_host_id
+    else:
+        src_host_id = flow_params[0].src_host
     file_path = f"/tmp/sender_{src_host_id}.p"
     with open(file_path, 'wb') as fd:
         pickle.dump(flow_info, fd)
@@ -411,7 +417,8 @@ def create_aggregate_transmission_buffer(bulk_transfer_requests):
     for path_id in range(number_of_paths):
         for timeslot_id in range(number_of_timeslots):
             for request_id, request in bulk_transfer_requests.items():
-                volume_to_transfer = request.request_transmit_rates[timeslot_id][path_id]
+                volume_to_transfer = request.request_transmit_rates[timeslot_id][path_id] * \
+                        request.time_slice_duration
                 number_of_packets_required = ceil(volume_to_transfer / packet_length)
                 transmission_buffer[timeslot_id][path_id].append(Packet(request_id, timeslot_id,
                     request.destination_address, request.destination_port, number_of_packets_required))
@@ -424,9 +431,11 @@ def do_request_transmission(bulk_transfer_requests):
     tag_values_for_paths = bulk_transfer_requests[0].tag_values 
     number_of_paths = len(tag_values_for_paths)
     number_of_requests = len(bulk_transfer_requests)
+    number_of_timeslots = bulk_transfer_requests[0].number_of_timeslots
     # This could cause the behaviour of the traffic generator to change durastically depending
     # on how many requests there are.
-    burst_count = max(1, 10 // number_of_requests)
+    # burst_count = max(1, 10 // number_of_requests)
+    burst_count = 2
     sockets = {path_idx: create_socket(bulk_transfer_requests[0].source_ip_address) 
                 for path_idx in range(number_of_paths)}
     for path_idx, socket in sockets.items():
@@ -441,18 +450,23 @@ def do_request_transmission(bulk_transfer_requests):
 
     log.info(pp.pformat(transmission_buffer))
 
-    timeslot_idx = 0
-    while True:
+    for timeslot_idx in range(number_of_timeslots):
+        log.debug(f"Doing transmission for timeslot {timeslot_idx}")
         inter_packet_delays = []
         for path_idx in range(number_of_paths):
             total_packets_on_path = sum(packet.count
                     for packet in transmission_buffer[timeslot_idx][path_idx])
             transmission_rate_for_path = (total_packets_on_path * packet_length) / timeslot_duration
             inter_packet_delays.append(compute_inter_pkt_delay(packet_length, 
-                transmission_rate_for_path, timeslot_duration))
+                transmission_rate_for_path, timeslot_duration, burst_count))
+        print(f"Total packets on path: {total_packets_on_path}")
+        print(f"Packet length: {packet_length}")
+        print(f"Transmission_rate_for_path: {transmission_rate_for_path}")
+        print(f"Burst count: {burst_count}")
+
+        pp.pprint(inter_packet_delays)
         transmit_request_data(sockets, inter_packet_delays, timeslot_duration, timeslot_idx,
                 bulk_transfer_requests, transmission_buffer, burst_count)
-        timeslot_idx += 1
 
 def transmit_request_data( sockets
                          , inter_packet_delay_list
@@ -461,28 +475,26 @@ def transmit_request_data( sockets
                          , bulk_transfer_requests
                          , transmission_buffer
                          , burst_count):
+    # From what I can tell the inter packet delays are correct. 
+    # ipd = 0.078125
+    # burst_count = 10
+    # transmit_rate = (burst_count * 1024) / 0.078125 = 131072 Bytes/Sec
     inter_packet_delays = {path_idx: (sockets[path_idx], inter_packet_delay_list[path_idx])
             for path_idx in range(len(inter_packet_delay_list))}
     start_time = time.time()
-    wait_time = min(inter_packet_delays.values(), key=op.itemgetter(1))
     while (time.time() - start_time) < timeslot_duration:
         loop_start = time.perf_counter()
         expired = [path_idx for path_idx, (_, delay) in inter_packet_delays.items() if delay <= 0.0]
         for path_idx in expired:
-            # socket_for_path, delay = inter_packet_delays[path_idx]
-            # packets = transmission_buffer[timeslot_idx][path_idx]
-            # # Need to store current indexes into the packets lists.
-            # for packet in packets[:10]:
-            #     socket_for_path.sendto(build_data_to_transmit_for_packet(packet), 
-            #             (packet.destination_address, packet.destination_port))
-            # update_request_statistics(packets[:10], path_idx)
-            # del packets[:10]
             tx_buffer_for_path = transmission_buffer[timeslot_idx][path_idx]
             socket_for_path, delay = inter_packet_delays[path_idx]
+            # burst count is 10, but the inter packet delay is for 10 packets so that should be fine. 
             for _ in range(burst_count):
+                # tx_buffer_for_path should have length one since there is only one flow.
                 for packet in tx_buffer_for_path:
-                    socket_for_path.sendto(build_data_to_transmit_for_packet(packet),
-                            (packet.destination_address, packet.destination_port))
+                    if packet.count > 0:
+                        socket_for_path.sendto(build_data_to_transmit_for_packet(packet),
+                                (packet.destination_address, packet.destination_port))
 
             for packet in tx_buffer_for_path:
                 packet.count -= burst_count
@@ -490,6 +502,8 @@ def transmit_request_data( sockets
             # it probably makes sense to add more fields to the Packet type and track the number
             # of packets sent that using the transmission buffer.
             update_request_statistics(tx_buffer_for_path, path_idx, burst_count)
+            inter_packet_delays[path_idx] = (inter_packet_delays[path_idx][0],
+                    inter_packet_delay_list[path_idx])
 
         t_offset = max(0.0, time.perf_counter() - loop_start)
         wait_time = min(inter_packet_delays.values(), key=op.itemgetter(1))[1] - t_offset
@@ -508,11 +522,13 @@ def build_data_to_transmit_for_packet(packet):
     |                            Payload                            |
     |                                                               |
     +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+    Didn't bother putting anything into network order, actually not sure what the point of 
+    that is anymore. 
     """
     DATA_STR[0] = 0xff & packet.request_id
     DATA_STR[1] = (0xff00 & packet.request_id) >> 8
-    DATA_STR[2] = 0xff & packet.request_id
-    DATA_STR[3] = (0xff00 & packet.request_id) >> 8
+    DATA_STR[2] = 0xff & packet.timeslot_id
+    DATA_STR[3] = (0xff00 & packet.timeslot_id) >> 8
     return DATA_STR
 
 def update_request_statistics(packets, path_idx, burst_count):
@@ -546,13 +562,15 @@ def configure_logging():
 def main():
     global flow_params
     global src_port
+    global OPERATION_MODE
     flow_params = get_args()
     if type(flow_params[0]) == BulkTransferRequest:
-        pp.pprint(flow_params)
+        OPERATION_MODE = TrafficModels.REQUEST_BASED
         if any(type(fp) != BulkTransferRequest for fp in flow_params.values()):
             error("Can't transmit bulk transfer requests along with other flow types.")
             exit()
         do_request_transmission(flow_params)
+        handle_sig_int(None, None)
     else:
         if any(type(fp) == BulkTransferRequest for fp in flow_params.values()):
             exit()

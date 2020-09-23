@@ -23,7 +23,10 @@ def xlabel(phrase):
     plt.xlabel(axis_label_font(phrase), **cfg.AXIS_LABELS)
 
 def ylabel(phrase):
-    plt.ylabel(axis_label_font(phrase))
+    plt.ylabel(axis_label_font(phrase), **cfg.AXIS_LABELS)
+
+def xticks(tick_locations, tick_values):
+    plt.xticks(tick_locations, tick_values)
 
 def legend_font(phrase):
     return huge(phrase)
@@ -73,11 +76,18 @@ def fill_style(idx):
 def save_figure( figure_name
                , num_cols           = 1
                , legend_kwargs      = cfg.LEGEND
+               , grid_type          = "both"
                , **kwargs):
     p = cfg.FIGURE_OUTPUT_PATH.joinpath(figure_name)
     kwargs["bbox_inches"] = "tight"
     plt.tick_params(labelsize=15)
-    plt.grid(**cfg.GRID)
+
+    if grid_type == "both":
+        plt.grid(**cfg.GRID)
+    elif grid_type == "horizontal":
+        plt.gca().yaxis.grid(**cfg.GRID)
+    elif grid_type == "vertical":
+        plt.gca().xaxis.grid(**cdf.GRID)
     if not ("no_legend" in kwargs and kwargs["no_legend"]):
         legend = plt.legend(ncol=num_cols, **legend_kwargs)
     plt.gca().set_axisbelow(True)
@@ -239,7 +249,8 @@ def plot_a_scatter( xs
 
     if err != None:
         # plot_kwargs["err"] = err
-        axis_to_plot_on.errorbar(xs, ys, yerr=err, **plot_kwargs)
+        axis_to_plot_on.errorbar(xs, ys, yerr=err, **plot_kwargs,
+                capsize=4, capthick=2)
     else:
         axis_to_plot_on.plot(xs, ys, **plot_kwargs)
 

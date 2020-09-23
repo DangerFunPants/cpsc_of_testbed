@@ -27,6 +27,24 @@ matplotlib.rcParams["xtick.direction"]      = "in"
 matplotlib.rcParams["ytick.direction"]      = "in"
 matplotlib.rcParams["font.family"]      = "sans-serif"
 
+def get_display_name(the_trial):
+    label_map = { "eb-90"               : "EB90"
+                , "eb-95"               : "EB95"
+                , "eb-99"               : "EB99"
+                , "ts"                  : "BESD"
+                , "avg"                 : "AVG"
+                , "ts-dev-approximate"  : "xBESD"
+                , "avg-k"               : "AVG K"
+                , "avg-k-approximate"   : "xAVG K"
+                , "avg-approximate"     : "xAVG"
+                , "eb-k-approximate"    : "xEB%d"
+                }
+    if the_trial.name == "eb-k-approximate":
+        confidence_interval = the_trial.get_parameter("confidence-interval")
+        return f"xEB{confidence_interval}"
+    else:
+        return label_map[the_trial.name]
+
 def link_tuple_to_util_list(link_utilization_over_time):
     data_for_links = defaultdict(list)
     for link_id_to_util_value in link_utilization_over_time:
@@ -59,11 +77,11 @@ def generate_link_utilization_cdf(parameter_name, parameter_value, trials):
         link_utilizations = sorted([link_throughput / link_capacity 
                 for link_throughput 
                 in mean_network_utilization.values()])
-        helpers.plot_a_cdf(link_utilizations, label=trial.name, idx=idx)
+        helpers.plot_a_cdf(link_utilizations, label=get_display_name(trial), idx=idx)
 
     helpers.xlabel(helpers.axis_label_font("Link Utilization"))
     helpers.ylabel(helpers.axis_label_font(r"$\mathbb{P}\{x < \mathcal{X}$\}"))
-    plt.legend(ncol=len(trials)//2, **cfg.LEGEND)
+    plt.legend(ncol=3, **cfg.LEGEND)
     helpers.save_figure(f"link-utilization-cdf-{parameter_name}-{parameter_value}.pdf", no_legend=True)
 
 def generate_link_utilization_box_plot(parameter_name, parameter_value, trials):
@@ -143,7 +161,7 @@ def generate_per_path_packet_loss_cdf(parameter_name, parameter_value, trials):
                     / total_sender_packets_for_path
             link_loss_rates.append(link_loss_rate)
 
-        helpers.plot_a_cdf(sorted(link_loss_rates), idx=trial_idx, label=the_trial.name)
+        helpers.plot_a_cdf(sorted(link_loss_rates), idx=trial_idx, label=get_display_name(the_trial))
 
     helpers.xlabel(helpers.axis_label_font("Packet Loss Rate"))
     helpers.ylabel(helpers.axis_label_font(r"$\mathbb{P}\{x \leq \mathcal{X}\}$"))
@@ -171,7 +189,7 @@ def generate_mean_throughput_over_time_plot(parameter_name, parameter_value, tri
             total_throughput = sum(util_list[time_idx] for util_list in ys.values())
             throughputs_over_time.append(total_throughput)
         xs = [idx for idx in range(len(next(iter(data_for_links.values()))))]
-        helpers.plot_a_scatter(xs, throughputs_over_time, idx=trial_idx, label=the_trial.name)
+        helpers.plot_a_scatter(xs, throughputs_over_time, idx=trial_idx, label=get_display_name(the_trial))
 
     helpers.xlabel(helpers.axis_label_font("Time"))
     helpers.ylabel(helpers.axis_label_font("Mean throughput (Mi-bps)"))
@@ -198,7 +216,7 @@ def generate_mean_link_utilization_over_time_plot(parameter_name, parameter_valu
         throughputs_over_time = [np.mean([util_list[time_idx] for util_list in ys.values()])
                 for time_idx in range(len(next(iter(data_for_links.values()))))]
         xs = [idx for idx in range(len(next(iter(data_for_links.values()))))]
-        helpers.plot_a_scatter(xs, throughputs_over_time, idx=trial_idx, label=the_trial.name)
+        helpers.plot_a_scatter(xs, throughputs_over_time, idx=trial_idx, label=get_display_name(the_trial))
 
 
     helpers.xlabel(helpers.axis_label_font("Time"))
@@ -212,14 +230,32 @@ def generate_number_of_successful_requests_bar_plot(parameter_name, parameter_va
     """
     bar_width = 0.2
     bar_x_locations = np.arange(0.0, (len(trials)+1)*2*bar_width, 2*bar_width)
-    bar_labels = [the_trial.name.replace("-approximate", "") for the_trial in trials]
+    bar_labels = [get_display_name(the_trial) for the_trial in trials]
     for idx, the_trial in enumerate(trials):
         print(f"generate_number_of_successful_requests_bar_plot: {idx}, {the_trial.name}")
         y_value = the_trial.get_parameter("number-of-successful-flows")
         helpers.plot_a_bar(bar_x_locations[idx], y_value, label=bar_labels[idx], bar_width=bar_width, idx=idx)
     plt.xticks(bar_x_locations, bar_labels)
-    helpers.save_figure(f"successful-requests-bar-{parameter_name}-{parameter_value}.pdf", no_legend=True)
+    helpers.save_figure(f"successful-requests-bar-{parameter_name}-{parameter_value}.pdf", 
+            no_legend=True, grid_type="horizontal")
 
+def generate_success_ratio_bar_plot(parameter_name, parameter_value, trials):
+    """
+    Generate a bar plot showing the number of requests that completed successfully in each of 
+    the trials.
+    """
+    bar_width = 0.2
+    bar_x_locations = np.arange(0.0, (len(trials)+1)*1.5*bar_width, 1.5*bar_width)
+    bar_labels = [get_display_name(the_trial) for the_trial in trials]
+    for idx, the_trial in enumerate(trials):
+        print(f"generate_success_ratio_bar_plot: {idx}, {the_trial.name}")
+        y_value = the_trial.get_parameter("number-of-successful-flows") / \
+                the_trial.get_parameter("number-of-admitted-flows")
+        helpers.plot_a_bar(bar_x_locations[idx], y_value, label=bar_labels[idx], 
+                bar_width=bar_width, idx=idx)
+    plt.xticks(bar_x_locations, bar_labels)
+    helpers.save_figure(f"success-ratio-bar-{parameter_name}-{parameter_value}.pdf", no_legend=True,
+            grid_type="horizontal")
         
 def print_tx_rate_of_sender(trials):
     for trial_idx, the_trial in enumerate(trials):

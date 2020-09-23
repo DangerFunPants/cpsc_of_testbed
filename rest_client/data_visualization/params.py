@@ -39,13 +39,13 @@ TICK_FONT               = { "family"        : "sans serif"
                           }
 
 LEGEND                  = { "shadow"            : False
-                          , "fontsize"          : 10
+                          , "fontsize"          : 15
                           , "handletextpad"     : 0.3
                           , "columnspacing"     : 1.0
                           , "fancybox"          : False
                           , "edgecolor"         : "black"
                           , "loc"               : "upper center"
-                          , "bbox_to_anchor"    : (0.5, 1.15)
+                          , "bbox_to_anchor"    : (0.5, 1.225)
                           # , "size"          : 10
                           }
 

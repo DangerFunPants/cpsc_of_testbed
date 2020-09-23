@@ -36,7 +36,7 @@ def build_n_paths_networkx_graph(number_of_paths):
         graph.add_edge(1, switch_id)
     return graph
 
-EXPECTED_TOPO = build_n_paths_networkx_graph(5)
+EXPECTED_TOPO = build_n_paths_networkx_graph(10)
 
 def build_mininet_test_trial_provider():
 
@@ -341,28 +341,28 @@ def looking_at_trials():
         background_traffic_proportion = background_traffic_total_volume / total_volume
         print(f"Background traffic proportion: {background_traffic_proportion}")
 
-        for flow_idx, flow in enumerate(the_trial.get_parameter("flow-set")):
-            total_volume_for_flow = sum(flow.flow_tx_rate)
-            mean_tx_rate_for_flow = (total_volume_for_flow * 8) / (trial_duration * 2**20)
-            number_of_negative_transmission_rates = \
-                    len([tx_rate for tx_rate in flow.flow_tx_rate if tx_rate < 0])
-            print(f"Mean transmission rate for bulk transfers on path {flow_idx}: {mean_tx_rate_for_flow}",
-                    f"Number of negative transmission rates: {number_of_negative_transmission_rates}")
-        print("")
+        # for flow_idx, flow in enumerate(the_trial.get_parameter("flow-set")):
+        #     total_volume_for_flow = sum(flow.flow_tx_rate)
+        #     mean_tx_rate_for_flow = (total_volume_for_flow * 8) / (trial_duration * 2**20)
+        #     number_of_negative_transmission_rates = \
+        #             len([tx_rate for tx_rate in flow.flow_tx_rate if tx_rate < 0])
+        #     print(f"Mean transmission rate for bulk transfers on path {flow_idx}: {mean_tx_rate_for_flow}",
+        #             f"Number of negative transmission rates: {number_of_negative_transmission_rates}")
+        # print("")
 
-        for flow_idx, flow in enumerate(the_trial.get_parameter("background-traffic-flow-set")):
-            total_volume_for_flow = sum(flow.flow_tx_rate)
-            mean_tx_rate_for_flow = (total_volume_for_flow * 8) / (trial_duration * 2**20)
-            number_of_negative_transmission_rates = \
-                    len([tx_rate for tx_rate in flow.flow_tx_rate if tx_rate < 0])
-            print(f"Mean transmission rate for real time traffic on path {flow_idx}: {mean_tx_rate_for_flow}",
-                    f"Number of negative transmission rates: {number_of_negative_transmission_rates}")
-        print("\n")
+        # for flow_idx, flow in enumerate(the_trial.get_parameter("background-traffic-flow-set")):
+        #     total_volume_for_flow = sum(flow.flow_tx_rate)
+        #     mean_tx_rate_for_flow = (total_volume_for_flow * 8) / (trial_duration * 2**20)
+        #     number_of_negative_transmission_rates = \
+        #             len([tx_rate for tx_rate in flow.flow_tx_rate if tx_rate < 0])
+        #     print(f"Mean transmission rate for real time traffic on path {flow_idx}: {mean_tx_rate_for_flow}",
+        #             f"Number of negative transmission rates: {number_of_negative_transmission_rates}")
+        # print("\n")
 
-        for path_idx, path_capacities in enumerate(the_trial.get_parameter("remaining-capacities")):
-            total_remaining_capacity = sum(path_capacities)
-            mean_remaining_capacity = (total_remaining_capacity * 8) / (trial_duration * 2**20)
-            print(f"Mean remaining capacity on path {path_idx}: {mean_remaining_capacity}")
+        # for path_idx, path_capacities in enumerate(the_trial.get_parameter("remaining-capacities")):
+        #     total_remaining_capacity = sum(path_capacities)
+        #     mean_remaining_capacity = (total_remaining_capacity * 8) / (trial_duration * 2**20)
+        #     print(f"Mean remaining capacity on path {path_idx}: {mean_remaining_capacity}")
 
         print(f"***************************************************************************************************")
 

@@ -30,6 +30,7 @@ def generate_plot_groups(key_function, trial_provider):
         tuiti_graphing.generate_mean_throughput_over_time_plot(*plotter_arg_tuple)
         tuiti_graphing.generate_mean_link_utilization_over_time_plot(*plotter_arg_tuple)
         tuiti_graphing.generate_number_of_successful_requests_bar_plot(*plotter_arg_tuple)
+        tuiti_graphing.generate_success_ratio_bar_plot(*plotter_arg_tuple)
 
 def tuiti_plots():
     base_repository_path = path.Path(
@@ -44,6 +45,8 @@ def tuiti_plots():
     # TODO: Should do this in a better way, maintain a sorted list as trials are 
     # added rather than sorting it here. 
     trial_provider._trials = sorted(trial_provider._trials)
+    ot_matcher = re.compile(r".*ot.*")
+    trial_provider.remove_all_trials_that_match(lambda t: (ot_matcher.match(t.name) != None) or (t.name == "avg-approximate"))
 
     # This will group trials based on whether the exact or approximate methods were used
     # approx_match = re.compile(r".*approximate.*")

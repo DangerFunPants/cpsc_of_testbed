@@ -12,7 +12,7 @@ kiwisolver==1.2.0
 matplotlib==3.2.2
 networkx==2.4
 numpy==1.18.5
-paramiko==2.7.1
+paramiko==2.10.1
 progressbar2==3.51.3
 pycparser==2.20
 PyNaCl==1.4.0
